@@ -11,19 +11,21 @@
 // qui est ecrit sur disque est toujours la forme normalisee (memes cles,
 // meme indentation) rendue par serializeDocument.
 import { DocumentVersionError, parseDocument, serializeDocument } from '@calque/core'
+import { translateUnknownError } from '../../shared/errors'
 
 export type OpenDocumentResult = { path: string; json: string } | null
 export type SaveDocumentInput = { path: string | null; json: string }
 export type SaveDocumentResult = { path: string } | null
 
-// Decision 4 : jamais une erreur brute du coeur (Zod, ou une exception
-// generique de lecture de fichier) ne remonte telle quelle -- seul le
-// message est relaye (jamais une cause), et DocumentVersionError porte
-// deja la version attendue dans son message francais.
+// Decision 4 : jamais une erreur brute du coeur (dump ZodError, SyntaxError
+// de JSON.parse) ne remonte telle quelle -- DocumentVersionError porte deja
+// la version attendue dans son message francais et est relayee telle
+// quelle ; tout le reste (schema invalide, JSON malforme) passe par la
+// traduction generique partagee (round de correction 1 : Critical, voir
+// src/shared/errors.ts).
 function translateDocumentError(err: unknown): Error {
   if (err instanceof DocumentVersionError) return new Error(err.message)
-  if (err instanceof Error) return new Error(`Fichier .calque invalide : ${err.message}`)
-  return new Error('Fichier .calque invalide ou illisible')
+  return translateUnknownError(err, 'Fichier .calque invalide')
 }
 
 export function createDocumentHandler(deps: {

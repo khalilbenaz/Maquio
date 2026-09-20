@@ -13,13 +13,16 @@ import { dirname, join } from 'node:path'
 import { getExporter } from '@calque/codegen'
 import type { ExporterId, ExportResult } from '@calque/codegen'
 import { DocumentVersionError, parseDocument } from '@calque/core'
+import { translateUnknownError } from '../../shared/errors'
 
 export type ExportOutcome = { directory: string; files: string[]; warnings: string[] } | null
 
+// Round de correction 1 (Critical) : le repli generique passe desormais par
+// la traduction partagee (src/shared/errors.ts), qui reconnait ZodError
+// (schema du document invalide) et ne rend jamais son dump JSON brut.
 function translateExportError(err: unknown): Error {
   if (err instanceof DocumentVersionError) return new Error(err.message)
-  if (err instanceof Error) return new Error(`Export impossible : ${err.message}`)
-  return new Error('Export impossible : erreur inconnue')
+  return translateUnknownError(err, 'Export impossible')
 }
 
 export function createExportHandler(deps: {

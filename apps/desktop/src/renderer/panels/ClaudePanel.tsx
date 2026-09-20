@@ -13,10 +13,11 @@
 // silence ou d'ecraser du travail recent -- avec un bouton pour relancer
 // la demande a partir du document a jour.
 import { useEffect, useState } from 'react'
-import { parseDocument, serializeDocument } from '@calque/core'
+import { DocumentVersionError, parseDocument, serializeDocument } from '@calque/core'
 import type { CalqueDocument, Command } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import type { CalqueApi } from '../../shared/api'
+import { translateUnknownError } from '../../shared/errors'
 
 type Statut = 'idle' | 'loading' | 'done' | 'error' | 'perime'
 
@@ -71,23 +72,37 @@ export function ClaudePanel({ api }: { api: CalqueApi }) {
     setErreur('')
     setDerniereInstruction(instructionEnvoyee)
 
+    // Round de correction 1 (Critical) : deux try/catch distincts, pas un
+    // seul. L'appel askClaude() est deja traduit cote main (voir
+    // claudeHandlers.ts) -- son message est relaye tel quel, jamais
+    // reprefixe. Les etapes locales qui suivent (JSON.parse, parseDocument)
+    // peuvent en revanche lever un SyntaxError ou un ZodError brut : elles
+    // passent par la traduction generique partagee, qui ne rend jamais de
+    // dump technique (voir src/shared/errors.ts).
+    let resultat: { patchJson: string; documentJson: string }
     try {
-      const resultat = await api.askClaude({
+      resultat = await api.askClaude({
         instruction: instructionEnvoyee,
         json: serializeDocument(documentAvantEnvoi),
         selectionIds: selection,
         pageId,
       })
+    } catch (err) {
+      setErreur(err instanceof Error ? err.message : String(err))
+      setStatut('error')
+      return
+    }
 
-      // Decision 8 : le document a-t-il change pendant l'attente ?
-      // editorStore remplace toujours `document` par une nouvelle
-      // reference a chaque mutation (execute/undo/redo/load), une simple
-      // comparaison de reference suffit donc a detecter tout ecart.
-      if (useEditorStore.getState().document !== documentAvantEnvoi) {
-        setStatut('perime')
-        return
-      }
+    // Decision 8 : le document a-t-il change pendant l'attente ?
+    // editorStore remplace toujours `document` par une nouvelle reference
+    // a chaque mutation (execute/undo/redo/load), une simple comparaison
+    // de reference suffit donc a detecter tout ecart.
+    if (useEditorStore.getState().document !== documentAvantEnvoi) {
+      setStatut('perime')
+      return
+    }
 
+    try {
       const patch = JSON.parse(resultat.patchJson) as { summary: string }
       const documentSuivant = parseDocument(resultat.documentJson)
       const commande = commandeRemplacementDocument(patch.summary, documentAvantEnvoi, documentSuivant)
@@ -95,7 +110,9 @@ export function ClaudePanel({ api }: { api: CalqueApi }) {
       setResume(patch.summary)
       setStatut('done')
     } catch (err) {
-      setErreur(err instanceof Error ? err.message : String(err))
+      const erreurTraduite =
+        err instanceof DocumentVersionError ? new Error(err.message) : translateUnknownError(err, 'Reponse de Claude Code invalide')
+      setErreur(erreurTraduite.message)
       setStatut('error')
     }
   }

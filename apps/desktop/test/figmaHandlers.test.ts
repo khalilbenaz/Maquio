@@ -85,6 +85,28 @@ describe('import Figma', () => {
 
     await expect(handler({ source: 'file' })).rejects.toThrow(/invalide/i)
   })
+
+  // Round de correction 1 (Minor) : une erreur deja nommee et en francais
+  // (FigmaFileInvalidError) ne doit pas se retrouver reprefixee par le
+  // repli generique ("Import Figma impossible : Fichier Figma invalide :
+  // ..."), ce qui produisait un double prefixe avant correction.
+  it('fichier local syntaxiquement valide mais de forme invalide : message francais sans double prefixe', async () => {
+    const handler = createFigmaHandler({
+      client: null,
+      chooseFile: async () => '/tmp/fichier.json',
+      readFile: async () => JSON.stringify({ pasUnFichierFigma: true }),
+    })
+
+    let messageErreur = ''
+    try {
+      await handler({ source: 'file' })
+      throw new Error('aurait du lever')
+    } catch (err) {
+      messageErreur = (err as Error).message
+    }
+    expect(messageErreur).toBe('Fichier Figma invalide : champ "document" manquant')
+    expect(messageErreur).not.toContain('Import Figma impossible : Fichier Figma invalide')
+  })
 })
 
 describe('reglages Figma (jeton)', () => {
