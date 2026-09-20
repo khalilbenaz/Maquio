@@ -17,14 +17,18 @@
     "@calque/core": "*",
     "@calque/figma": "*",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "electron": "^44.4.3",
     "electron-builder": "^26.15.3",
+    "jsdom": "^29.1.1",
     "vite": "^8.3.0"
   }
 }

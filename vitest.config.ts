@@ -11,5 +11,12 @@ export default defineConfig({
       'apps/**/*.test.ts',
       'apps/**/*.test.tsx',
     ],
+    // Les paquets du coeur (packages/**) restent testes sous Node : c'est ce
+    // qui prouve qu'ils n'ont pas besoin d'un DOM (Tache 15, decision du
+    // brief). Seuls les tests de apps/** (le renderer Electron, qui a
+    // reellement besoin du DOM pour son canevas React) tournent sous jsdom.
+    // Un environnement jsdom global aurait masque cette garantie.
+    environmentMatchGlobs: [['apps/**', 'jsdom']],
+    setupFiles: ['apps/desktop/test/setup.ts'],
   },
 })

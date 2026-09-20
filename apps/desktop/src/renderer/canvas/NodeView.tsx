@@ -1,0 +1,57 @@
+// Rendu DOM absolu d'un seul noeud (decision 5). Un NodeView par noeud
+// VISIBLE de la page (les noeuds invisibles ne sont pas dans la liste
+// aplatie que Canvas lui transmet, voir Canvas.tsx). Les noeuds verrouilles
+// sont rendus mais recoivent `pointer-events: none` : un clic les traverse
+// jusqu'a ce qu'il y a en dessous, ce qui reproduit sans code supplementaire
+// la regle du modele "hitTest ignore les noeuds verrouilles et leurs
+// descendants" (aucun de leurs descendants ne peut recevoir de clic non
+// plus, puisqu'ils sont visuellement et logiquement a l'interieur).
+import type { Node as CalqueNode, Rect } from '@calque/core'
+import { useEditorStore } from '../state/editorStore'
+import { resolvePreviewAbsoluteFrame, useNodeInteraction } from './useDragInteraction'
+
+type Props = {
+  node: CalqueNode
+  nodes: CalqueNode[]
+}
+
+function colorToCss(c: { r: number; g: number; b: number; a: number }): string {
+  return `rgba(${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}, ${c.a})`
+}
+
+function backgroundOf(node: CalqueNode): string | undefined {
+  if (node.type === 'frame' || node.type === 'rect' || node.type === 'ellipse') {
+    const fill = node.fills.find((f) => f.type === 'solid')
+    if (fill && fill.type === 'solid') return colorToCss(fill.color)
+  }
+  return undefined
+}
+
+export function NodeView({ node, nodes }: Props) {
+  const dragPreview = useEditorStore((s) => s.dragPreview)
+  const onPointerDown = useNodeInteraction(node.id)
+  const abs: Rect = resolvePreviewAbsoluteFrame(nodes, node.id, dragPreview)
+
+  return (
+    <div
+      data-testid={`node-${node.id}`}
+      onPointerDown={node.locked ? undefined : onPointerDown}
+      style={{
+        position: 'absolute',
+        left: abs.x,
+        top: abs.y,
+        width: abs.w,
+        height: abs.h,
+        transform: node.rotation !== 0 ? `rotate(${node.rotation}deg)` : undefined,
+        opacity: node.opacity,
+        pointerEvents: node.locked ? 'none' : 'auto',
+        background: backgroundOf(node),
+        borderRadius: node.type === 'ellipse' ? '50%' : node.type === 'rect' || node.type === 'frame' ? node.cornerRadius : undefined,
+        boxSizing: 'border-box',
+        userSelect: 'none',
+      }}
+    >
+      {node.type === 'text' ? node.characters : null}
+    </div>
+  )
+}
