@@ -14,8 +14,8 @@
 // dans packages/core/src/commands/edits.ts pour NodePatch. On ne la
 // reinvente pas ici.
 import { z } from 'zod'
-import { nodeSchema } from '@calque/core'
-import type { Color, DesignTokens, Node, NodePatch, TextStyle } from '@calque/core'
+import { colorSchema, nodeSchema, textStyleSchema } from '@calque/core'
+import type { DesignTokens, Node, NodePatch } from '@calque/core'
 
 export class InvalidPatchError extends Error {
   constructor(message: string) {
@@ -77,37 +77,15 @@ const moveNodeOpSchema = z
   })
   .strict()
 
-// packages/core n'exporte que nodeSchema/documentSchema (pas les schemas
-// internes de Color/TextStyle) : ces deux petits schemas sont donc
-// dupliques ici, seulement pour typer et valider "tokens". Ce n'est pas le
-// mecanisme de patch de noeud (celui-la reste dans updateNodeCommand, on ne
-// le reinvente pas) ; setTokensCommand lui-meme ne validant rien (edits.ts),
-// cette validation est une garantie EN PLUS, pas un doublon.
-const colorPatchSchema = z
-  .object({
-    r: z.number().min(0).max(1),
-    g: z.number().min(0).max(1),
-    b: z.number().min(0).max(1),
-    a: z.number().min(0).max(1),
-  })
-  .strict() satisfies z.ZodType<Color>
-
-const textStylePatchSchema = z
-  .object({
-    fontFamily: z.string(),
-    fontSize: z.number().min(0),
-    fontWeight: z.number(),
-    lineHeight: z.number().min(0),
-    letterSpacing: z.number(),
-    color: colorPatchSchema,
-    align: z.union([z.literal('left'), z.literal('center'), z.literal('right')]),
-  })
-  .strict() satisfies z.ZodType<TextStyle>
-
+// Round de correction 1 : colorSchema et textStyleSchema sont desormais
+// exportes par packages/core (Tache 12/13, meme raisonnement que
+// nodeSchema) - on les reutilise ici tels quels plutot que d'en dupliquer
+// les bornes, qui deriveraient sinon du cœur et laisseraient passer dans un
+// patch ce que le modele refuse partout ailleurs.
 const tokensPatchSchema: z.ZodType<Partial<DesignTokens>> = z
   .object({
-    colors: z.record(z.string(), colorPatchSchema).optional(),
-    typography: z.record(z.string(), textStylePatchSchema).optional(),
+    colors: z.record(z.string(), colorSchema).optional(),
+    typography: z.record(z.string(), textStyleSchema).optional(),
     spacing: z.record(z.string(), z.number()).optional(),
   })
   .strict()
