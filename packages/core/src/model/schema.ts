@@ -61,23 +61,31 @@ const fillSchema: z.ZodType<Fill> = z.discriminatedUnion('type', [
   z.object({ type: z.literal('none') }).strict(),
 ])
 
+// width: bornee a 0..Infinity (Round de correction 1, Tache 10) : un trait
+// n'a pas de sens avec une epaisseur negative. Ce n'etait pas borne jusqu'ici
+// faute de frontiere reelle qui aurait pu laisser passer une telle valeur ;
+// l'import Figma (packages/figma) en est desormais une.
 const strokeSchema: z.ZodType<Stroke> = z
   .object({
     color: colorSchema,
-    width: z.number(),
+    width: z.number().min(0),
   })
   .strict()
 
+// gap et padding.* : bornes a 0..Infinity (Round de correction 1, Tache 10)
+// pour la meme raison que Rect.w/h — un espacement ou une marge negatifs
+// n'ont pas de sens dans ce modele et ne se decouvriraient sinon qu'en lisant
+// un chevauchement silencieux dans l'UI ou dans du code genere.
 const layoutSchema: z.ZodType<Layout> = z
   .object({
     mode: z.union([z.literal('absolute'), z.literal('row'), z.literal('column')]),
-    gap: z.number(),
+    gap: z.number().min(0),
     padding: z
       .object({
-        top: z.number(),
-        right: z.number(),
-        bottom: z.number(),
-        left: z.number(),
+        top: z.number().min(0),
+        right: z.number().min(0),
+        bottom: z.number().min(0),
+        left: z.number().min(0),
       })
       .strict(),
     alignMain: z.union([
@@ -90,12 +98,17 @@ const layoutSchema: z.ZodType<Layout> = z
   })
   .strict()
 
+// fontSize et lineHeight : bornes a 0..Infinity (Round de correction 1,
+// Tache 10), meme raisonnement que gap/padding/cornerRadius. letterSpacing
+// reste volontairement non borne : un crenage negatif (lettres rapprochees)
+// est un usage typographique legitime, contrairement a une taille de police
+// ou un interligne negatifs qui n'ont pas de sens.
 const textStyleSchema: z.ZodType<TextStyle> = z
   .object({
     fontFamily: z.string(),
-    fontSize: z.number(),
+    fontSize: z.number().min(0),
     fontWeight: z.number(),
-    lineHeight: z.number(),
+    lineHeight: z.number().min(0),
     letterSpacing: z.number(),
     color: colorSchema,
     align: z.union([z.literal('left'), z.literal('center'), z.literal('right')]),
@@ -128,7 +141,10 @@ const frameNodeSchema = z
     layout: layoutSchema,
     fills: z.array(fillSchema),
     strokes: z.array(strokeSchema),
-    cornerRadius: z.number(),
+    // Bornee a 0..Infinity (Round de correction 1, Tache 10) : un rayon
+    // d'arrondi negatif n'a pas de sens et ne se decouvrirait sinon qu'en
+    // lisant un `BorderRadius.circular(-8)` dans du code genere.
+    cornerRadius: z.number().min(0),
     clipsContent: z.boolean(),
     children: z.lazy(() => z.array(nodeSchema)),
   })
@@ -149,7 +165,8 @@ const rectNodeSchema = z
     type: z.literal('rect'),
     fills: z.array(fillSchema),
     strokes: z.array(strokeSchema),
-    cornerRadius: z.number(),
+    // Meme borne que FrameNode.cornerRadius, meme raison.
+    cornerRadius: z.number().min(0),
   })
   .strict() satisfies z.ZodType<RectNode>
 

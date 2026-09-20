@@ -651,3 +651,172 @@ describe('deduplication des avertissements (Minor 2, round 1)', () => {
     expect(justified[0]!.nodeId).toBe('t1')
   })
 })
+
+// Round de correction 1 (deuxieme ruling) : gap, padding.*, cornerRadius
+// (frame et rect), Stroke.width et TextStyle.fontSize/lineHeight sont
+// desormais bornes a 0..Infinity dans nodeSchema (packages/core). Un cas
+// hostile par borne, avec l'avertissement correspondant citant la valeur
+// d'origine. letterSpacing reste volontairement libre (verifie separement).
+describe('nouvelles bornes du modele (gap, padding, cornerRadius, strokeWidth, fontSize, lineHeight)', () => {
+  it('un gap negatif est ramene a 0 avec avertissement citant la valeur d origine', () => {
+    const { document, report } = figmaToDocument(
+      wrapAsFile({
+        id: 'b1',
+        name: 'Root',
+        type: 'FRAME',
+        absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 100 },
+        layoutMode: 'VERTICAL',
+        itemSpacing: -16,
+        children: [],
+      }),
+    )
+    expect(() => documentSchema.parse(document)).not.toThrow()
+    const node = document.pages[0]!.nodes[0]! as { layout: { gap: number } }
+    expect(node.layout.gap).toBe(0)
+    expect(report.warnings.some((w) => w.nodeId === 'b1' && /itemSpacing/.test(w.reason) && /-16/.test(w.reason))).toBe(
+      true,
+    )
+  })
+
+  it('chaque cote de padding negatif est ramene a 0 avec avertissement citant la valeur d origine', () => {
+    const { document, report } = figmaToDocument(
+      wrapAsFile({
+        id: 'b2',
+        name: 'Root',
+        type: 'FRAME',
+        absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 100 },
+        layoutMode: 'VERTICAL',
+        paddingTop: -1,
+        paddingRight: -2,
+        paddingBottom: -3,
+        paddingLeft: -4,
+        children: [],
+      }),
+    )
+    expect(() => documentSchema.parse(document)).not.toThrow()
+    const node = document.pages[0]!.nodes[0]! as { layout: { padding: { top: number; right: number; bottom: number; left: number } } }
+    expect(node.layout.padding).toEqual({ top: 0, right: 0, bottom: 0, left: 0 })
+    for (const [property, value] of [
+      ['paddingTop', '-1'],
+      ['paddingRight', '-2'],
+      ['paddingBottom', '-3'],
+      ['paddingLeft', '-4'],
+    ]) {
+      expect(
+        report.warnings.some((w) => w.nodeId === 'b2' && w.reason.includes(property!) && w.reason.includes(value!)),
+      ).toBe(true)
+    }
+  })
+
+  it('un cornerRadius negatif sur une frame est ramene a 0 avec avertissement', () => {
+    const { document, report } = figmaToDocument(
+      wrapAsFile({
+        id: 'b3',
+        name: 'Root',
+        type: 'FRAME',
+        absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 100 },
+        cornerRadius: -8,
+        children: [],
+      }),
+    )
+    expect(() => documentSchema.parse(document)).not.toThrow()
+    const node = document.pages[0]!.nodes[0]! as { cornerRadius: number }
+    expect(node.cornerRadius).toBe(0)
+    expect(report.warnings.some((w) => w.nodeId === 'b3' && /cornerRadius/.test(w.reason) && /-8/.test(w.reason))).toBe(
+      true,
+    )
+  })
+
+  it('un cornerRadius negatif sur un rect est ramene a 0 avec avertissement', () => {
+    const { document, report } = figmaToDocument(
+      wrapAsFile({
+        id: 'b4',
+        name: 'Rect',
+        type: 'RECTANGLE',
+        absoluteBoundingBox: { x: 0, y: 0, width: 10, height: 10 },
+        cornerRadius: -5,
+      }),
+    )
+    expect(() => documentSchema.parse(document)).not.toThrow()
+    const node = document.pages[0]!.nodes[0]! as { cornerRadius: number }
+    expect(node.cornerRadius).toBe(0)
+    expect(report.warnings.some((w) => w.nodeId === 'b4' && /cornerRadius/.test(w.reason) && /-5/.test(w.reason))).toBe(
+      true,
+    )
+  })
+
+  it('un strokeWeight negatif est ramene a 0 avec avertissement', () => {
+    const { document, report } = figmaToDocument(
+      wrapAsFile({
+        id: 'b5',
+        name: 'Rect trait',
+        type: 'RECTANGLE',
+        absoluteBoundingBox: { x: 0, y: 0, width: 10, height: 10 },
+        strokeWeight: -2,
+        strokes: [{ type: 'SOLID', color: { r: 0, g: 0, b: 0, a: 1 } }],
+      }),
+    )
+    expect(() => documentSchema.parse(document)).not.toThrow()
+    const node = document.pages[0]!.nodes[0]! as { strokes: { width: number }[] }
+    expect(node.strokes[0]!.width).toBe(0)
+    expect(
+      report.warnings.some((w) => w.nodeId === 'b5' && /strokeWeight/.test(w.reason) && /-2/.test(w.reason)),
+    ).toBe(true)
+  })
+
+  it('un fontSize negatif est ramene a 0 avec avertissement citant la valeur d origine', () => {
+    const { document, report } = figmaToDocument(
+      wrapAsFile({
+        id: 'b6',
+        name: 'Texte',
+        type: 'TEXT',
+        absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 20 },
+        characters: 'Bonjour',
+        style: { fontFamily: 'Inter', fontSize: -16, fontWeight: 400 },
+      }),
+    )
+    expect(() => documentSchema.parse(document)).not.toThrow()
+    const node = document.pages[0]!.nodes[0]! as { style: { fontSize: number } }
+    expect(node.style.fontSize).toBe(0)
+    expect(report.warnings.some((w) => w.nodeId === 'b6' && /fontSize/.test(w.reason) && /-16/.test(w.reason))).toBe(
+      true,
+    )
+  })
+
+  it('un lineHeightPx negatif est ramene a 0 avec avertissement citant la valeur d origine', () => {
+    const { document, report } = figmaToDocument(
+      wrapAsFile({
+        id: 'b7',
+        name: 'Texte',
+        type: 'TEXT',
+        absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 20 },
+        characters: 'Bonjour',
+        style: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeightPx: -24 },
+      }),
+    )
+    expect(() => documentSchema.parse(document)).not.toThrow()
+    const node = document.pages[0]!.nodes[0]! as { style: { lineHeight: number } }
+    expect(node.style.lineHeight).toBe(0)
+    expect(
+      report.warnings.some((w) => w.nodeId === 'b7' && /lineHeightPx/.test(w.reason) && /-24/.test(w.reason)),
+    ).toBe(true)
+  })
+
+  it('un letterSpacing negatif reste accepte sans avertissement (crenage serre, usage legitime)', () => {
+    const { document, report } = figmaToDocument(
+      wrapAsFile({
+        id: 'b8',
+        name: 'Texte',
+        type: 'TEXT',
+        absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 20 },
+        characters: 'Bonjour',
+        style: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, letterSpacing: -0.5 },
+      }),
+    )
+    expect(() => documentSchema.parse(document)).not.toThrow()
+    const node = document.pages[0]!.nodes[0]! as { style: { letterSpacing: number } }
+    expect(node.style.letterSpacing).toBe(-0.5)
+    expect(report.warnings).toEqual([])
+  })
+
+})
