@@ -131,4 +131,55 @@ describe('ProcessClaudeRunner', () => {
     expect((err.cause as string | undefined) ?? '').not.toContain(secret)
     expect(JSON.stringify(err)).not.toContain(secret)
   })
+
+  // Round de correction 1 (Important) : le relecteur a fait fuiter le
+  // prompt en le mettant DANS la sortie du faux spawn - scenario realiste
+  // (arguments trop longs, mauvaise analyse de la ligne de commande, sortie
+  // verbeuse d'une dependance peuvent tous reinjecter `-p <prompt>`), non
+  // couvert par les deux tests precedents qui ne verifiaient que l'absence
+  // de fuite PAR CONSTRUCTION (le constructeur ne recoit jamais le prompt),
+  // pas l'absence de fuite via un contenu qui, lui, le contient reellement.
+  it('retire le prompt de stderr avant de construire ClaudeFailedError, meme si stderr le contient litteralement', async () => {
+    const secret = 'SECRET_UTILISATEUR_A_NE_PAS_VOIR'
+    const spawn = vi.fn(() => ({
+      stdout: flux(''),
+      stderr: flux(`erreur inconnue, argument recu : ${secret}`),
+      exitCode: Promise.resolve(1),
+    }))
+    const r = new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude' })
+
+    let caught: unknown
+    try {
+      await r.run(secret)
+    } catch (e) {
+      caught = e
+    }
+
+    expect(caught).toBeInstanceOf(ClaudeFailedError)
+    const err = caught as ClaudeFailedError
+    expect(err.message).not.toContain(secret)
+    expect(err.stack ?? '').not.toContain(secret)
+    expect(JSON.stringify(err)).not.toContain(secret)
+    // Le reste du message (l'information utile) est preserve.
+    expect(err.message).toContain('erreur inconnue')
+  })
+
+  it('retire le prompt de la sortie avant de construire ClaudeOutputError, meme si elle le contient litteralement', async () => {
+    const secret = 'SECRET_UTILISATEUR_A_NE_PAS_VOIR'
+    const spawn = fauxSpawn(`sortie inexploitable, echo de la commande : ${secret}`)
+    const r = new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude' })
+
+    let caught: unknown
+    try {
+      await r.run(secret)
+    } catch (e) {
+      caught = e
+    }
+
+    expect(caught).toBeInstanceOf(ClaudeOutputError)
+    const err = caught as ClaudeOutputError
+    expect(err.message).not.toContain(secret)
+    expect(err.stack ?? '').not.toContain(secret)
+    expect(JSON.stringify(err)).not.toContain(secret)
+  })
 })

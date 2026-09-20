@@ -47,7 +47,11 @@ const rectSchema: z.ZodType<Rect> = z
 // code par plateforme convertissent directement ces valeurs ; une valeur
 // hors bornes doit etre rejetee ici plutot que de produire du code genere
 // incorrect, loin de sa cause.
-const colorSchema: z.ZodType<Color> = z
+// Exporte (Round de correction 1, Taches 12/13) : packages/ai en a besoin
+// pour valider le champ "tokens" d'un patch Claude Code (setTokens) sans en
+// dupliquer les bornes - une duplication qui deriverait de ce schema
+// laisserait passer dans un patch ce que le modele refuse partout ailleurs.
+export const colorSchema: z.ZodType<Color> = z
   .object({
     r: z.number().min(0).max(1),
     g: z.number().min(0).max(1),
@@ -103,7 +107,8 @@ const layoutSchema: z.ZodType<Layout> = z
 // reste volontairement non borne : un crenage negatif (lettres rapprochees)
 // est un usage typographique legitime, contrairement a une taille de police
 // ou un interligne negatifs qui n'ont pas de sens.
-const textStyleSchema: z.ZodType<TextStyle> = z
+// Exporte pour la meme raison que colorSchema ci-dessus.
+export const textStyleSchema: z.ZodType<TextStyle> = z
   .object({
     fontFamily: z.string(),
     fontSize: z.number().min(0),
