@@ -1,0 +1,80 @@
+/* Barre d outils (Tache 16). Sobre et sombre par defaut ; les comportements
+   sont ce qui est teste, pas le style. */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 10px;
+  background: #17181a;
+  color: #e4e4e7;
+  border-bottom: 1px solid #2f3033;
+  font-size: 13px;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.toolbar-button {
+  background: transparent;
+  border: 1px solid transparent;
+  color: inherit;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.toolbar-button:hover:not(:disabled) {
+  background: #2a2b2f;
+}
+
+.toolbar-button-active {
+  background: #2b3f6f;
+  border-color: #2b6fff;
+}
+
+.toolbar-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.toolbar-export {
+  position: relative;
+}
+
+.toolbar-export-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  background: #1e1f22;
+  border: 1px solid #2f3033;
+  border-radius: 4px;
+  padding: 4px;
+  min-width: 180px;
+  z-index: 10;
+}
+
+.toolbar-export-item {
+  background: transparent;
+  border: none;
+  color: inherit;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font: inherit;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.toolbar-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #9a9aa2;
+}

@@ -1,0 +1,85 @@
+/* Inspecteur (Tache 16). Style sobre, sombre par defaut ; les comportements
+   sont ce qui est teste, pas le style. */
+
+.inspector-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  height: 100%;
+  overflow-y: auto;
+  background: #1e1f22;
+  color: #e4e4e7;
+  border-left: 1px solid #2f3033;
+  font-size: 13px;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.inspector-empty {
+  color: #9a9aa2;
+  padding: 8px 4px;
+}
+
+.inspector-section {
+  border-bottom: 1px solid #2f3033;
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+}
+
+.inspector-section h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9a9aa2;
+  margin: 4px 0 6px;
+}
+
+.inspector-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.inspector-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.inspector-field-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.inspector-field-label {
+  color: #b6b6bd;
+}
+
+.inspector-input {
+  background: #2a2b2f;
+  border: 1px solid #3a3b40;
+  color: #e4e4e7;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font: inherit;
+}
+
+.inspector-input:focus {
+  outline: 1px solid #2b6fff;
+}
+
+.inspector-input-invalid {
+  border-color: #ff5b5b;
+  outline: 1px solid #ff5b5b;
+}
+
+.inspector-color {
+  width: 100%;
+  height: 24px;
+  background: transparent;
+  border: 1px solid #3a3b40;
+  border-radius: 4px;
+  padding: 0;
+}
