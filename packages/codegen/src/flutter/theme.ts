@@ -4,8 +4,21 @@
 import type { DesignTokens } from '@calque/core'
 import { buildTokenIdentifiers } from '../shared/token-identifiers'
 import type { ExportedFile } from '../types'
-import { type Arg, attach, call, lit } from './dart-writer'
+import { type Arg, attach, call, collapseShortCalls, lit } from './dart-writer'
 import { colorExpr, colorHex, fontWeightExpr, formatNumber } from './dart-utils'
+
+// Correction Important 3 (re-revue) : une ligne blanche entre le
+// constructeur prive et un corps de classe VIDE (categorie de tokens sans
+// entree, ex. `tokens.spacing` -- jamais alimentee par le traducteur
+// Figma, donc le cas courant sur tout document importe) est une ligne
+// blanche parasite avant `}` que `dart format` retire. Ne l'ajoute que
+// lorsqu'il y a effectivement un ou plusieurs membres a en separer.
+function classBody(className: string, memberLines: string[]): string[] {
+  const lines = [`class ${className} {`, `  ${className}._();`]
+  if (memberLines.length > 0) lines.push('', ...memberLines)
+  lines.push('}')
+  return lines
+}
 
 // Correction Critical 3 : `name` est le nom BRUT d'un token ("brand-
 // primary-500"), pas forcement un identifiant Dart valide -- `static const
@@ -73,29 +86,17 @@ export function generateThemeFile(tokens: DesignTokens): ExportedFile {
     `import 'package:flutter/material.dart';`,
     '',
     '/// Couleurs du design system, generees depuis les tokens Calque.',
-    'class AppColors {',
-    '  AppColors._();',
-    '',
-    ...colorConstantLines(tokens),
-    '}',
+    ...classBody('AppColors', colorConstantLines(tokens)),
     '',
     '/// Espacements du design system, generes depuis les tokens Calque.',
-    'class AppSpacing {',
-    '  AppSpacing._();',
-    '',
-    ...spacingConstantLines(tokens),
-    '}',
+    ...classBody('AppSpacing', spacingConstantLines(tokens)),
     '',
     '/// Styles de texte du design system, generes depuis les tokens Calque.',
-    'class AppTextStyles {',
-    '  AppTextStyles._();',
-    '',
-    ...textStyleLines(tokens),
-    '}',
+    ...classBody('AppTextStyles', textStyleLines(tokens)),
     '',
     ...attach('final ThemeData appTheme = ', call('ThemeData', themeArgs), 0, ';'),
     '',
   ]
 
-  return { path: 'lib/theme.dart', contents: lines.join('\n') }
+  return { path: 'lib/theme.dart', contents: collapseShortCalls(lines).join('\n') }
 }

@@ -43,7 +43,6 @@ import { firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-he
 import { PREVIEW_SUPPORTED_NODE_TYPES, unsupportedNodeWarning } from '../shared/preview-coverage'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
 import {
-  androidDrawableResourceName,
   colorTokenComment,
   composeColorExpr as composeColorExprRaw,
   composeFontWeightExpr,
@@ -233,32 +232,26 @@ function renderImage(node: ImageNode, ctx: RenderContext, depth: number, extraMo
     ]
   }
 
-  // Correction Critical 2 (corollaire) : `painterResource` attend une
-  // ressource `@DrawableRes Int` (`R.drawable.<nom>`), jamais une
-  // `String` -- `painterResource(kotlinString(node.src))` ne compilait
-  // pas. Le nom de ressource Android valide est derive du chemin ; s'il
-  // ne peut pas l'etre (aucun caractere alphanumerique exploitable), on
-  // avertit plutot que d'emettre un appel qui ne compile pas (le noeud
-  // n'est alors pas rendu, comme pour tout autre defaut d'emission dans
-  // ce generateur).
-  const resourceName = androidDrawableResourceName(node.src)
-  if (resourceName === null) {
-    ctx.warnings.push(
-      `image non exportee par l export compose (apercu) : impossible de deriver un nom de ressource Android valide depuis "${node.src}" (noeud ${node.id})`,
-    )
-    return null
-  }
-
-  ctx.imports.add('androidx.compose.foundation.Image')
-  ctx.imports.add('androidx.compose.ui.res.painterResource')
-  return [
-    `${pad(depth)}Image(`,
-    `${pad(depth + 1)}painter = painterResource(R.drawable.${resourceName}),`,
-    `${pad(depth + 1)}contentDescription = null,`,
-    `${pad(depth + 1)}contentScale = ${fitToContentScale(node.fit)},`,
-    ...modifierLines,
-    `${pad(depth)})`,
-  ]
+  // Correction Critical 2 (corollaire, re-corrige apres re-revue) :
+  // `painterResource` attend une ressource `@DrawableRes Int`
+  // (`R.drawable.<nom>`), jamais une `String` -- `painterResource(
+  // kotlinString(node.src))` ne compilait pas. Un premier correctif
+  // emettait `R.drawable.<nom derive du chemin>`, mais `R` n'est JAMAIS
+  // importe par ce fichier (son en-tete ne contient que `package screens`
+  // et des `import androidx.*` : aucun nom de paquet applicatif n'est
+  // connu de ce generateur) -- on avait remplace un appel qui ne compile
+  // pas par un symbole non resolu. Tant que ce nom de paquet n'est pas
+  // connu, toute image LOCALE (contrairement a une URL distante, qui ne
+  // passe jamais par `R`) est signalee plutot qu'emise : le noeud n'est
+  // pas rendu, comme pour tout autre defaut d'emission dans ce
+  // generateur. Couvert par un test avec `src` non vide (ex.
+  // 'assets/Icon@2x.png') : le cas `src: ''` (systematique pour tout
+  // espace reserve `image` importe de Figma) ne suffit pas a lui seul a
+  // prouver que CE chemin est bien atteint.
+  ctx.warnings.push(
+    `image non exportee par l export compose (apercu) : ressource locale "${node.src}" nécessiterait un import R du paquet applicatif, inconnu de ce generateur (noeud ${node.id})`,
+  )
+  return null
 }
 
 function mainArrangementExpr(

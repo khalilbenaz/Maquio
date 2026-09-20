@@ -39,27 +39,6 @@ export function composeColorExpr(color: Color, _tokens: DesignTokens): string {
 
 // Le FontWeight.* le plus proche parmi les constantes standard de
 // Compose (arrondi au multiple de 100, borne 100..900).
-// Correction Critical 2 (corollaire) : nom de ressource Android valide
-// (`R.drawable.<nom>`) derive d'un chemin/nom de fichier arbitraire --
-// minuscules, chiffres et tirets bas uniquement, commence obligatoirement
-// par une lettre (regle Android, plus stricte qu'un identifiant Kotlin).
-// `null` quand aucun caractere alphanumerique exploitable ne subsiste
-// (chaine vide, ou uniquement des separateurs) : l'appelant avertit plutot
-// que d'emettre une ressource inventee.
-export function androidDrawableResourceName(path: string): string | null {
-  const base = path.split('/').pop() ?? path
-  const withoutExtension = base.replace(/\.[a-zA-Z0-9]+$/, '')
-  let normalized = withoutExtension
-    .toLowerCase()
-    .replace(/[^a-z0-9_]+/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_+|_+$/g, '')
-
-  if (normalized.length === 0) return null
-  if (!/^[a-z]/.test(normalized)) normalized = `img_${normalized}`
-  return normalized
-}
-
 export function composeFontWeightExpr(weight: number): string {
   const clamped = Math.max(100, Math.min(900, Math.round(weight / 100) * 100))
   const table: Record<number, string> = {

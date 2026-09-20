@@ -25,27 +25,10 @@
 // `absolute` implicite, le cas courant d'apres le brief) dont les enfants
 // directs sont un texte ET un espace reserve image (Critical 2 et son
 // corollaire painterResource).
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { figmaToDocument, type FigmaFileResponse } from '@calque/figma'
+import { figmaToDocument } from '@calque/figma'
 import { listExporters, type ExportedFile } from '@calque/codegen'
-
-const FIGMA_PACKAGE_FIXTURES = join(__dirname, '..', '..', 'packages', 'figma', 'test', 'fixtures')
-
-function loadFigmaFixture(path: string): FigmaFileResponse {
-  return JSON.parse(readFileSync(path, 'utf8')) as FigmaFileResponse
-}
-
-const FIXTURES: Array<{ name: string; file: FigmaFileResponse }> = [
-  { name: 'simple-file', file: loadFigmaFixture(join(FIGMA_PACKAGE_FIXTURES, 'simple-file.json')) },
-  { name: 'autolayout-file', file: loadFigmaFixture(join(FIGMA_PACKAGE_FIXTURES, 'autolayout-file.json')) },
-  { name: 'unsupported-file', file: loadFigmaFixture(join(FIGMA_PACKAGE_FIXTURES, 'unsupported-file.json')) },
-  {
-    name: 'realistic-figma-file',
-    file: loadFigmaFixture(join(__dirname, 'fixtures', 'realistic-figma-file.json')),
-  },
-]
+import { FIGMA_FIXTURES as FIXTURES } from './fixtures'
 
 // ---- Verifications structurelles (Critical 1/2/3), par langage cible ----
 //
@@ -129,13 +112,18 @@ function composeProblems(files: ExportedFile[]): string[] {
   for (const file of files) {
     if (!file.path.endsWith('.kt')) continue
     for (const p of composeOrphanModifierChains(file.contents)) problems.push(`${file.path} : ${p}`)
-    if (file.contents.includes('painterResource("') || file.contents.includes("painterResource('")) {
-      problems.push(`${file.path} : painterResource() appele avec une chaine litterale au lieu d un @DrawableRes Int`)
+    // Corollaire Critical 2, re-corrige apres re-revue : `R` n'est jamais
+    // importe par ce generateur (aucun nom de paquet applicatif connu),
+    // donc `painterResource(...)` et `R.drawable.*` ne doivent JAMAIS
+    // apparaitre dans un `.kt` genere -- ni un appel a chaine litterale
+    // (qui ne compile pas, type invalide), ni un `R.drawable.<nom>` (qui
+    // ne compile pas non plus, symbole non resolu). Une image locale doit
+    // toujours se resoudre en avertissement, jamais en code.
+    if (file.contents.includes('painterResource(')) {
+      problems.push(`${file.path} : painterResource() emis alors que R n est jamais importe (symbole non resolu)`)
     }
-    for (const m of file.contents.matchAll(/R\.drawable\.([A-Za-z0-9_$]+)/g)) {
-      if (!/^[a-z][a-z0-9_]*$/.test(m[1]!)) {
-        problems.push(`${file.path} : nom de ressource Android invalide "${m[0]}"`)
-      }
+    if (file.contents.includes('R.drawable')) {
+      problems.push(`${file.path} : reference a R.drawable alors que R n est jamais importe (symbole non resolu)`)
     }
   }
   return problems

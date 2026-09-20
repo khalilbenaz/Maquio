@@ -32,7 +32,7 @@ import type {
 import { layoutPage } from '@calque/core'
 import { firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
-import { type Arg, type Block, attach, call, lit, list } from './dart-writer'
+import { type Arg, type Block, attach, call, collapseShortCalls, lit, list } from './dart-writer'
 import {
   boxFitExpr,
   colorExpr,
@@ -237,16 +237,26 @@ function renderFrame(frame: FrameNode, ctx: RenderContext): Block {
       : layoutWidget
   }
 
-  const decoration = decorationBlock(frame.fills, frame.strokes, frame.cornerRadius, false, ctx.tokens)
+  let decoration = decorationBlock(frame.fills, frame.strokes, frame.cornerRadius, false, ctx.tokens)
+  // Important 2, corrige apres re-revue : `Container` de Flutter refuse
+  // `clipBehavior` sans `decoration` (assert `decoration != null ||
+  // clipBehavior == Clip.none`, container.dart) -- une frame
+  // `clipsContent: true` sans remplissage, contour ni rayon (ex. une
+  // simple frame de mise en page) levait donc a la construction du
+  // widget en mode debug. Une `BoxDecoration()` vide satisfait l'assert
+  // ET decoupe reellement sur les bords rectangulaires du conteneur
+  // (comportement par defaut de `ClipRect` sans forme particuliere) :
+  // `clipsContent` reste honore, pas seulement rendu compilable.
+  if (frame.clipsContent && !decoration) decoration = lit('const BoxDecoration()')
   const containerArgs: Arg[] = [
     { key: 'width', block: lit(formatNumber(frame.frame.w)) },
     { key: 'height', block: lit(formatNumber(frame.frame.h)) },
   ]
   if (decoration) containerArgs.push({ key: 'decoration', block: decoration })
-  // Important 2 : `clipBehavior: Clip.hardEdge` est l'equivalent natif
-  // Flutter de `clipsContent`, trivial a honorer ici (Clip vient de
-  // package:flutter/material.dart, deja importe) -- jamais de decoupe
-  // silencieusement perdue pour une cible qui sait le faire.
+  // `clipBehavior: Clip.hardEdge` est l'equivalent natif Flutter de
+  // `clipsContent`, trivial a honorer ici (Clip vient de package:flutter/
+  // material.dart, deja importe) -- jamais de decoupe silencieusement
+  // perdue pour une cible qui sait le faire.
   if (frame.clipsContent) containerArgs.push({ key: 'clipBehavior', block: lit('Clip.hardEdge') })
   containerArgs.push({ key: 'child', block: content })
 
@@ -327,7 +337,7 @@ function renderPage(page: Page, ctx: RenderContext): ExportedFile {
     '',
   ]
 
-  return { path: `lib/screens/${fileName}.dart`, contents: lines.join('\n') }
+  return { path: `lib/screens/${fileName}.dart`, contents: collapseShortCalls(lines).join('\n') }
 }
 
 function exportFlutter(doc: CalqueDocument, _opts: ExportOptions): ExportResult {

@@ -76,14 +76,18 @@ vérifie désormais que `tsconfig.base.json` ne réintroduit jamais `DOM`.
 | SwiftUI | `swiftui` | aperçu (`preview`) |
 | Jetpack Compose | `compose` | aperçu (`preview`) |
 
-Flutter et React Native couvrent l'ensemble du modèle de document (mises en
-page absolues et automatiques, formes, texte, image, thème issu des
-tokens). SwiftUI et Jetpack Compose partagent la même interface
-`Exporter` et le même arbre parcouru, mais leur couverture se limite aux
-nœuds les plus courants (frame, texte, rectangle, ellipse, image) ; ils
-existent dès la v1 pour que l'interface `Exporter` soit validée par quatre
-implémentations réelles, pas une seule, et sont signalés comme `preview`
-partout où l'interface les propose.
+Flutter et React Native couvrent l'ensemble des **types** de nœud du
+modèle de document (mises en page absolues et automatiques, formes,
+texte, image, thème issu des tokens) — « complet » qualifie cette
+couverture par type de nœud, pas l'absence de toute limite : voir
+« Écarts connus » plus bas pour ce que cette maturité ne garantit pas
+(mots réservés d'un token, image locale sans avertissement). SwiftUI et
+Jetpack Compose partagent la même interface `Exporter` et le même arbre
+parcouru, mais leur couverture se limite aux nœuds les plus courants
+(frame, texte, rectangle, ellipse, image) ; ils existent dès la v1 pour
+que l'interface `Exporter` soit validée par quatre implémentations
+réelles, pas une seule, et sont signalés comme `preview` partout où
+l'interface les propose.
 
 ## Import Figma
 
@@ -191,4 +195,15 @@ vague de correction (coût assumé, à reprendre plus tard) :
   décrit le §7 de la spec ;
 - la première édition d'un nœud réordonne ses clés dans le fichier
   `.calque` : le document reste lisible et valide, mais le premier
-  `git diff` qui suit une édition est bruyant.
+  `git diff` qui suit une édition est bruyant ;
+- la normalisation des noms de token en identifiant (Flutter, React
+  Native) ne traite pas les mots réservés du langage cible : un token
+  nommé `class`, `default` ou `new` produit `static const Color class =
+  ...`, que `dart` ne parse pas ;
+- tout nœud `image` importé de Figma a `src: ''` (aucune URL d'asset
+  n'est résolue par le traducteur), d'où `require('')`,
+  `Image.asset('')` et `Image("")` émis **sans avertissement** par React
+  Native, Flutter et SwiftUI — seul Jetpack Compose avertit (et
+  n'émet rien) pour une image locale, faute de connaître le nom de
+  paquet applicatif nécessaire à `R.drawable`. Préexistant à cette vague
+  de correction, à signaler au relecteur humain.
