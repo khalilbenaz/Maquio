@@ -37,11 +37,18 @@ import type {
   TextNode,
 } from '@calque/core'
 import { layoutPage } from '@calque/core'
-import { toPascalCase } from '../shared/naming'
 import { formatNumber } from '../shared/format-number'
-import { findColorToken } from '../shared/tokens'
+import { toPascalCase } from '../shared/naming'
+import { firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
-import { alignItemsExpr, colorToHex, escapeJsString, fontWeightExpr, justifyContentExpr } from './rn-utils'
+import {
+  alignItemsExpr,
+  colorExpr as colorExprBase,
+  fontWeightExpr,
+  jsString,
+  justifyContentExpr,
+  toCamelCase,
+} from './rn-utils'
 import { generateThemeFile } from './theme'
 
 type StyleProp = [key: string, value: string]
@@ -55,32 +62,15 @@ type RenderContext = {
   usedTheme: boolean
 }
 
-function num(value: number): string {
-  return formatNumber(value)
-}
-
-function jsString(value: string): string {
-  return `'${escapeJsString(value)}'`
-}
-
-function firstSolidFillColor(fills: Fill[]): Color | null {
-  const found = fills.find((f) => f.type === 'solid')
-  return found && found.type === 'solid' ? found.color : null
-}
-
-function firstStroke(strokes: Stroke[]): Stroke | null {
-  return strokes[0] ?? null
-}
-
 // `theme.colors.<nom>` quand la couleur correspond exactement a un token
-// (decision 9 du brief), sinon le litteral hexadecimal `#rrggbbaa`.
+// (decision 9 du brief), sinon le litteral hexadecimal `#rrggbbaa`. Relais
+// vers rn-utils.ts (seule definition de la regle de correspondance) qui se
+// contente de noter, via `ctx.usedTheme`, qu'un import de `theme` sera
+// necessaire dans le fichier genere.
 function colorExpr(color: Color, ctx: RenderContext): string {
-  const token = findColorToken(color, ctx.tokens)
-  if (token !== null) {
+  return colorExprBase(color, ctx.tokens, () => {
     ctx.usedTheme = true
-    return `theme.colors.${token}`
-  }
-  return jsString(colorToHex(color))
+  })
 }
 
 // Proprietes de decoration communes a rect/ellipse/frame : couleur de
@@ -97,9 +87,9 @@ function decorationProps(
   const stroke = firstStroke(strokes)
 
   if (fillColor) props.push(['backgroundColor', colorExpr(fillColor, ctx)])
-  if (cornerRadius !== null && cornerRadius > 0) props.push(['borderRadius', num(cornerRadius)])
+  if (cornerRadius !== null && cornerRadius > 0) props.push(['borderRadius', formatNumber(cornerRadius)])
   if (stroke) {
-    props.push(['borderWidth', num(stroke.width)])
+    props.push(['borderWidth', formatNumber(stroke.width)])
     props.push(['borderColor', colorExpr(stroke.color, ctx)])
   }
   return props
@@ -108,19 +98,19 @@ function decorationProps(
 function paddingProps(padding: { top: number; right: number; bottom: number; left: number }): StyleProp[] {
   const { top, right, bottom, left } = padding
   if (top === 0 && right === 0 && bottom === 0 && left === 0) return []
-  if (top === right && right === bottom && bottom === left) return [['padding', num(top)]]
+  if (top === right && right === bottom && bottom === left) return [['padding', formatNumber(top)]]
   return [
-    ['paddingTop', num(top)],
-    ['paddingRight', num(right)],
-    ['paddingBottom', num(bottom)],
-    ['paddingLeft', num(left)],
+    ['paddingTop', formatNumber(top)],
+    ['paddingRight', formatNumber(right)],
+    ['paddingBottom', formatNumber(bottom)],
+    ['paddingLeft', formatNumber(left)],
   ]
 }
 
 function buildRectStyle(node: RectNode, ctx: RenderContext): StyleProp[] {
   return [
-    ['width', num(node.frame.w)],
-    ['height', num(node.frame.h)],
+    ['width', formatNumber(node.frame.w)],
+    ['height', formatNumber(node.frame.h)],
     ...decorationProps(node.fills, node.strokes, node.cornerRadius, ctx),
   ]
 }
@@ -128,8 +118,8 @@ function buildRectStyle(node: RectNode, ctx: RenderContext): StyleProp[] {
 function buildEllipseStyle(node: EllipseNode, ctx: RenderContext): StyleProp[] {
   const radius = Math.min(node.frame.w, node.frame.h) / 2
   return [
-    ['width', num(node.frame.w)],
-    ['height', num(node.frame.h)],
+    ['width', formatNumber(node.frame.w)],
+    ['height', formatNumber(node.frame.h)],
     ...decorationProps(node.fills, node.strokes, radius, ctx),
   ]
 }
@@ -141,27 +131,27 @@ function buildEllipseStyle(node: EllipseNode, ctx: RenderContext): StyleProp[] {
 function buildLineStyle(node: LineNode, ctx: RenderContext): StyleProp[] {
   const horizontal = node.frame.w >= node.frame.h
   return [
-    ['width', horizontal ? num(node.frame.w) : '1'],
-    ['height', horizontal ? '1' : num(node.frame.h)],
+    ['width', horizontal ? formatNumber(node.frame.w) : '1'],
+    ['height', horizontal ? '1' : formatNumber(node.frame.h)],
     ['backgroundColor', colorExpr(node.stroke.color, ctx)],
   ]
 }
 
 function buildImageStyle(node: ImageNode): StyleProp[] {
   return [
-    ['width', num(node.frame.w)],
-    ['height', num(node.frame.h)],
+    ['width', formatNumber(node.frame.w)],
+    ['height', formatNumber(node.frame.h)],
   ]
 }
 
 function buildTextStyle(node: TextNode, ctx: RenderContext): StyleProp[] {
   const props: StyleProp[] = [
     ['fontFamily', jsString(node.style.fontFamily)],
-    ['fontSize', num(node.style.fontSize)],
+    ['fontSize', formatNumber(node.style.fontSize)],
     ['fontWeight', fontWeightExpr(node.style.fontWeight)],
   ]
-  if (node.style.lineHeight > 0) props.push(['lineHeight', num(node.style.lineHeight)])
-  if (node.style.letterSpacing !== 0) props.push(['letterSpacing', num(node.style.letterSpacing)])
+  if (node.style.lineHeight > 0) props.push(['lineHeight', formatNumber(node.style.lineHeight)])
+  if (node.style.letterSpacing !== 0) props.push(['letterSpacing', formatNumber(node.style.letterSpacing)])
   props.push(['color', colorExpr(node.style.color, ctx)])
   props.push(['textAlign', jsString(node.style.align)])
   return props
@@ -169,8 +159,8 @@ function buildTextStyle(node: TextNode, ctx: RenderContext): StyleProp[] {
 
 function buildFrameStyle(frame: FrameNode, ctx: RenderContext): StyleProp[] {
   const props: StyleProp[] = [
-    ['width', num(frame.frame.w)],
-    ['height', num(frame.frame.h)],
+    ['width', formatNumber(frame.frame.w)],
+    ['height', formatNumber(frame.frame.h)],
     ...decorationProps(frame.fills, frame.strokes, frame.cornerRadius, ctx),
   ]
 
@@ -178,7 +168,7 @@ function buildFrameStyle(frame: FrameNode, ctx: RenderContext): StyleProp[] {
     const isRow = frame.layout.mode === 'row'
     props.push(['flexDirection', jsString(isRow ? 'row' : 'column')])
     if (frame.layout.gap > 0 && frame.layout.alignMain !== 'space-between') {
-      props.push(['gap', num(frame.layout.gap)])
+      props.push(['gap', formatNumber(frame.layout.gap)])
     }
     props.push(...paddingProps(frame.layout.padding))
     props.push(['justifyContent', justifyContentExpr(frame.layout.alignMain)])
@@ -186,10 +176,6 @@ function buildFrameStyle(frame: FrameNode, ctx: RenderContext): StyleProp[] {
   }
 
   return props
-}
-
-function isRemoteUrl(src: string): boolean {
-  return /^https?:\/\//.test(src)
 }
 
 function resizeModeExpr(fit: 'cover' | 'contain' | 'fill'): string {
@@ -253,10 +239,10 @@ function renderNode(
   }
 
   if (absolutePos) {
-    ownProps = [['position', jsString('absolute')], ['left', num(absolutePos.x)], ['top', num(absolutePos.y)], ...ownProps]
+    ownProps = [['position', jsString('absolute')], ['left', formatNumber(absolutePos.x)], ['top', formatNumber(absolutePos.y)], ...ownProps]
   }
-  if (node.opacity < 1) ownProps.push(['opacity', num(node.opacity)])
-  if (node.rotation !== 0) ownProps.push(['transform', `[{ rotate: '${num(node.rotation)}deg' }]`])
+  if (node.opacity < 1) ownProps.push(['opacity', formatNumber(node.opacity)])
+  if (node.rotation !== 0) ownProps.push(['transform', `[{ rotate: '${formatNumber(node.rotation)}deg' }]`])
 
   const styleKey = toCamelCase(node.id)
   ctx.styles.push({ key: styleKey, props: ownProps })
@@ -295,13 +281,6 @@ function renderFrameChildren(frame: FrameNode, ctx: RenderContext, depth: number
     if (rendered) lines.push(...rendered)
   }
   return lines
-}
-
-function toCamelCase(input: string): string {
-  const parts = input.split(/[^a-zA-Z0-9]+/).filter((p) => p.length > 0)
-  if (parts.length === 0) return input
-  const [first, ...rest] = parts
-  return [first!.toLowerCase(), ...rest.map((p) => p[0]!.toUpperCase() + p.slice(1).toLowerCase())].join('')
 }
 
 function formatStyleEntry(entry: StyleEntry): string[] {

@@ -37,7 +37,9 @@ import type {
 } from '@calque/core'
 import { layoutPage } from '@calque/core'
 import { formatNumber } from '../shared/format-number'
+import { pad } from '../shared/indent'
 import { toPascalCase } from '../shared/naming'
+import { firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
 import { PREVIEW_SUPPORTED_NODE_TYPES, unsupportedNodeWarning } from '../shared/preview-coverage'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
 import { colorTokenComment, swiftColorExpr, swiftFontWeightExpr, swiftString } from './swift-utils'
@@ -45,23 +47,6 @@ import { colorTokenComment, swiftColorExpr, swiftFontWeightExpr, swiftString } f
 const EXPORTER_ID = 'swiftui'
 
 type RenderContext = { tokens: DesignTokens; warnings: string[] }
-
-function pad(depth: number): string {
-  return '    '.repeat(depth)
-}
-
-function num(value: number): string {
-  return formatNumber(value)
-}
-
-function firstSolidFillColor(fills: Fill[]): { r: number; g: number; b: number; a: number } | null {
-  const found = fills.find((f) => f.type === 'solid')
-  return found && found.type === 'solid' ? found.color : null
-}
-
-function firstStroke(strokes: Stroke[]): Stroke | null {
-  return strokes[0] ?? null
-}
 
 function alignmentExpr(align: 'start' | 'center' | 'end' | 'stretch', axis: 'horizontal' | 'vertical'): string {
   // SwiftUI n'a pas d'equivalent direct a `stretch` pour l'alignement
@@ -99,12 +84,12 @@ function renderShapeLike(
   if (fillColor) {
     lines.push(`${pad(modDepth)}.fill(${swiftColorExpr(fillColor, ctx.tokens)})${colorTokenComment(fillColor, ctx.tokens)}`)
   }
-  lines.push(`${pad(modDepth)}.frame(width: ${num(w)}, height: ${num(h)})`)
+  lines.push(`${pad(modDepth)}.frame(width: ${formatNumber(w)}, height: ${formatNumber(h)})`)
   if (stroke) {
     lines.push(`${pad(modDepth)}.overlay(`)
     lines.push(`${pad(modDepth + 1)}${shapeExpr}`)
     lines.push(
-      `${pad(modDepth + 2)}.stroke(${swiftColorExpr(stroke.color, ctx.tokens)}, lineWidth: ${num(stroke.width)})${colorTokenComment(stroke.color, ctx.tokens)}`,
+      `${pad(modDepth + 2)}.stroke(${swiftColorExpr(stroke.color, ctx.tokens)}, lineWidth: ${formatNumber(stroke.width)})${colorTokenComment(stroke.color, ctx.tokens)}`,
     )
     lines.push(`${pad(modDepth)})`)
   }
@@ -113,7 +98,7 @@ function renderShapeLike(
 }
 
 function renderRect(node: RectNode, ctx: RenderContext, depth: number, extraMods: string[]): string[] {
-  const shapeExpr = node.cornerRadius > 0 ? `RoundedRectangle(cornerRadius: ${num(node.cornerRadius)})` : 'Rectangle()'
+  const shapeExpr = node.cornerRadius > 0 ? `RoundedRectangle(cornerRadius: ${formatNumber(node.cornerRadius)})` : 'Rectangle()'
   return renderShapeLike(shapeExpr, node.fills, node.strokes, node.frame.w, node.frame.h, ctx, depth, extraMods)
 }
 
@@ -124,7 +109,7 @@ function renderEllipse(node: EllipseNode, ctx: RenderContext, depth: number, ext
 
 function renderText(node: TextNode, ctx: RenderContext, depth: number, extraMods: string[]): string[] {
   const modDepth = depth + 1
-  const fontExpr = `.system(size: ${num(node.style.fontSize)}, weight: ${swiftFontWeightExpr(node.style.fontWeight)})`
+  const fontExpr = `.system(size: ${formatNumber(node.style.fontSize)}, weight: ${swiftFontWeightExpr(node.style.fontWeight)})`
   const lines = [
     `${pad(depth)}Text(${swiftString(node.characters)})`,
     `${pad(modDepth)}.font(${fontExpr})`,
@@ -140,10 +125,6 @@ function fitToAspect(fit: 'cover' | 'contain' | 'fill'): string | null {
   return null
 }
 
-function isRemoteUrl(src: string): boolean {
-  return /^https?:\/\//.test(src)
-}
-
 function renderImage(node: ImageNode, depth: number, extraMods: string[]): string[] {
   const modDepth = depth + 1
   const aspect = fitToAspect(node.fit)
@@ -155,7 +136,7 @@ function renderImage(node: ImageNode, depth: number, extraMods: string[]): strin
       `${pad(depth)}} placeholder: {`,
       `${pad(modDepth)}ProgressView()`,
       `${pad(depth)}}`,
-      `${pad(depth)}.frame(width: ${num(node.frame.w)}, height: ${num(node.frame.h)})`,
+      `${pad(depth)}.frame(width: ${formatNumber(node.frame.w)}, height: ${formatNumber(node.frame.h)})`,
     ]
     for (const mod of extraMods) lines.push(`${pad(depth)}${mod}`)
     return lines
@@ -163,7 +144,7 @@ function renderImage(node: ImageNode, depth: number, extraMods: string[]): strin
 
   const lines = [`${pad(depth)}Image(${swiftString(node.src)})`, `${pad(modDepth)}.resizable()`]
   if (aspect) lines.push(`${pad(modDepth)}.aspectRatio(contentMode: .${aspect})`)
-  lines.push(`${pad(modDepth)}.frame(width: ${num(node.frame.w)}, height: ${num(node.frame.h)})`)
+  lines.push(`${pad(modDepth)}.frame(width: ${formatNumber(node.frame.w)}, height: ${formatNumber(node.frame.h)})`)
   for (const mod of extraMods) lines.push(`${pad(modDepth)}${mod}`)
   return lines
 }
@@ -186,14 +167,14 @@ function renderFrame(frame: FrameNode, ctx: RenderContext, depth: number, extraM
     const widget = isRow ? 'HStack' : 'VStack'
     const axis = isRow ? 'vertical' : 'horizontal'
     const spacing = isSpaceBetween ? 0 : frame.layout.gap
-    header = `${widget}(alignment: ${alignmentExpr(frame.layout.alignCross, axis)}, spacing: ${num(spacing)})`
+    header = `${widget}(alignment: ${alignmentExpr(frame.layout.alignCross, axis)}, spacing: ${formatNumber(spacing)})`
   }
 
   const childLines: string[] = []
   const visibleChildren = frame.children.filter((c) => c.visible)
   visibleChildren.forEach((child, index) => {
     const childExtra = isAbsolute
-      ? [`.offset(x: ${num(child.frame.x)}, y: ${num(child.frame.y)})`, `.frame(width: ${num(child.frame.w)}, height: ${num(child.frame.h)})`]
+      ? [`.offset(x: ${formatNumber(child.frame.x)}, y: ${formatNumber(child.frame.y)})`, `.frame(width: ${formatNumber(child.frame.w)}, height: ${formatNumber(child.frame.h)})`]
       : []
     const rendered = renderNode(child, ctx, depth + 1, childExtra)
     if (rendered) childLines.push(...rendered)
@@ -208,23 +189,23 @@ function renderFrame(frame: FrameNode, ctx: RenderContext, depth: number, extraM
   if (!isAbsolute) {
     const { top, right, bottom, left } = frame.layout.padding
     if (top === right && right === bottom && bottom === left && top > 0) {
-      lines.push(`${pad(depth)}.padding(${num(top)})`)
+      lines.push(`${pad(depth)}.padding(${formatNumber(top)})`)
     } else if (!(top === 0 && right === 0 && bottom === 0 && left === 0)) {
       lines.push(
-        `${pad(depth)}.padding(EdgeInsets(top: ${num(top)}, leading: ${num(left)}, bottom: ${num(bottom)}, trailing: ${num(right)}))`,
+        `${pad(depth)}.padding(EdgeInsets(top: ${formatNumber(top)}, leading: ${formatNumber(left)}, bottom: ${formatNumber(bottom)}, trailing: ${formatNumber(right)}))`,
       )
     }
   }
-  lines.push(`${pad(depth)}.frame(width: ${num(frame.frame.w)}, height: ${num(frame.frame.h)})`)
+  lines.push(`${pad(depth)}.frame(width: ${formatNumber(frame.frame.w)}, height: ${formatNumber(frame.frame.h)})`)
   if (fillColor) {
     lines.push(`${pad(depth)}.background(${swiftColorExpr(fillColor, ctx.tokens)})${colorTokenComment(fillColor, ctx.tokens)}`)
   }
-  if (frame.cornerRadius > 0) lines.push(`${pad(depth)}.cornerRadius(${num(frame.cornerRadius)})`)
+  if (frame.cornerRadius > 0) lines.push(`${pad(depth)}.cornerRadius(${formatNumber(frame.cornerRadius)})`)
   if (stroke) {
     lines.push(`${pad(depth)}.overlay(`)
-    lines.push(`${pad(depth + 1)}RoundedRectangle(cornerRadius: ${num(frame.cornerRadius)})`)
+    lines.push(`${pad(depth + 1)}RoundedRectangle(cornerRadius: ${formatNumber(frame.cornerRadius)})`)
     lines.push(
-      `${pad(depth + 2)}.stroke(${swiftColorExpr(stroke.color, ctx.tokens)}, lineWidth: ${num(stroke.width)})${colorTokenComment(stroke.color, ctx.tokens)}`,
+      `${pad(depth + 2)}.stroke(${swiftColorExpr(stroke.color, ctx.tokens)}, lineWidth: ${formatNumber(stroke.width)})${colorTokenComment(stroke.color, ctx.tokens)}`,
     )
     lines.push(`${pad(depth)})`)
   }

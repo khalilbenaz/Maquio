@@ -1,11 +1,14 @@
 // Utilitaires de generation SwiftUI (Tache 9). SwiftUI et Compose sont en
 // apercu (decision 9 du brief) : les couleurs restent des litteraux (pas
-// de constante de theme genere), mais on ajoute un commentaire `// nom` en
-// fin de ligne quand la couleur correspond exactement a un token du
-// document, pour rester lisible et tracable jusqu'au design system sans
-// avoir a generer un vrai fichier de theme SwiftUI.
+// de constante de theme genere). Le commentaire de tracabilite `// nom`
+// (quand une couleur correspond exactement a un token) est defini une
+// seule fois dans ../shared/color-token-comment.ts, reexporte ici pour ne
+// pas changer les imports de swiftui.ts (round de correction 1, Important
+// 2 du coordinateur : la version precedente dupliquait ce commentaire a
+// l'identique dans kotlin-utils.ts).
 import type { Color, DesignTokens } from '@calque/core'
-import { findColorToken } from '../shared/tokens'
+
+export { colorTokenComment } from '../shared/color-token-comment'
 
 // Echappe une chaine pour l'inserer dans un litteral Swift entoure de
 // guillemets doubles (decision 7 du brief) : antislash et guillemet
@@ -34,15 +37,6 @@ function fixed4(value: number): string {
 // (decision 2 du brief).
 export function swiftColorExpr(color: Color, _tokens: DesignTokens): string {
   return `Color(red: ${fixed4(color.r)}, green: ${fixed4(color.g)}, blue: ${fixed4(color.b)}, opacity: ${fixed4(color.a)})`
-}
-
-// `// nom` si la couleur correspond exactement a un token du document,
-// chaine vide sinon. A ajouter par l'appelant en fin de la ligne complete
-// (jamais au milieu d'un appel), un commentaire Kotlin/Swift s'etendant
-// jusqu'a la fin de la ligne physique.
-export function colorTokenComment(color: Color, tokens: DesignTokens): string {
-  const token = findColorToken(color, tokens)
-  return token !== null ? ` // ${token}` : ''
 }
 
 // Le poids le plus proche parmi les cas de Font.Weight (arrondi au
