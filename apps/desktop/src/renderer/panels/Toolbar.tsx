@@ -1,36 +1,25 @@
-// Barre d outils (Tache 16, decision 1 et 8). Porte les six outils de
-// creation, le zoom, annuler/retablir et les points d entree Figma/export.
+// Barre d outils (Tache 16, decision 1 et 8 ; branchement Tache 17).
+// Porte les six outils de creation, le zoom, annuler/retablir et les
+// points d entree Figma/export.
 //
-// Cibles d export : liste EXPORT_TARGETS ci-dessous, constante locale
-// typee du renderer -- decision du brief : le canal qui exposerait
-// listExporters() de @calque/codegen via le preload n existe pas encore
-// dans CalqueApi (apps/desktop/src/shared/api.ts). Le renderer n importe
-// JAMAIS @calque/codegen (regle testee par ailleurs) ; cette liste sera
-// donc remplacee, a la Tache 17, par un appel a un nouveau canal du
-// preload qui l obtiendra lui-meme de listExporters() cote process
-// principal. En attendant, elle reproduit a l identique (id, label,
-// maturite, ordre) ce que rend listExporters() : flutter et react-native
-// completes, swiftui et compose en apercu.
+// Cibles d export : rendues par api.listExporters() (Tache 17), plutot
+// que par la constante locale de la Tache 16 -- le renderer n importe
+// toujours JAMAIS @calque/codegen (regle testee par ailleurs), il passe
+// desormais par le nouveau canal expose sur CalqueApi
+// (apps/desktop/src/shared/api.ts). L'API est recue en propriete (comme
+// ClaudePanel), jamais via window.calque directement, pour rester
+// testable sans preload.
 //
-// Import Figma et export sont presents mais INERTES a cette etape
-// (decision 8) : le bouton d import est entierement desactive, et chaque
-// cible du menu d export est desactivee -- seul le bouton "Exporter"
-// lui-meme reste actif, pour pouvoir deplier le menu et lire la liste des
-// cibles. La Tache 17 branchera ces deux points d entree sur le preload.
-import { useState } from 'react'
+// Import Figma et export sont maintenant actifs (Tache 17) : le bouton
+// d import ouvre FigmaImportDialog, et chaque cible du menu d export
+// ouvre ExportDialog pre-selectionne sur cette cible.
+import { useEffect, useState } from 'react'
 import { useEditorStore } from '../state/editorStore'
 import type { Tool } from '../state/editorStore'
+import type { CalqueApi, ExporterId, ExportTargetInfo } from '../../shared/api'
+import { FigmaImportDialog } from '../dialogs/FigmaImportDialog'
+import { ExportDialog } from '../dialogs/ExportDialog'
 import './Toolbar.css'
-
-type ExportTargetId = 'flutter' | 'react-native' | 'swiftui' | 'compose'
-type ExportTarget = { id: ExportTargetId; label: string; maturity: 'complete' | 'preview' }
-
-const EXPORT_TARGETS: ExportTarget[] = [
-  { id: 'flutter', label: 'Flutter', maturity: 'complete' },
-  { id: 'react-native', label: 'React Native', maturity: 'complete' },
-  { id: 'swiftui', label: 'SwiftUI', maturity: 'preview' },
-  { id: 'compose', label: 'Jetpack Compose', maturity: 'preview' },
-]
 
 const TOOLS: { id: Tool; label: string; icon: string }[] = [
   { id: 'select', label: 'Selection', icon: '⬜' },
@@ -49,7 +38,7 @@ function clampZoom(z: number): number {
   return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z))
 }
 
-export function Toolbar() {
+export function Toolbar({ api }: { api: CalqueApi }) {
   const tool = useEditorStore((s) => s.tool)
   const setTool = useEditorStore((s) => s.setTool)
   const zoom = useEditorStore((s) => s.zoom)
@@ -68,6 +57,20 @@ export function Toolbar() {
   useEditorStore((s) => s.document)
 
   const [exportOpen, setExportOpen] = useState(false)
+  const [exportTargets, setExportTargets] = useState<ExportTargetInfo[]>([])
+  const [exporterOuvert, setExporterOuvert] = useState<ExporterId | null>(null)
+  const [figmaOuvert, setFigmaOuvert] = useState(false)
+
+  useEffect(() => {
+    if (!exportOpen) return
+    let annule = false
+    api.listExporters().then((targets) => {
+      if (!annule) setExportTargets(targets)
+    })
+    return () => {
+      annule = true
+    }
+  }, [exportOpen, api])
 
   const canUndo = history.canUndo
   const canRedo = history.canRedo
@@ -131,8 +134,7 @@ export function Toolbar() {
           type="button"
           aria-label="Importer depuis Figma"
           className="toolbar-button"
-          disabled
-          title="Sera active a la tache 17 (branchement de l import Figma via le preload)"
+          onClick={() => setFigmaOuvert(true)}
         >
           Importer Figma
         </button>
@@ -149,14 +151,16 @@ export function Toolbar() {
           </button>
           {exportOpen ? (
             <div role="menu" aria-label="Cibles d export" className="toolbar-export-menu">
-              {EXPORT_TARGETS.map((target) => (
+              {exportTargets.map((target) => (
                 <button
                   key={target.id}
                   type="button"
                   role="menuitem"
-                  disabled
                   className="toolbar-export-item"
-                  title="Sera active a la tache 17 (branchement de l export via le preload)"
+                  onClick={() => {
+                    setExporterOuvert(target.id)
+                    setExportOpen(false)
+                  }}
                 >
                   {target.label}{' '}
                   <span className="toolbar-badge">{target.maturity === 'preview' ? 'aperçu' : 'complet'}</span>
@@ -166,6 +170,11 @@ export function Toolbar() {
           ) : null}
         </div>
       </div>
+
+      {figmaOuvert ? <FigmaImportDialog api={api} onClose={() => setFigmaOuvert(false)} /> : null}
+      {exporterOuvert ? (
+        <ExportDialog api={api} exporterId={exporterOuvert} onClose={() => setExporterOuvert(null)} />
+      ) : null}
     </header>
   )
 }

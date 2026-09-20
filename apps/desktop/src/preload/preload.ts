@@ -11,6 +11,7 @@ const api: CalqueApi = {
   saveDocument: (input) => ipcRenderer.invoke('saveDocument', input),
   importFigma: (input) => ipcRenderer.invoke('importFigma', input),
   exportProject: (input) => ipcRenderer.invoke('exportProject', input),
+  listExporters: () => ipcRenderer.invoke('listExporters'),
   askClaude: (input) => ipcRenderer.invoke('askClaude', input),
   claudeAvailable: () => ipcRenderer.invoke('claudeAvailable'),
   getSettings: () => ipcRenderer.invoke('getSettings'),
@@ -26,3 +27,28 @@ if (!memesCles) {
 }
 
 contextBridge.exposeInMainWorld('calque', api)
+
+// Second pont, distinct de `api` ci-dessus (Tache 17, decision 10 du
+// brief) : le menu natif "Fichier" (Ouvrir/Enregistrer/Enregistrer sous)
+// vit cote main et doit pouvoir demander au renderer d'agir -- un simple
+// signal (aucune donnee sensible), jamais l'inverse d'un canal
+// ipcMain.handle. Reste hors de `api`/API_CHANNELS a dessein : ce ne sont
+// pas des canaux invoke/handle, et les meler aurait fait echouer la
+// verification de coherence ci-dessus.
+contextBridge.exposeInMainWorld('calqueMenu', {
+  onOpenRequested: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on('calque:menu-open', listener)
+    return () => ipcRenderer.removeListener('calque:menu-open', listener)
+  },
+  onSaveRequested: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on('calque:menu-save', listener)
+    return () => ipcRenderer.removeListener('calque:menu-save', listener)
+  },
+  onSaveAsRequested: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on('calque:menu-save-as', listener)
+    return () => ipcRenderer.removeListener('calque:menu-save-as', listener)
+  },
+})
