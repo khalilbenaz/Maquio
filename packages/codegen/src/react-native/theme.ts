@@ -5,6 +5,7 @@
 // puisse s'y referer (`colors.black`) sans auto-reference de l'objet
 // litteral `theme`.
 import type { Color, DesignTokens } from '@calque/core'
+import { findColorToken } from '../shared/tokens'
 import type { ExportedFile } from '../types'
 import { colorToHex, fontWeightExpr } from './rn-utils'
 
@@ -27,19 +28,13 @@ function spacingLines(tokens: DesignTokens): string[] {
 }
 
 // `colors.<nom>` quand la couleur correspond exactement a un token,
-// litteral hexadecimal sinon (meme regle que pour le corps de l'ecran).
+// litteral hexadecimal sinon (meme regle que pour le corps de l'ecran) —
+// s'appuie sur `findColorToken` partagee plutot que de reimplementer la
+// comparaison composante par composante (round de correction 1, Important
+// 3 du coordinateur).
 function colorRefExpr(color: Color, tokens: DesignTokens): string {
-  for (const [name, tokenColor] of Object.entries(tokens.colors)) {
-    if (
-      tokenColor.r === color.r &&
-      tokenColor.g === color.g &&
-      tokenColor.b === color.b &&
-      tokenColor.a === color.a
-    ) {
-      return `colors.${name}`
-    }
-  }
-  return `'${colorToHex(color)}'`
+  const token = findColorToken(color, tokens)
+  return token !== null ? `colors.${token}` : `'${colorToHex(color)}'`
 }
 
 function typographyLines(tokens: DesignTokens): string[] {

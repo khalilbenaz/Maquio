@@ -48,10 +48,17 @@ export function colorToHex(color: Color): string {
 
 // Expression TS pour une couleur : la constante de theme quand elle
 // correspond exactement a un token (decision 9 du brief Tache 9), sinon la
-// valeur litterale hexadecimale.
-export function colorExpr(color: Color, tokens: DesignTokens): string {
+// valeur litterale hexadecimale. `onTokenUsed` est appele quand un token a
+// ete utilise, pour que l'appelant (react-native.ts) sache s'il doit
+// importer `theme` dans le fichier genere, sans dupliquer ici la logique
+// de correspondance couleur -> token.
+export function colorExpr(color: Color, tokens: DesignTokens, onTokenUsed?: () => void): string {
   const token = findColorToken(color, tokens)
-  return token !== null ? `theme.colors.${token}` : jsString(colorToHex(color))
+  if (token !== null) {
+    onTokenUsed?.()
+    return `theme.colors.${token}`
+  }
+  return jsString(colorToHex(color))
 }
 
 // '100'..'900' le plus proche (arrondi au multiple de 100, borne comme

@@ -17,7 +17,6 @@
 // stable, sont parcourus).
 import type {
   CalqueDocument,
-  Color,
   DesignTokens,
   EllipseNode,
   Fill,
@@ -31,6 +30,7 @@ import type {
   TextNode,
 } from '@calque/core'
 import { layoutPage } from '@calque/core'
+import { firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
 import { type Arg, type Block, attach, call, lit, list } from './dart-writer'
 import {
@@ -48,15 +48,6 @@ import {
 import { generateThemeFile } from './theme'
 
 type RenderContext = { tokens: DesignTokens; warnings: string[] }
-
-function firstSolidFillColor(fills: Fill[]): Color | null {
-  const found = fills.find((f) => f.type === 'solid')
-  return found && found.type === 'solid' ? found.color : null
-}
-
-function firstStroke(strokes: Stroke[]): Stroke | null {
-  return strokes[0] ?? null
-}
 
 function dartString(value: string): string {
   return `'${escapeDartString(value)}'`
@@ -126,10 +117,6 @@ function renderEllipse(node: EllipseNode, ctx: RenderContext): Block {
   const decoration = decorationBlock(node.fills, node.strokes, null, true, ctx.tokens)
   if (decoration) args.push({ key: 'decoration', block: decoration })
   return call('Container', args)
-}
-
-function isRemoteUrl(src: string): boolean {
-  return /^https?:\/\//.test(src)
 }
 
 function renderImage(node: ImageNode): Block {

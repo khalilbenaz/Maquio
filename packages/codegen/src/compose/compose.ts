@@ -36,7 +36,9 @@ import type {
 } from '@calque/core'
 import { layoutPage } from '@calque/core'
 import { formatNumber } from '../shared/format-number'
+import { pad } from '../shared/indent'
 import { toPascalCase } from '../shared/naming'
+import { firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
 import { PREVIEW_SUPPORTED_NODE_TYPES, unsupportedNodeWarning } from '../shared/preview-coverage'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
 import { colorTokenComment, composeColorExpr as composeColorExprRaw, composeFontWeightExpr, kotlinString } from './kotlin-utils'
@@ -45,16 +47,8 @@ const EXPORTER_ID = 'compose'
 
 type RenderContext = { tokens: DesignTokens; warnings: string[]; imports: Set<string> }
 
-function pad(depth: number): string {
-  return '    '.repeat(depth)
-}
-
-function num(value: number): string {
-  return formatNumber(value)
-}
-
 function dp(value: number): string {
-  return `${num(value)}.dp`
+  return `${formatNumber(value)}.dp`
 }
 
 // Enregistre l'import androidx.compose.ui.graphics.Color des qu'une
@@ -64,15 +58,6 @@ function dp(value: number): string {
 function composeColorExpr(color: { r: number; g: number; b: number; a: number }, tokens: DesignTokens, ctx: RenderContext): string {
   ctx.imports.add('androidx.compose.ui.graphics.Color')
   return composeColorExprRaw(color, tokens)
-}
-
-function firstSolidFillColor(fills: Fill[]): { r: number; g: number; b: number; a: number } | null {
-  const found = fills.find((f) => f.type === 'solid')
-  return found && found.type === 'solid' ? found.color : null
-}
-
-function firstStroke(strokes: Stroke[]): Stroke | null {
-  return strokes[0] ?? null
 }
 
 // Place la virgule finale AVANT le commentaire `// nom` eventuel : un
@@ -174,7 +159,7 @@ function renderText(node: TextNode, ctx: RenderContext, depth: number, extraMods
     `${pad(depth)}Text(`,
     `${pad(depth + 1)}${kotlinString(node.characters)},`,
     `${pad(depth + 1)}style = TextStyle(`,
-    `${pad(depth + 2)}fontSize = ${num(node.style.fontSize)}.sp,`,
+    `${pad(depth + 2)}fontSize = ${formatNumber(node.style.fontSize)}.sp,`,
     `${pad(depth + 2)}fontWeight = ${composeFontWeightExpr(node.style.fontWeight)},`,
     `${pad(depth + 2)}color = ${composeColorExpr(node.style.color, ctx.tokens, ctx)},${colorTokenComment(node.style.color, ctx.tokens)}`,
     `${pad(depth + 1)}),`,
@@ -188,10 +173,6 @@ function fitToContentScale(fit: 'cover' | 'contain' | 'fill'): string {
   if (fit === 'cover') return 'ContentScale.Crop'
   if (fit === 'contain') return 'ContentScale.Fit'
   return 'ContentScale.FillBounds'
-}
-
-function isRemoteUrl(src: string): boolean {
-  return /^https?:\/\//.test(src)
 }
 
 function renderImage(node: ImageNode, ctx: RenderContext, depth: number, extraMods: string[]): string[] {

@@ -1,10 +1,14 @@
 // Utilitaires de generation Jetpack Compose (Tache 9). Comme SwiftUI,
-// Compose reste en apercu (decision 9 du brief) : couleurs litterales,
-// avec un commentaire `// nom` quand la couleur correspond exactement a
-// un token du document.
+// Compose reste en apercu (decision 9 du brief) : couleurs litterales. Le
+// commentaire de tracabilite `// nom` est defini une seule fois dans
+// ../shared/color-token-comment.ts, reexporte ici pour ne pas changer les
+// imports de compose.ts (round de correction 1, Important 2 du
+// coordinateur : la version precedente dupliquait ce commentaire a
+// l'identique dans swift-utils.ts).
 import type { Color, DesignTokens } from '@calque/core'
 import { colorHexARGB } from '../shared/color-hex'
-import { findColorToken } from '../shared/tokens'
+
+export { colorTokenComment } from '../shared/color-token-comment'
 
 // Echappe une chaine pour l'inserer dans un litteral Kotlin a guillemets
 // doubles (decision 7 du brief) : antislash et guillemet double d'abord,
@@ -31,14 +35,6 @@ export function kotlinString(value: string): string {
 // recalcule.
 export function composeColorExpr(color: Color, _tokens: DesignTokens): string {
   return `Color(${colorHexARGB(color)})`
-}
-
-// `// nom` si la couleur correspond exactement a un token du document, a
-// ajouter par l'appelant en fin de ligne complete (jamais au milieu d'un
-// appel Kotlin, ou `//` commenterait le reste de la ligne).
-export function colorTokenComment(color: Color, tokens: DesignTokens): string {
-  const token = findColorToken(color, tokens)
-  return token !== null ? ` // ${token}` : ''
 }
 
 // Le FontWeight.* le plus proche parmi les constantes standard de
