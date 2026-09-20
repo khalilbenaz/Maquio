@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createDocument } from '../model/document'
 import { findNode, findParent, absoluteFrame, NodeNotFoundError, NotAFrameError } from '../tree/tree'
-import { PageNotFoundError, InvalidPatchError, MixedParentsError } from './command'
+import { PageNotFoundError, InvalidPatchError, MixedParentsError, EmptySelectionError } from './command'
 import {
   createNodeCommand,
   deleteNodeCommand,
@@ -223,6 +223,57 @@ describe('groupCommand (point 7)', () => {
     expect(ungrouped.pages[0]!.nodes.map((n) => n.id)).toEqual(['a', 'b'])
     expect(findNode(ungrouped.pages[0]!.nodes, 'a')!.frame).toEqual({ x: 0, y: 0, w: 10, h: 10 })
     expect(findNode(ungrouped.pages[0]!.nodes, 'b')!.frame).toEqual({ x: 20, y: 30, w: 10, h: 10 })
+  })
+})
+
+describe('groupCommand - selection vide vs selection a un seul noeud (round de correction 1)', () => {
+  it('leve EmptySelectionError sur une selection vide', () => {
+    const { doc, pageId } = baseDoc()
+    expect(() => groupCommand(pageId, []).apply(doc)).toThrow(EmptySelectionError)
+  })
+
+  it('accepte une selection a un seul noeud (grouper un element seul est legitime)', () => {
+    const { doc, pageId } = baseDoc()
+    const withA = createNodeCommand(pageId, null, rect('a', 0, 0, 10, 10)).apply(doc)
+    const grouped = groupCommand(pageId, ['a']).apply(withA)
+    const groupFrame = grouped.pages[0]!.nodes[0] as FrameNode
+    expect(groupFrame.type).toBe('frame')
+    expect(groupFrame.frame).toEqual({ x: 0, y: 0, w: 10, h: 10 })
+    expect(findParent(grouped.pages[0]!.nodes, 'a')?.id).toBe(groupFrame.id)
+  })
+})
+
+describe('validation partagee des noeuds modifies en place (round de correction 1)', () => {
+  it('resizeNodeCommand refuse une largeur negative sans toucher au document', () => {
+    const { doc, pageId } = baseDoc()
+    const withA = createNodeCommand(pageId, null, rect('a', 0, 0, 10, 10)).apply(doc)
+    const before = JSON.stringify(withA)
+    expect(() => resizeNodeCommand(pageId, 'a', { x: 0, y: 0, w: -10, h: 10 }).apply(withA)).toThrow()
+    expect(JSON.stringify(withA)).toBe(before)
+  })
+
+  it('resizeNodeCommand refuse une hauteur negative sans toucher au document', () => {
+    const { doc, pageId } = baseDoc()
+    const withA = createNodeCommand(pageId, null, rect('a', 0, 0, 10, 10)).apply(doc)
+    const before = JSON.stringify(withA)
+    expect(() => resizeNodeCommand(pageId, 'a', { x: 0, y: 0, w: 10, h: -10 }).apply(withA)).toThrow()
+    expect(JSON.stringify(withA)).toBe(before)
+  })
+
+  it('moveNodeCommand, resizeNodeCommand et updateNodeCommand preservent le partage structurel d une branche soeur non touchee', () => {
+    const { doc, pageId } = baseDoc()
+    let d = createNodeCommand(pageId, null, rect('a', 0, 0, 10, 10)).apply(doc)
+    d = createNodeCommand(pageId, null, rect('b', 20, 20, 10, 10)).apply(d)
+    const untouchedSibling = findNode(d.pages[0]!.nodes, 'b')
+
+    const afterMove = moveNodeCommand(pageId, 'a', 1, 1).apply(d)
+    expect(findNode(afterMove.pages[0]!.nodes, 'b')).toBe(untouchedSibling)
+
+    const afterResize = resizeNodeCommand(pageId, 'a', { x: 0, y: 0, w: 5, h: 5 }).apply(d)
+    expect(findNode(afterResize.pages[0]!.nodes, 'b')).toBe(untouchedSibling)
+
+    const afterUpdate = updateNodeCommand(pageId, 'a', { name: 'Renomme' }).apply(d)
+    expect(findNode(afterUpdate.pages[0]!.nodes, 'b')).toBe(untouchedSibling)
   })
 })
 

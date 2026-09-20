@@ -7,7 +7,6 @@
 // moveNode) qui preservent le partage structurel : on ne reconstruit jamais
 // l'arbre entier a la main ici.
 
-import { nodeSchema } from '../model/schema'
 import type { CalqueDocument, DesignTokens, FrameNode, Layout, Node, Rect } from '../model/types'
 import { translateRect, unionRects } from '../geometry/rect'
 import {
@@ -21,7 +20,7 @@ import {
   removeNode,
   replaceNode,
 } from '../tree/tree'
-import { InvalidPatchError, MixedParentsError, requirePage, updatePageNodes } from './command'
+import { EmptySelectionError, InvalidPatchError, MixedParentsError, requirePage, updateNodeIn, updatePageNodes } from './command'
 import type { Command } from './command'
 
 // --- Helpers internes de manipulation de fratrie (partages par group/ungroup) ---
@@ -53,7 +52,7 @@ function originAbsolute(nodes: Node[], parentId: string | null): Rect {
 // rend cet identifiant de parent (null pour le premier niveau de la page).
 function commonParentId(nodes: Node[], nodeIds: string[]): string | null {
   const [firstId, ...restIds] = nodeIds
-  if (firstId === undefined) throw new Error('groupCommand : la selection ne peut pas etre vide')
+  if (firstId === undefined) throw new EmptySelectionError()
   if (findNode(nodes, firstId) === null) throw new NodeNotFoundError(firstId)
   const firstParent = findParent(nodes, firstId)
   const parentId = firstParent ? firstParent.id : null
@@ -108,11 +107,7 @@ export function moveNodeCommand(pageId: string, nodeId: string, dx: number, dy: 
   return {
     label: 'Deplacer',
     apply(doc: CalqueDocument): CalqueDocument {
-      return updatePageNodes(doc, pageId, (nodes) => {
-        const node = findNode(nodes, nodeId)
-        if (node === null) throw new NodeNotFoundError(nodeId)
-        return replaceNode(nodes, nodeId, { ...node, frame: translateRect(node.frame, dx, dy) })
-      })
+      return updateNodeIn(doc, pageId, nodeId, (node) => ({ ...node, frame: translateRect(node.frame, dx, dy) }))
     },
     invert(): Command {
       return moveNodeCommand(pageId, nodeId, -dx, -dy)
@@ -125,11 +120,7 @@ export function resizeNodeCommand(pageId: string, nodeId: string, frame: Rect): 
   return {
     label: 'Redimensionner',
     apply(doc: CalqueDocument): CalqueDocument {
-      return updatePageNodes(doc, pageId, (nodes) => {
-        const node = findNode(nodes, nodeId)
-        if (node === null) throw new NodeNotFoundError(nodeId)
-        return replaceNode(nodes, nodeId, { ...node, frame })
-      })
+      return updateNodeIn(doc, pageId, nodeId, (node) => ({ ...node, frame }))
     },
     invert(doc: CalqueDocument): Command {
       const nodes = requirePage(doc, pageId).nodes
@@ -179,13 +170,7 @@ export function updateNodeCommand(pageId: string, nodeId: string, patch: NodePat
       if ('id' in patch || 'type' in patch) {
         throw new InvalidPatchError("updateNodeCommand ne peut pas changer 'id' ou 'type'")
       }
-      return updatePageNodes(doc, pageId, (nodes) => {
-        const node = findNode(nodes, nodeId)
-        if (node === null) throw new NodeNotFoundError(nodeId)
-        const merged = { ...node, ...patch }
-        const parsed = nodeSchema.parse(merged)
-        return replaceNode(nodes, nodeId, parsed)
-      })
+      return updateNodeIn(doc, pageId, nodeId, (node) => ({ ...node, ...patch }))
     },
     invert(doc: CalqueDocument): Command {
       const nodes = requirePage(doc, pageId).nodes
@@ -205,13 +190,7 @@ export function setTextCommand(pageId: string, nodeId: string, characters: strin
   return {
     label: 'Modifier le texte',
     apply(doc: CalqueDocument): CalqueDocument {
-      return updatePageNodes(doc, pageId, (nodes) => {
-        const node = findNode(nodes, nodeId)
-        if (node === null) throw new NodeNotFoundError(nodeId)
-        const merged = { ...node, characters }
-        const parsed = nodeSchema.parse(merged)
-        return replaceNode(nodes, nodeId, parsed)
-      })
+      return updateNodeIn(doc, pageId, nodeId, (node) => ({ ...node, characters }))
     },
     invert(doc: CalqueDocument): Command {
       const nodes = requirePage(doc, pageId).nodes
