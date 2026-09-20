@@ -11,17 +11,19 @@
 // valeur par defaut en silence : ce n'est pas une anomalie, c'est un etat
 // Figma parfaitement normal — ex. `opacity` absent, `children` absent/vide).
 //
-// Bornes reellement imposees par nodeSchema (verifie par lecture de
-// packages/core/src/model/schema.ts) : Rect.w/h >= 0, Color.r/g/b/a dans
-// [0,1], NodeBase.opacity dans [0,1]. C'est la totalite des `.min()`/`.max()`
-// du schema : `rotation`, `Layout.gap`, `Layout.padding.*`, `cornerRadius`,
-// `Stroke.width` et les nombres de `TextStyle` (fontSize, fontWeight,
-// lineHeight, letterSpacing) sont des `z.number()` non bornes cote modele.
-// Ils passent neanmoins par `sanitizeNumber` (sans bornes min/max) pour la
-// meme raison que les trois champs bornes : se proteger d'un type invalide,
-// `NaN` ou une valeur non numerique, sans lever au milieu de l'import.
-// Ajouter une borne au modele demain se fait a l'un des appels de
-// `sanitizeNumber` ci-dessous, jamais par un `Math.max`/`Math.min` disperse.
+// Bornes imposees par nodeSchema (verifie par lecture de
+// packages/core/src/model/schema.ts, tenu a jour a chaque round de
+// correction) : Rect.w/h, Layout.gap, Layout.padding.*, cornerRadius (frame
+// et rect), Stroke.width et TextStyle.fontSize/lineHeight sont bornes a
+// 0..Infinity ; Color.r/g/b/a et NodeBase.opacity sont bornes a [0,1].
+// `rotation`, `TextStyle.fontWeight` et `TextStyle.letterSpacing` restent des
+// `z.number()` non bornes cote modele (letterSpacing negatif = crenage
+// serre, un usage typographique legitime). Ils passent neanmoins par
+// `sanitizeNumber` (sans bornes min/max) pour la meme raison que les champs
+// bornes : se proteger d'un type invalide, `NaN` ou une valeur non
+// numerique, sans lever au milieu de l'import. Ajouter une borne au modele
+// demain se fait a l'un des appels de `sanitizeNumber` ci-dessous, jamais
+// par un `Math.max`/`Math.min` disperse.
 import type { Color } from '@calque/core'
 import type { FigmaColor, FigmaRect } from './figma-types'
 

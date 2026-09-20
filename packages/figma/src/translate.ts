@@ -166,9 +166,11 @@ function translateFills(node: FigmaNode, warn: WarnFn): Fill[] {
 
 // Traduit les traits d'un noeud. Figma porte l'epaisseur au niveau du
 // noeud (strokeWeight), partagee par tous ses traits, contrairement au
-// modele Calque ou chaque Stroke porte sa propre largeur.
+// modele Calque ou chaque Stroke porte sa propre largeur. Bornee a 0..
+// Infinity (Round de correction 1, Tache 10, meme borne que Stroke.width
+// dans nodeSchema).
 function translateStrokes(node: FigmaNode, warn: WarnFn): Stroke[] {
-  const width = sanitizeNumber(node.strokeWeight, 0, warn, 'strokeWeight')
+  const width = sanitizeNumber(node.strokeWeight, 0, warn, 'strokeWeight', { min: 0 })
   const result: Stroke[] = []
   const strokes = node.strokes ?? []
   strokes.forEach((paint, i) => {
@@ -239,14 +241,16 @@ function translateLayout(node: FigmaNode, warn: WarnFn): Layout {
     mode = 'absolute'
   }
 
+  // gap et padding.* : bornes a 0..Infinity (Round de correction 1, Tache 10,
+  // meme borne que Layout.gap/padding.* dans nodeSchema).
   return {
     mode,
-    gap: sanitizeNumber(node.itemSpacing, 0, warn, 'itemSpacing'),
+    gap: sanitizeNumber(node.itemSpacing, 0, warn, 'itemSpacing', { min: 0 }),
     padding: {
-      top: sanitizeNumber(node.paddingTop, 0, warn, 'paddingTop'),
-      right: sanitizeNumber(node.paddingRight, 0, warn, 'paddingRight'),
-      bottom: sanitizeNumber(node.paddingBottom, 0, warn, 'paddingBottom'),
-      left: sanitizeNumber(node.paddingLeft, 0, warn, 'paddingLeft'),
+      top: sanitizeNumber(node.paddingTop, 0, warn, 'paddingTop', { min: 0 }),
+      right: sanitizeNumber(node.paddingRight, 0, warn, 'paddingRight', { min: 0 }),
+      bottom: sanitizeNumber(node.paddingBottom, 0, warn, 'paddingBottom', { min: 0 }),
+      left: sanitizeNumber(node.paddingLeft, 0, warn, 'paddingLeft', { min: 0 }),
     },
     alignMain: translateAlignMain(node.primaryAxisAlignItems),
     alignCross: translateAlignCross(node.counterAxisAlignItems, warn),
@@ -269,15 +273,19 @@ function translateTextAlign(node: FigmaNode, warn: WarnFn): TextStyle['align'] {
   }
 }
 
+// fontSize et lineHeight : bornes a 0..Infinity (Round de correction 1,
+// Tache 10, meme borne que TextStyle.fontSize/lineHeight dans nodeSchema).
+// letterSpacing reste volontairement libre (voir schema.ts) : un crenage
+// negatif est un usage typographique legitime.
 function translateTextStyle(node: FigmaNode, warn: WarnFn): TextStyle {
   const style = node.style
   const color = extractSolidColor(node.fills, warn, 'style.color') ?? { r: 0, g: 0, b: 0, a: 1 }
-  const fontSize = sanitizeNumber(style?.fontSize, 16, warn, 'style.fontSize')
+  const fontSize = sanitizeNumber(style?.fontSize, 16, warn, 'style.fontSize', { min: 0 })
   return {
     fontFamily: typeof style?.fontFamily === 'string' && style.fontFamily !== '' ? style.fontFamily : 'Inter',
     fontSize,
     fontWeight: sanitizeNumber(style?.fontWeight, 400, warn, 'style.fontWeight'),
-    lineHeight: sanitizeNumber(style?.lineHeightPx, fontSize, warn, 'style.lineHeightPx'),
+    lineHeight: sanitizeNumber(style?.lineHeightPx, fontSize, warn, 'style.lineHeightPx', { min: 0 }),
     letterSpacing: sanitizeNumber(style?.letterSpacing, 0, warn, 'style.letterSpacing'),
     color,
     align: translateTextAlign(node, warn),
@@ -356,7 +364,7 @@ function translateNode(node: FigmaNode, parentOrigin: { x: number; y: number }, 
         layout: translateLayout(node, warn),
         fills: translateFills(node, warn),
         strokes: translateStrokes(node, warn),
-        cornerRadius: sanitizeNumber(node.cornerRadius, 0, warn, 'cornerRadius'),
+        cornerRadius: sanitizeNumber(node.cornerRadius, 0, warn, 'cornerRadius', { min: 0 }),
         clipsContent: node.clipsContent ?? false,
         children: (node.children ?? []).map((child) => translateNode(child, childOrigin, ctx)),
       }
@@ -377,7 +385,7 @@ function translateNode(node: FigmaNode, parentOrigin: { x: number; y: number }, 
         type: 'rect',
         fills: translateFills(node, warn),
         strokes: translateStrokes(node, warn),
-        cornerRadius: sanitizeNumber(node.cornerRadius, 0, warn, 'cornerRadius'),
+        cornerRadius: sanitizeNumber(node.cornerRadius, 0, warn, 'cornerRadius', { min: 0 }),
       }
       return result
     }
@@ -394,7 +402,7 @@ function translateNode(node: FigmaNode, parentOrigin: { x: number; y: number }, 
       const strokes = translateStrokes(node, warn)
       const stroke: Stroke = strokes[0] ?? {
         color: { r: 0, g: 0, b: 0, a: 1 },
-        width: sanitizeNumber(node.strokeWeight, 1, warn, 'strokeWeight'),
+        width: sanitizeNumber(node.strokeWeight, 1, warn, 'strokeWeight', { min: 0 }),
       }
       const result: LineNode = { ...base, type: 'line', stroke }
       return result

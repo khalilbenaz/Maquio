@@ -283,3 +283,186 @@ describe('rectSchema (via nodeSchema) : w/h non negatifs', () => {
     expect(() => documentSchema.parse(buildDoc({ x: 0, y: 0, w: 0, h: 10 }))).not.toThrow()
   })
 })
+
+// Round de correction 1 (Tache 10) : un `gap` negatif produirait un
+// chevauchement silencieux entre enfants d'une mise en page automatique,
+// decouvert seulement en generant du code ou en rendant l'ecran. Meme
+// frontiere que rectSchema ci-dessus (nodeSchema / documentSchema), pour les
+// memes consommateurs (parseDocument, import Figma, futurs patchs de Claude
+// Code). Zero reste accepte : un espacement nul est un etat legitime.
+describe('layoutSchema (via nodeSchema) : gap et padding non negatifs', () => {
+  const baseFrame = (): FrameNode => ({
+    id: 'f1',
+    name: 'Ecran',
+    type: 'frame',
+    frame: { x: 0, y: 0, w: 393, h: 852 },
+    visible: true,
+    locked: false,
+    opacity: 1,
+    rotation: 0,
+    layout: {
+      mode: 'column',
+      gap: 8,
+      padding: { top: 0, right: 0, bottom: 0, left: 0 },
+      alignMain: 'start',
+      alignCross: 'stretch',
+    },
+    fills: [],
+    strokes: [],
+    cornerRadius: 0,
+    clipsContent: true,
+    children: [],
+  })
+
+  it('rejette un gap negatif et accepte un gap nul', () => {
+    const negatif = baseFrame()
+    negatif.layout = { ...negatif.layout, gap: -8 }
+    expect(() => nodeSchema.parse(negatif)).toThrow()
+
+    const nul = baseFrame()
+    nul.layout = { ...nul.layout, gap: 0 }
+    expect(() => nodeSchema.parse(nul)).not.toThrow()
+  })
+
+  it('rejette chaque cote de padding negatif et accepte un padding nul', () => {
+    for (const side of ['top', 'right', 'bottom', 'left'] as const) {
+      const negatif = baseFrame()
+      negatif.layout = { ...negatif.layout, padding: { ...negatif.layout.padding, [side]: -4 } }
+      expect(() => nodeSchema.parse(negatif)).toThrow()
+    }
+
+    const nul = baseFrame()
+    nul.layout = { ...nul.layout, padding: { top: 0, right: 0, bottom: 0, left: 0 } }
+    expect(() => nodeSchema.parse(nul)).not.toThrow()
+  })
+})
+
+// Round de correction 1 (Tache 10) : un rayon d'arrondi negatif n'a pas de
+// sens (`BorderRadius.circular(-8)` dans du Dart genere serait la premiere
+// occasion de le decouvrir). Verifie sur frame ET rect, qui portent chacun
+// leur propre `cornerRadius` dans le schema.
+describe('cornerRadius (via nodeSchema, frame et rect) : non negatif', () => {
+  const baseFrame = (): FrameNode => ({
+    id: 'f1',
+    name: 'Ecran',
+    type: 'frame',
+    frame: { x: 0, y: 0, w: 393, h: 852 },
+    visible: true,
+    locked: false,
+    opacity: 1,
+    rotation: 0,
+    layout: {
+      mode: 'absolute',
+      gap: 0,
+      padding: { top: 0, right: 0, bottom: 0, left: 0 },
+      alignMain: 'start',
+      alignCross: 'start',
+    },
+    fills: [],
+    strokes: [],
+    cornerRadius: 0,
+    clipsContent: false,
+    children: [],
+  })
+
+  const baseRect = (): RectNode => ({
+    id: 'r1',
+    name: 'Rect',
+    type: 'rect',
+    frame: { x: 0, y: 0, w: 10, h: 10 },
+    visible: true,
+    locked: false,
+    opacity: 1,
+    rotation: 0,
+    fills: [],
+    strokes: [],
+    cornerRadius: 0,
+  })
+
+  it('rejette un cornerRadius negatif sur une frame et accepte zero', () => {
+    expect(() => nodeSchema.parse({ ...baseFrame(), cornerRadius: -8 })).toThrow()
+    expect(() => nodeSchema.parse({ ...baseFrame(), cornerRadius: 0 })).not.toThrow()
+  })
+
+  it('rejette un cornerRadius negatif sur un rect et accepte zero', () => {
+    expect(() => nodeSchema.parse({ ...baseRect(), cornerRadius: -8 })).toThrow()
+    expect(() => nodeSchema.parse({ ...baseRect(), cornerRadius: 0 })).not.toThrow()
+  })
+})
+
+// Round de correction 1 (Tache 10) : une epaisseur de trait negative n'a pas
+// de sens. Verifie via LineNode.stroke, qui est le seul endroit du modele ou
+// un Stroke unique (pas un tableau) est directement au premier niveau d'un
+// noeud.
+describe('strokeSchema (via nodeSchema, LineNode.stroke) : width non negatif', () => {
+  const baseLine = (): LineNode => ({
+    id: 'l1',
+    name: 'Ligne',
+    type: 'line',
+    frame: { x: 0, y: 0, w: 10, h: 0 },
+    visible: true,
+    locked: false,
+    opacity: 1,
+    rotation: 0,
+    stroke: { color: { r: 0, g: 0, b: 0, a: 1 }, width: 1 },
+  })
+
+  it('rejette une largeur de trait negative et accepte une largeur nulle', () => {
+    expect(() => nodeSchema.parse({ ...baseLine(), stroke: { ...baseLine().stroke, width: -1 } })).toThrow()
+    expect(() => nodeSchema.parse({ ...baseLine(), stroke: { ...baseLine().stroke, width: 0 } })).not.toThrow()
+  })
+})
+
+// Round de correction 1 (Tache 10) : fontSize et lineHeight negatifs n'ont
+// pas de sens. letterSpacing reste volontairement non borne (un crenage
+// negatif est un usage typographique legitime) : verifie qu'il reste
+// accepte, pour qu'une future borne ajoutee par erreur sur ce champ se voie
+// immediatement dans ce test.
+describe('textStyleSchema (via nodeSchema) : fontSize et lineHeight non negatifs, letterSpacing libre', () => {
+  const baseText = (): TextNode => ({
+    id: 't1',
+    name: 'Titre',
+    type: 'text',
+    frame: { x: 0, y: 0, w: 100, h: 20 },
+    visible: true,
+    locked: false,
+    opacity: 1,
+    rotation: 0,
+    characters: 'Bonjour',
+    style: {
+      fontFamily: 'Inter',
+      fontSize: 16,
+      fontWeight: 400,
+      lineHeight: 1.4,
+      letterSpacing: 0,
+      color: { r: 0, g: 0, b: 0, a: 1 },
+      align: 'left',
+    },
+  })
+
+  it('rejette un fontSize negatif et accepte zero', () => {
+    const negatif = baseText()
+    negatif.style = { ...negatif.style, fontSize: -16 }
+    expect(() => nodeSchema.parse(negatif)).toThrow()
+
+    const nul = baseText()
+    nul.style = { ...nul.style, fontSize: 0 }
+    expect(() => nodeSchema.parse(nul)).not.toThrow()
+  })
+
+  it('rejette un lineHeight negatif et accepte zero', () => {
+    const negatif = baseText()
+    negatif.style = { ...negatif.style, lineHeight: -1.4 }
+    expect(() => nodeSchema.parse(negatif)).toThrow()
+
+    const nul = baseText()
+    nul.style = { ...nul.style, lineHeight: 0 }
+    expect(() => nodeSchema.parse(nul)).not.toThrow()
+  })
+
+  it('accepte un letterSpacing negatif (crenage serre, usage typographique legitime)', () => {
+    const serre = baseText()
+    serre.style = { ...serre.style, letterSpacing: -0.5 }
+    expect(() => nodeSchema.parse(serre)).not.toThrow()
+  })
+})
