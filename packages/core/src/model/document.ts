@@ -1,6 +1,6 @@
 // Creation, (de)serialisation et validation de version d'un CalqueDocument.
-import { DOCUMENT_VERSION } from '../index'
 import { documentSchema } from './schema'
+import { DOCUMENT_VERSION } from './version'
 import type { CalqueDocument, DesignTokens, DevicePreset, Page } from './types'
 
 // Erreur levee quand la version du document lu n'est pas la version courante.
@@ -13,11 +13,14 @@ export class DocumentVersionError extends Error {
   }
 }
 
-export const DEVICE_PRESETS: Record<'iphone15' | 'pixel8' | 'ipadMini', DevicePreset> = {
-  iphone15: { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 },
-  pixel8: { id: 'pixel8', label: 'Pixel 8', width: 412, height: 915, pixelRatio: 2.625 },
-  ipadMini: { id: 'ipadMini', label: 'iPad mini', width: 744, height: 1133, pixelRatio: 2 },
-}
+// Geles pour que toute tentative de mutation (ex. un appelant qui ferait
+// `preset.width = ...`) echoue fort plutot que de corrompre silencieusement
+// le singleton partage par tout le process.
+export const DEVICE_PRESETS: Record<'iphone15' | 'pixel8' | 'ipadMini', DevicePreset> = Object.freeze({
+  iphone15: Object.freeze({ id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }),
+  pixel8: Object.freeze({ id: 'pixel8', label: 'Pixel 8', width: 412, height: 915, pixelRatio: 2.625 }),
+  ipadMini: Object.freeze({ id: 'ipadMini', label: 'iPad mini', width: 744, height: 1133, pixelRatio: 2 }),
+})
 
 function emptyTokens(): DesignTokens {
   return { colors: {}, typography: {}, spacing: {} }
@@ -27,7 +30,9 @@ export function createDocument(name: string, device: DevicePreset = DEVICE_PRESE
   const page: Page = {
     id: crypto.randomUUID(),
     name: 'Page 1',
-    device,
+    // Clone : `page.device` doit pouvoir etre modifie par l'appelant (ex.
+    // futur redimensionnement) sans jamais muter le preset partage.
+    device: { ...device },
     nodes: [],
   }
   return {
