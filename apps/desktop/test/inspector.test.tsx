@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
+import type { RectNode } from '@calque/core'
 import { InspectorPanel } from '../src/renderer/panels/InspectorPanel'
 import { useEditorStore } from '../src/renderer/state/editorStore'
 import { documentDeTest } from './helpers/documentDeTest'
@@ -143,5 +144,55 @@ describe('InspectorPanel', () => {
 
     expect(screen.queryByLabelText('Rayon d angle')).toBeNull()
     expect(screen.getByLabelText('Famille de police')).toBeTruthy()
+  })
+
+  // Round de correction 1 (Critical) : changer la couleur de remplissage ne
+  // doit jamais tronquer le tableau `fills` a un seul element ni figer
+  // l'alpha du premier a 1 -- perte de donnees silencieuse constatee en
+  // revue, notamment pour un document qui aura plusieurs remplissages ou un
+  // remplissage semi-transparent (import Figma, tache 17).
+  it('changer la couleur de remplissage conserve les remplissages suivants du tableau', () => {
+    const doc = documentDeTest()
+    const rect1 = doc.pages[0]!.nodes[0] as RectNode
+    const rect2 = doc.pages[0]!.nodes[1]!
+    const deuxRemplissages: RectNode = {
+      ...rect1,
+      fills: [
+        { type: 'solid', color: { r: 1, g: 0, b: 0, a: 1 } },
+        { type: 'solid', color: { r: 0, g: 1, b: 0, a: 1 } },
+      ],
+    }
+    useEditorStore.getState().load({ ...doc, pages: [{ ...doc.pages[0]!, nodes: [deuxRemplissages, rect2] }] })
+    useEditorStore.getState().select(['rect1'])
+    render(<InspectorPanel />)
+
+    const couleur = screen.getByLabelText('Couleur de remplissage') as HTMLInputElement
+    fireEvent.change(couleur, { target: { value: '#0000ff' } })
+
+    const fills = (useEditorStore.getState().document.pages[0]!.nodes[0] as RectNode).fills
+    expect(fills).toHaveLength(2)
+    expect(fills[1]).toEqual({ type: 'solid', color: { r: 0, g: 1, b: 0, a: 1 } })
+    expect(fills[0]).toEqual({ type: 'solid', color: { r: 0, g: 0, b: 1, a: 1 } })
+  })
+
+  it('changer la couleur de remplissage conserve l alpha courant', () => {
+    const doc = documentDeTest()
+    const rect1 = doc.pages[0]!.nodes[0] as RectNode
+    const rect2 = doc.pages[0]!.nodes[1]!
+    const remplissageSemiTransparent: RectNode = {
+      ...rect1,
+      fills: [{ type: 'solid', color: { r: 1, g: 0, b: 0, a: 0.5 } }],
+    }
+    useEditorStore
+      .getState()
+      .load({ ...doc, pages: [{ ...doc.pages[0]!, nodes: [remplissageSemiTransparent, rect2] }] })
+    useEditorStore.getState().select(['rect1'])
+    render(<InspectorPanel />)
+
+    const couleur = screen.getByLabelText('Couleur de remplissage') as HTMLInputElement
+    fireEvent.change(couleur, { target: { value: '#00ff00' } })
+
+    const fill = (useEditorStore.getState().document.pages[0]!.nodes[0] as RectNode).fills[0]
+    expect(fill).toEqual({ type: 'solid', color: { r: 0, g: 1, b: 0, a: 0.5 } })
   })
 })
