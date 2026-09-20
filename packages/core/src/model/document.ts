@@ -1,0 +1,73 @@
+// Creation, (de)serialisation et validation de version d'un CalqueDocument.
+import { DOCUMENT_VERSION } from '../index'
+import { documentSchema } from './schema'
+import type { CalqueDocument, DesignTokens, DevicePreset, Page } from './types'
+
+// Erreur levee quand la version du document lu n'est pas la version courante.
+// Un document plus recent n'est jamais lu partiellement ; un document plus
+// ancien n'a pas encore de chemin de migration en v1.
+export class DocumentVersionError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'DocumentVersionError'
+  }
+}
+
+export const DEVICE_PRESETS: Record<'iphone15' | 'pixel8' | 'ipadMini', DevicePreset> = {
+  iphone15: { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 },
+  pixel8: { id: 'pixel8', label: 'Pixel 8', width: 412, height: 915, pixelRatio: 2.625 },
+  ipadMini: { id: 'ipadMini', label: 'iPad mini', width: 744, height: 1133, pixelRatio: 2 },
+}
+
+function emptyTokens(): DesignTokens {
+  return { colors: {}, typography: {}, spacing: {} }
+}
+
+export function createDocument(name: string, device: DevicePreset = DEVICE_PRESETS.iphone15): CalqueDocument {
+  const page: Page = {
+    id: crypto.randomUUID(),
+    name: 'Page 1',
+    device,
+    nodes: [],
+  }
+  return {
+    version: DOCUMENT_VERSION,
+    id: crypto.randomUUID(),
+    name,
+    pages: [page],
+    tokens: emptyTokens(),
+  }
+}
+
+export function serializeDocument(doc: CalqueDocument): string {
+  return JSON.stringify(doc, null, 2)
+}
+
+// Extrait le champ `version` d'une valeur brute sans valider le reste du
+// document : la verification de version doit pouvoir rejeter un document
+// futur avant toute lecture partielle de son contenu.
+function readRawVersion(raw: unknown): number | undefined {
+  if (typeof raw !== 'object' || raw === null || !('version' in raw)) {
+    return undefined
+  }
+  const version = (raw as { version: unknown }).version
+  return typeof version === 'number' ? version : undefined
+}
+
+export function parseDocument(json: string): CalqueDocument {
+  const raw: unknown = JSON.parse(json)
+  const version = readRawVersion(raw)
+
+  if (version !== undefined && version > DOCUMENT_VERSION) {
+    throw new DocumentVersionError(
+      `Document en version ${version}, plus recente que la version supportee ${DOCUMENT_VERSION}`,
+    )
+  }
+  if (version !== undefined && version < DOCUMENT_VERSION) {
+    throw new DocumentVersionError(
+      `Document en version ${version}, plus ancienne que la version courante ${DOCUMENT_VERSION} (aucune migration disponible)`,
+    )
+  }
+
+  return documentSchema.parse(raw)
+}
