@@ -49,6 +49,23 @@ describe('parseFigmaFileKey', () => {
   it('accepte une cle entouree d espaces apres elagage', () => {
     expect(parseFigmaFileKey('  AbC123  ')).toBe('AbC123')
   })
+
+  // Round de correction 1 : minor 1. Une vieille URL en http (sans le
+  // "s") est manifestement une intention d'import, pas une clé nue.
+  it('extrait la cle d une url http (sans s)', () => {
+    expect(parseFigmaFileKey('http://www.figma.com/design/AbC123/Mon-app')).toBe('AbC123')
+  })
+
+  // Toute chaine qui ressemble a une URL (contient "://") et dont la cle
+  // ne peut pas etre extraite doit lever, jamais ressortir intacte comme
+  // si c'etait une cle valide.
+  it('rejette un schema qui n est pas http(s) meme si le domaine est figma.com', () => {
+    expect(() => parseFigmaFileKey('ftp://www.figma.com/design/AbC123/Mon-app')).toThrow()
+  })
+
+  it('rejette toute chaine contenant :// dont la cle est inextractible', () => {
+    expect(() => parseFigmaFileKey('https://figma.com.evil.example/design/AbC123')).toThrow()
+  })
 })
 
 describe('FigmaClient', () => {
@@ -73,6 +90,69 @@ describe('FigmaClient', () => {
   it('traduit un 404 en FigmaNotFoundError', async () => {
     const fetch = async () => reponse(404, { err: 'Not found' })
     await expect(new FigmaClient({ token: 'x', fetch }).getFile('K')).rejects.toBeInstanceOf(FigmaNotFoundError)
+  })
+
+  // Round de correction 1, point 3 de la relecture : FigmaAuthError (401
+  // et 403) et FigmaNotFoundError portent bien le status recu.
+  it.each([401, 403])('FigmaAuthError porte le status %i', async (status) => {
+    const fetch = async () => reponse(status, { err: 'Invalid token' })
+    try {
+      await new FigmaClient({ token: 'x', fetch }).getFile('K')
+      expect.unreachable()
+    } catch (e) {
+      expect(e).toBeInstanceOf(FigmaAuthError)
+      expect((e as FigmaAuthError).status).toBe(status)
+    }
+  })
+
+  it('FigmaNotFoundError porte le status 404', async () => {
+    const fetch = async () => reponse(404, { err: 'Not found' })
+    try {
+      await new FigmaClient({ token: 'x', fetch }).getFile('K')
+      expect.unreachable()
+    } catch (e) {
+      expect(e).toBeInstanceOf(FigmaNotFoundError)
+      expect((e as FigmaNotFoundError).status).toBe(404)
+    }
+  })
+
+  // Round de correction 1, constat Important : la cle est encodee avant
+  // d'etre inseree dans l'URL, pour qu'une cle contenant '/', '?', '#'
+  // ou une sequence '../' ne puisse jamais detourner la requete vers un
+  // autre point d'entree de l'API ni injecter des parametres de requete.
+  // On verifie l'URL reellement passee au fetch injecte, pas seulement
+  // l'absence d'erreur.
+  it('encode une cle contenant "../" et des parametres de requete', async () => {
+    const fetch = vi.fn(async () => reponse(200, { document: {}, styles: {} }))
+    await new FigmaClient({ token: 'secret', fetch }).getFile('../teams?x=1')
+    expect(fetch).toHaveBeenCalledWith(
+      `https://api.figma.com/v1/files/${encodeURIComponent('../teams?x=1')}`,
+      { headers: { 'X-Figma-Token': 'secret' } },
+    )
+  })
+
+  it('encode une cle contenant "/"', async () => {
+    const fetch = vi.fn(async () => reponse(200, { document: {}, styles: {} }))
+    await new FigmaClient({ token: 'secret', fetch }).getFile('ab/cd')
+    expect(fetch).toHaveBeenCalledWith(`https://api.figma.com/v1/files/${encodeURIComponent('ab/cd')}`, {
+      headers: { 'X-Figma-Token': 'secret' },
+    })
+  })
+
+  it('encode une cle contenant "?"', async () => {
+    const fetch = vi.fn(async () => reponse(200, { document: {}, styles: {} }))
+    await new FigmaClient({ token: 'secret', fetch }).getFile('ab?x=1')
+    expect(fetch).toHaveBeenCalledWith(`https://api.figma.com/v1/files/${encodeURIComponent('ab?x=1')}`, {
+      headers: { 'X-Figma-Token': 'secret' },
+    })
+  })
+
+  it('encode une cle contenant "#"', async () => {
+    const fetch = vi.fn(async () => reponse(200, { document: {}, styles: {} }))
+    await new FigmaClient({ token: 'secret', fetch }).getFile('ab#frag')
+    expect(fetch).toHaveBeenCalledWith(`https://api.figma.com/v1/files/${encodeURIComponent('ab#frag')}`, {
+      headers: { 'X-Figma-Token': 'secret' },
+    })
   })
 
   it('traduit un autre statut non ok en FigmaHttpError', async () => {
@@ -135,6 +215,19 @@ describe('FigmaClient', () => {
   it('leve FigmaResponseError si le corps ok n est pas un objet du tout', async () => {
     const fetch = async () => reponse(200, 'oups')
     await expect(new FigmaClient({ token: 'x', fetch }).getFile('K')).rejects.toBeInstanceOf(FigmaResponseError)
+  })
+
+  // Round de correction 1, minor 2 : le status (ici 200, puisque la
+  // reponse est ok mais mal formee) etait disponible et doit etre porte.
+  it('FigmaResponseError porte le status de la reponse (200)', async () => {
+    const fetch = async () => reponse(200, {})
+    try {
+      await new FigmaClient({ token: 'x', fetch }).getFile('K')
+      expect.unreachable()
+    } catch (e) {
+      expect(e).toBeInstanceOf(FigmaResponseError)
+      expect((e as FigmaResponseError).status).toBe(200)
+    }
   })
 
   // Point 6 : le fetch injecte lui-meme echoue (reseau/DNS).
