@@ -36,4 +36,66 @@ describe('resizeRect', () => {
     expect(out.x + out.w).toBeCloseTo(110)
     expect(out.y + out.h).toBeCloseTo(110)
   })
+
+  // Correction round 1 : avec une dimension nulle, keepRatio n'a pas de
+  // ratio a conserver. L'option est ignoree (comportement identique a sans
+  // keepRatio, clamp min-1 inclus) — jamais de NaN/Infinity en sortie.
+  describe('keepRatio avec une dimension nulle (ratio non defini)', () => {
+    it('ignore keepRatio quand h=0, sur une poignee de coin (se)', () => {
+      const out = resizeRect({ x: 0, y: 0, w: 100, h: 0 }, 'se', 0, 50, { keepRatio: true })
+      expect(out).toEqual({ x: 0, y: 0, w: 100, h: 50 })
+      expect(Number.isFinite(out.w)).toBe(true)
+      expect(Number.isFinite(out.h)).toBe(true)
+    })
+
+    it('ignore keepRatio quand w=0, sur une poignee de coin (se)', () => {
+      const out = resizeRect({ x: 0, y: 0, w: 0, h: 100 }, 'se', 50, 0, { keepRatio: true })
+      expect(out).toEqual({ x: 0, y: 0, w: 50, h: 100 })
+      expect(Number.isFinite(out.w)).toBe(true)
+      expect(Number.isFinite(out.h)).toBe(true)
+    })
+
+    it('ignore keepRatio quand w=0 et h=0, sur une poignee de coin (se), et applique quand meme le clamp min-1', () => {
+      const out = resizeRect({ x: 0, y: 0, w: 0, h: 0 }, 'se', -100, -100, { keepRatio: true })
+      expect(out).toEqual({ x: 0, y: 0, w: 1, h: 1 })
+      expect(Number.isFinite(out.w)).toBe(true)
+      expect(Number.isFinite(out.h)).toBe(true)
+    })
+
+    it('ignore keepRatio quand h=0, sur une poignee de bord (e)', () => {
+      const out = resizeRect({ x: 0, y: 0, w: 100, h: 0 }, 'e', 20, 0, { keepRatio: true })
+      expect(out).toEqual({ x: 0, y: 0, w: 120, h: 1 })
+      expect(Number.isFinite(out.w)).toBe(true)
+      expect(Number.isFinite(out.h)).toBe(true)
+    })
+
+    it('ignore keepRatio quand w=0, sur une poignee de bord (s)', () => {
+      const out = resizeRect({ x: 0, y: 0, w: 0, h: 100 }, 's', 0, 30, { keepRatio: true })
+      expect(out).toEqual({ x: 0, y: 0, w: 1, h: 130 })
+      expect(Number.isFinite(out.w)).toBe(true)
+      expect(Number.isFinite(out.h)).toBe(true)
+    })
+
+    it('ignore keepRatio quand w=0 et h=0, sur une poignee de bord (e), et applique quand meme le clamp min-1', () => {
+      const out = resizeRect({ x: 0, y: 0, w: 0, h: 0 }, 'e', -5, 0, { keepRatio: true })
+      expect(out).toEqual({ x: 0, y: 0, w: 1, h: 1 })
+      expect(Number.isFinite(out.w)).toBe(true)
+      expect(Number.isFinite(out.h)).toBe(true)
+    })
+  })
+
+  // Non-regression : avec des dimensions non nulles, keepRatio se comporte
+  // exactement comme avant la correction (coin et bord).
+  describe('keepRatio avec des dimensions non nulles (non-regression)', () => {
+    it('conserve le ratio sur une poignee de coin (se) — deja teste plus haut, reaffirme ici', () => {
+      const out = resizeRect({ x: 0, y: 0, w: 100, h: 50 }, 'se', 100, 0, { keepRatio: true })
+      expect(out.w / out.h).toBeCloseTo(2)
+    })
+
+    it('conserve le ratio sur une poignee de bord (e)', () => {
+      const out = resizeRect({ x: 0, y: 0, w: 100, h: 50 }, 'e', 100, 0, { keepRatio: true })
+      expect(out).toEqual({ x: 0, y: 0, w: 200, h: 100 })
+      expect(out.w / out.h).toBeCloseTo(2)
+    })
+  })
 })
