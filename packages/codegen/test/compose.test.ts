@@ -113,7 +113,17 @@ describe('composeExporter', () => {
     expect(out.files[0]!.contents).toContain('model = "https://example.com/avatar.png"')
   })
 
-  it('rend une image locale avec painterResource', () => {
+  // Correction Critical 2 (corollaire, re-corrige apres re-revue) : une
+  // premiere version emettait `painterResource(R.drawable.<nom>)`, mais
+  // `R` n'est jamais importe par ce fichier (aucun nom de paquet
+  // applicatif connu du generateur) -- un `Unresolved reference: R` a la
+  // compilation. Tant que ce nom n'est pas connu, une image locale est
+  // desormais signalee plutot que rendue. `src` non vide ici (contrairement
+  // au cas `src: ''`, systematique pour tout espace reserve `image`
+  // importe de Figma) : prouve que ce chemin d'avertissement est bien
+  // atteint pour une vraie ressource nommee, pas seulement l'espace
+  // reserve vide.
+  it('avertit pour une image locale au lieu d emettre un painterResource(R....) non resolu', () => {
     const doc = docWithNodes([
       {
         id: 'image-b',
@@ -124,12 +134,14 @@ describe('composeExporter', () => {
         locked: false,
         opacity: 1,
         rotation: 0,
-        src: 'logo',
+        src: 'assets/Icon@2x.png',
         fit: 'contain',
       },
     ])
     const out = composeExporter.export(doc, { projectName: 'demo' })
-    expect(out.files[0]!.contents).toContain('painterResource(')
+    expect(out.files[0]!.contents).not.toContain('painterResource(')
+    expect(out.files[0]!.contents).not.toContain('R.drawable')
+    expect(out.warnings.some((w) => w.includes('assets/Icon@2x.png'))).toBe(true)
   })
 
   it('positionne les enfants d une frame absolute avec Box et Modifier.offset', () => {
