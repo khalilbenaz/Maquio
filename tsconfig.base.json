@@ -8,8 +8,6 @@
     "exactOptionalPropertyTypes": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "declaration": true,
-    "composite": true,
     "verbatimModuleSyntax": true
   }
 }
