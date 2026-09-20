@@ -14,6 +14,12 @@
 // Duplique de @calque/codegen (ExporterId), voir la note ci-dessus.
 export type ExporterId = 'flutter' | 'react-native' | 'swiftui' | 'compose'
 
+// Duplique de @calque/codegen (Exporter, prive de sa methode export() qui
+// ne traverserait pas l'IPC) : ce que listExporters() rend au renderer
+// pour peupler le menu d'export sans jamais importer @calque/codegen
+// (Tache 17, decision du brief sur la barre d'outils).
+export type ExportTargetInfo = { id: ExporterId; label: string; maturity: 'complete' | 'preview' }
+
 // Duplique de @calque/figma (ImportWarning / ImportReport), voir la note
 // ci-dessus.
 export type ImportWarning = { nodeId: string; nodeName: string; reason: string }
@@ -30,12 +36,19 @@ export type CalqueApi = {
     json: string
     projectName: string
   }): Promise<{ directory: string; files: string[]; warnings: string[] } | null>
+  listExporters(): Promise<ExportTargetInfo[]>
+  // Tache 17 : rend aussi documentJson (le document apres application de la
+  // commande composite atomique, calculee cote main via @calque/ai) en plus
+  // de patchJson (pour l'affichage du resume) -- le renderer ne peut pas
+  // reconstruire la commande lui-meme sans importer @calque/ai (interdit),
+  // il se contente de rejouer le remplacement de document (voir
+  // ClaudePanel.tsx), ce qui reste annulable en un seul geste.
   askClaude(input: {
     instruction: string
     json: string
     selectionIds: string[]
     pageId: string
-  }): Promise<{ patchJson: string }>
+  }): Promise<{ patchJson: string; documentJson: string }>
   claudeAvailable(): Promise<boolean>
   getSettings(): Promise<{ hasFigmaToken: boolean }>
   setFigmaToken(token: string): Promise<void>
@@ -46,6 +59,7 @@ export const API_CHANNELS = [
   'saveDocument',
   'importFigma',
   'exportProject',
+  'listExporters',
   'askClaude',
   'claudeAvailable',
   'getSettings',

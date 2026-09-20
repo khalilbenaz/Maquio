@@ -1,23 +1,35 @@
-// Processus principal (Tache 14) : cree la fenetre, le menu, et enregistre
-// un ipcMain.handle par canal declare dans API_CHANNELS (source de verite
-// unique, voir src/shared/api.ts). A ce stade, sept des huit gestionnaires
-// sont des souches honnetes qui levent 'pas encore branche' (decision 5 du
-// brief) : cabler openDocument/saveDocument sur le vrai systeme de
-// fichiers, importFigma sur @calque/figma, exportProject sur
-// @calque/codegen et askClaude sur @calque/ai est le travail de la
-// Tache 17. claudeAvailable et getSettings font exception :
-// - claudeAvailable rend un vrai booleen, obtenu via ProcessClaudeRunner
-//   (paquet @calque/ai) branche sur une recherche reelle du binaire
-//   'claude' dans le PATH (aucun sous-processus n'est lance pour cette
-//   seule verification) ;
-// - getSettings rend un etat plausible mais fixe ({ hasFigmaToken: false })
-//   car il n'y a pas encore de stockage de reglages (Tache 17 egalement).
-import { spawn } from 'node:child_process'
-import { access, constants } from 'node:fs/promises'
+// Processus principal (Tache 14, branchement Tache 17) : cree la fenetre,
+// le menu, et enregistre un ipcMain.handle par canal declare dans
+// API_CHANNELS (source de verite unique, voir src/shared/api.ts).
+//
+// Les huit gestionnaires "metier" (openDocument, saveDocument,
+// importFigma, exportProject, askClaude, listExporters) sont des
+// fonctions pures d'injection definies dans src/main/handlers/*.ts,
+// testables sans Electron : ce fichier se contente de les cabler avec les
+// vraies dependances (node:fs/promises, dialog, safeStorage, fetch,
+// child_process), toutes elles-memes enveloppees dans de petits
+// adaptateurs sous src/main/adapters/*.ts.
+import { access, constants, mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { app, BrowserWindow, ipcMain, Menu } from 'electron'
-import { ProcessClaudeRunner, type SpawnLike } from '@calque/ai'
+import { app, BrowserWindow, ipcMain, Menu, safeStorage } from 'electron'
+import { AiService, ProcessClaudeRunner } from '@calque/ai'
+import { FigmaClient } from '@calque/figma'
+import { listExporters } from '@calque/codegen'
 import { creerFenetrePrincipale } from './window'
+import { nodeSpawn } from './adapters/nodeSpawn'
+import { nodeFetch } from './adapters/nodeFetch'
+import { createSecretStore } from './adapters/secretStore'
+import {
+  chooseDirectory,
+  chooseFigmaJsonFile,
+  chooseOpenDocumentPath,
+  chooseSaveDocumentPath,
+  confirmOverwrite,
+} from './adapters/electronDialogs'
+import { createDocumentHandler } from './handlers/documentHandlers'
+import { createExportHandler } from './handlers/exportHandlers'
+import { createFigmaHandler, createGetSettingsHandler, createSetFigmaTokenHandler } from './handlers/figmaHandlers'
+import { createClaudeHandler } from './handlers/claudeHandlers'
 
 // Recherche reelle d'un executable dans le PATH courant, sans lancer de
 // sous-processus (pas de dependance a la commande 'which' du systeme).
@@ -40,66 +52,119 @@ async function chercherDansLePath(binaire: string): Promise<string | null> {
   return null
 }
 
-// Adaptateur reel de sous-processus pour ProcessClaudeRunner. Non utilise
-// par claudeAvailable() (qui ne fait qu'une recherche dans le PATH), mais
-// requis par le constructeur de ProcessClaudeRunner ; il sera reellement
-// invoque quand askClaude sera cable (Tache 17).
-const lancerProcessusReel: SpawnLike = (cmd, args, opts) => {
-  const enfant = spawn(cmd, args, opts.signal !== undefined ? { signal: opts.signal } : {})
+const lanceurClaude = new ProcessClaudeRunner({ spawn: nodeSpawn, which: chercherDansLePath })
+const serviceClaude = new AiService(lanceurClaude)
 
-  const versLignes = (flux: NodeJS.ReadableStream): AsyncIterable<string> => {
-    return (async function* () {
-      for await (const morceau of flux) {
-        yield morceau.toString()
-      }
-    })()
+// Jeton Figma chiffre (decision 3 du brief) : jamais en clair sur disque.
+// Le chemin depend du dossier de donnees utilisateur, connu seulement une
+// fois l'application prete -- le magasin est donc construit dans
+// demarrer(), pas au chargement du module.
+let magasinSecrets: ReturnType<typeof createSecretStore> | undefined
+
+async function pathExists(p: string): Promise<boolean> {
+  try {
+    await access(p)
+    return true
+  } catch {
+    return false
   }
-
-  const codeSortie = new Promise<number>((resolve, reject) => {
-    enfant.on('error', reject)
-    enfant.on('close', (code) => resolve(code ?? 1))
-  })
-
-  return { stdout: versLignes(enfant.stdout), stderr: versLignes(enfant.stderr), exitCode: codeSortie }
 }
 
-const lanceurClaude = new ProcessClaudeRunner({ spawn: lancerProcessusReel, which: chercherDansLePath })
+function fenetreDepuisEvenement(event: Electron.IpcMainInvokeEvent): BrowserWindow | null {
+  return BrowserWindow.fromWebContents(event.sender)
+}
 
 function enregistrerLesGestionnaires(): void {
-  ipcMain.handle('openDocument', () => {
-    throw new Error('pas encore branche')
+  ipcMain.handle('openDocument', (event) => {
+    const win = fenetreDepuisEvenement(event)
+    return createDocumentHandler({
+      readFile: (p) => readFile(p, 'utf8'),
+      writeFile: (p, contents) => writeFile(p, contents, 'utf8'),
+      chooseOpenPath: chooseOpenDocumentPath(win),
+      chooseSavePath: chooseSaveDocumentPath(win),
+    }).openDocument()
   })
 
-  ipcMain.handle('saveDocument', () => {
-    throw new Error('pas encore branche')
+  ipcMain.handle('saveDocument', (event, input) => {
+    const win = fenetreDepuisEvenement(event)
+    return createDocumentHandler({
+      readFile: (p) => readFile(p, 'utf8'),
+      writeFile: (p, contents) => writeFile(p, contents, 'utf8'),
+      chooseOpenPath: chooseOpenDocumentPath(win),
+      chooseSavePath: chooseSaveDocumentPath(win),
+    }).saveDocument(input)
   })
 
-  ipcMain.handle('importFigma', () => {
-    throw new Error('pas encore branche')
+  ipcMain.handle('importFigma', async (event, input) => {
+    const win = fenetreDepuisEvenement(event)
+    const jeton = magasinSecrets ? await magasinSecrets.getToken() : null
+    const client = jeton !== null ? new FigmaClient({ token: jeton, fetch: nodeFetch }) : null
+    return createFigmaHandler({
+      client,
+      chooseFile: chooseFigmaJsonFile(win),
+      readFile: (p) => readFile(p, 'utf8'),
+    })(input)
   })
 
-  ipcMain.handle('exportProject', () => {
-    throw new Error('pas encore branche')
+  ipcMain.handle('exportProject', (event, input) => {
+    const win = fenetreDepuisEvenement(event)
+    return createExportHandler({
+      writeFile: (p, contents, encoding) => writeFile(p, contents, encoding),
+      mkdir: async (p) => {
+        await mkdir(p, { recursive: true })
+      },
+      chooseDirectory: chooseDirectory(win),
+      pathExists,
+      confirmOverwrite: confirmOverwrite(win),
+    })(input)
   })
 
-  ipcMain.handle('askClaude', () => {
-    throw new Error('pas encore branche')
-  })
+  ipcMain.handle('listExporters', () => listExporters().map(({ id, label, maturity }) => ({ id, label, maturity })))
+
+  ipcMain.handle('askClaude', (_event, input) => createClaudeHandler({ service: serviceClaude })(input))
 
   ipcMain.handle('claudeAvailable', () => lanceurClaude.isAvailable())
 
-  ipcMain.handle('getSettings', () => ({ hasFigmaToken: false }))
-
-  ipcMain.handle('setFigmaToken', () => {
-    throw new Error('pas encore branche')
+  ipcMain.handle('getSettings', async () => {
+    if (!magasinSecrets) return { hasFigmaToken: false }
+    return createGetSettingsHandler({ secretStore: magasinSecrets })()
   })
+
+  ipcMain.handle('setFigmaToken', async (_event, token: string) => {
+    if (!magasinSecrets) throw new Error("Le stockage des reglages n'est pas encore initialise")
+    return createSetFigmaTokenHandler({ secretStore: magasinSecrets })(token)
+  })
+}
+
+function envoyerAuxFenetres(canal: string): void {
+  for (const fenetre of BrowserWindow.getAllWindows()) {
+    fenetre.webContents.send(canal)
+  }
 }
 
 function construireLeMenu(): Menu {
   return Menu.buildFromTemplate([
     {
       label: 'Fichier',
-      submenu: [{ role: 'quit', label: 'Quitter' }],
+      submenu: [
+        {
+          label: 'Ouvrir...',
+          accelerator: 'CmdOrCtrl+O',
+          click: () => envoyerAuxFenetres('calque:menu-open'),
+        },
+        {
+          label: 'Enregistrer',
+          accelerator: 'CmdOrCtrl+S',
+          click: () => envoyerAuxFenetres('calque:menu-save'),
+        },
+        {
+          label: 'Enregistrer sous...',
+          accelerator: 'CmdOrCtrl+Shift+S',
+          click: () => envoyerAuxFenetres('calque:menu-save-as'),
+        },
+        { type: 'separator' },
+        { role: 'quit', label: 'Quitter' },
+      ],
     },
     {
       label: 'Edition',
@@ -113,17 +178,21 @@ function construireLeMenu(): Menu {
         { role: 'selectAll', label: 'Tout selectionner' },
       ],
     },
-    {
-      label: 'Export',
-      // Pas encore branche (Tache 17) : element desactive plutot que
-      // simule, pour rester honnete sur ce qui fonctionne reellement.
-      submenu: [{ label: 'Exporter le projet...', enabled: false }],
-    },
   ])
 }
 
 async function demarrer(): Promise<void> {
   await app.whenReady()
+
+  magasinSecrets = createSecretStore({
+    safeStorage,
+    filePath: path.join(app.getPath('userData'), 'figma-token.enc'),
+    fs: {
+      readFile: (p) => readFile(p),
+      writeFile: (p, data) => writeFile(p, data),
+      pathExists,
+    },
+  })
 
   enregistrerLesGestionnaires()
   Menu.setApplicationMenu(construireLeMenu())
