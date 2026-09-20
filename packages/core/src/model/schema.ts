@@ -1,0 +1,209 @@
+// Schemas Zod, miroir exact des types de types.ts.
+// Les objets sont stricts : une cle inconnue est refusee.
+import { z } from 'zod'
+import type {
+  CalqueDocument,
+  Color,
+  DesignTokens,
+  DevicePreset,
+  EllipseNode,
+  Fill,
+  FrameNode,
+  ImageNode,
+  Layout,
+  LineNode,
+  Node,
+  NodeBase,
+  Page,
+  Rect,
+  RectNode,
+  Stroke,
+  TextNode,
+  TextStyle,
+} from './types'
+
+const rectSchema: z.ZodType<Rect> = z
+  .object({
+    x: z.number(),
+    y: z.number(),
+    w: z.number(),
+    h: z.number(),
+  })
+  .strict()
+
+const colorSchema: z.ZodType<Color> = z
+  .object({
+    r: z.number(),
+    g: z.number(),
+    b: z.number(),
+    a: z.number(),
+  })
+  .strict()
+
+const fillSchema: z.ZodType<Fill> = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('solid'), color: colorSchema }).strict(),
+  z.object({ type: z.literal('none') }).strict(),
+])
+
+const strokeSchema: z.ZodType<Stroke> = z
+  .object({
+    color: colorSchema,
+    width: z.number(),
+  })
+  .strict()
+
+const layoutSchema: z.ZodType<Layout> = z
+  .object({
+    mode: z.union([z.literal('absolute'), z.literal('row'), z.literal('column')]),
+    gap: z.number(),
+    padding: z
+      .object({
+        top: z.number(),
+        right: z.number(),
+        bottom: z.number(),
+        left: z.number(),
+      })
+      .strict(),
+    alignMain: z.union([
+      z.literal('start'),
+      z.literal('center'),
+      z.literal('end'),
+      z.literal('space-between'),
+    ]),
+    alignCross: z.union([z.literal('start'), z.literal('center'), z.literal('end'), z.literal('stretch')]),
+  })
+  .strict()
+
+const textStyleSchema: z.ZodType<TextStyle> = z
+  .object({
+    fontFamily: z.string(),
+    fontSize: z.number(),
+    fontWeight: z.number(),
+    lineHeight: z.number(),
+    letterSpacing: z.number(),
+    color: colorSchema,
+    align: z.union([z.literal('left'), z.literal('center'), z.literal('right')]),
+  })
+  .strict()
+
+const nodeBaseShape = {
+  id: z.string(),
+  name: z.string(),
+  frame: rectSchema,
+  visible: z.boolean(),
+  locked: z.boolean(),
+  opacity: z.number(),
+  rotation: z.number(),
+} satisfies Record<keyof NodeBase, z.ZodTypeAny>
+
+// `children` reference nodeSchema, defini plus bas : on differe sa lecture
+// avec z.lazy pour permettre la recursion (frame.children peut contenir des
+// frames). frameNodeSchema lui-meme reste un vrai ZodObject, requis par
+// z.discriminatedUnion pour lire le litteral du champ `type`.
+// Chaque schema de noeud garde son type ZodObject concret (via `satisfies`,
+// pas `:`) car z.discriminatedUnion doit pouvoir lire le litteral du champ
+// `type` sur chaque option ; un type largi en z.ZodType<X> le lui masque.
+const frameNodeSchema = z
+  .object({
+    ...nodeBaseShape,
+    type: z.literal('frame'),
+    layout: layoutSchema,
+    fills: z.array(fillSchema),
+    strokes: z.array(strokeSchema),
+    cornerRadius: z.number(),
+    clipsContent: z.boolean(),
+    children: z.lazy(() => z.array(nodeSchema)),
+  })
+  .strict() satisfies z.ZodType<FrameNode>
+
+const textNodeSchema = z
+  .object({
+    ...nodeBaseShape,
+    type: z.literal('text'),
+    characters: z.string(),
+    style: textStyleSchema,
+  })
+  .strict() satisfies z.ZodType<TextNode>
+
+const rectNodeSchema = z
+  .object({
+    ...nodeBaseShape,
+    type: z.literal('rect'),
+    fills: z.array(fillSchema),
+    strokes: z.array(strokeSchema),
+    cornerRadius: z.number(),
+  })
+  .strict() satisfies z.ZodType<RectNode>
+
+const ellipseNodeSchema = z
+  .object({
+    ...nodeBaseShape,
+    type: z.literal('ellipse'),
+    fills: z.array(fillSchema),
+    strokes: z.array(strokeSchema),
+  })
+  .strict() satisfies z.ZodType<EllipseNode>
+
+const imageNodeSchema = z
+  .object({
+    ...nodeBaseShape,
+    type: z.literal('image'),
+    src: z.string(),
+    fit: z.union([z.literal('cover'), z.literal('contain'), z.literal('fill')]),
+  })
+  .strict() satisfies z.ZodType<ImageNode>
+
+const lineNodeSchema = z
+  .object({
+    ...nodeBaseShape,
+    type: z.literal('line'),
+    stroke: strokeSchema,
+  })
+  .strict() satisfies z.ZodType<LineNode>
+
+// Union discriminee sur `type`, recursive via frameNodeSchema (z.lazy) pour frame.children.
+export const nodeSchema: z.ZodType<Node> = z.discriminatedUnion('type', [
+  frameNodeSchema,
+  textNodeSchema,
+  rectNodeSchema,
+  ellipseNodeSchema,
+  imageNodeSchema,
+  lineNodeSchema,
+])
+
+const devicePresetSchema: z.ZodType<DevicePreset> = z
+  .object({
+    id: z.string(),
+    label: z.string(),
+    width: z.number(),
+    height: z.number(),
+    pixelRatio: z.number(),
+  })
+  .strict()
+
+const pageSchema: z.ZodType<Page> = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    device: devicePresetSchema,
+    nodes: z.array(nodeSchema),
+  })
+  .strict()
+
+const designTokensSchema: z.ZodType<DesignTokens> = z
+  .object({
+    colors: z.record(z.string(), colorSchema),
+    typography: z.record(z.string(), textStyleSchema),
+    spacing: z.record(z.string(), z.number()),
+  })
+  .strict()
+
+export const documentSchema: z.ZodType<CalqueDocument> = z
+  .object({
+    version: z.number(),
+    id: z.string(),
+    name: z.string(),
+    pages: z.array(pageSchema),
+    tokens: designTokensSchema,
+  })
+  .strict()
