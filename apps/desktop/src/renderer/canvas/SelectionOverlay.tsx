@@ -2,7 +2,7 @@
 // poignees, et l'aperçu de creation en cours. N'affiche les poignees que
 // pour une selection d'UN SEUL noeud (decision 8) ; sur plusieurs noeuds,
 // seul le cadre englobant (union des cadres absolus) est affiche.
-import { handleRects, unionRects } from '@calque/core'
+import { findNode, handleRects, unionRects } from '@calque/core'
 import type { HandleId, Rect } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import { pageNodesOf, resolvePreviewAbsoluteFrame, useResizeInteraction } from './useDragInteraction'
@@ -35,7 +35,7 @@ export function SelectionOverlay() {
 
   const nodes = pageNodesOf(document, pageId)
   const selectedFrames = selection
-    .map((id) => (findsInTree(nodes, id) ? resolvePreviewAbsoluteFrame(nodes, id, dragPreview) : null))
+    .map((id) => (findNode(nodes, id) !== null ? resolvePreviewAbsoluteFrame(nodes, id, dragPreview) : null))
     .filter((r): r is Rect => r !== null)
 
   const bounding = selectedFrames.length === 0 ? null : selectedFrames.length === 1 ? selectedFrames[0]! : unionRects(selectedFrames)
@@ -91,15 +91,4 @@ export function SelectionOverlay() {
       </g>
     </svg>
   )
-}
-
-// Recherche recursive minimale : evite de dependre de findNode juste pour un
-// test d'existence (findNode rend le noeud, pas seulement un booleen, ce qui
-// suffirait mais alourdirait l'appel ci-dessus a chaque frame de rendu).
-function findsInTree(nodes: import('@calque/core').Node[], id: string): boolean {
-  for (const n of nodes) {
-    if (n.id === id) return true
-    if (n.type === 'frame' && findsInTree(n.children, id)) return true
-  }
-  return false
 }

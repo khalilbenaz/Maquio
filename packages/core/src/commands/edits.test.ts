@@ -3,6 +3,7 @@ import { createDocument } from '../model/document'
 import { findNode, findParent, absoluteFrame, NodeNotFoundError, NotAFrameError } from '../tree/tree'
 import { PageNotFoundError, InvalidPatchError, MixedParentsError, EmptySelectionError } from './command'
 import {
+  compositeCommand,
   createNodeCommand,
   deleteNodeCommand,
   moveNodeCommand,
@@ -330,6 +331,59 @@ describe('setTokensCommand', () => {
 
     const back = inverse.apply(changed)
     expect(back.tokens).toEqual(doc.tokens)
+  })
+})
+
+describe('compositeCommand (round de correction 1, Tache 15)', () => {
+  it('applique toutes les commandes dans l ordre', () => {
+    const { doc, pageId } = baseDoc()
+    const withThree = [rect('a', 0, 0), rect('b', 10, 0), rect('c', 20, 0)].reduce(
+      (d, n) => createNodeCommand(pageId, null, n).apply(d),
+      doc,
+    )
+
+    const composite = compositeCommand('Supprimer la selection', [
+      deleteNodeCommand(pageId, 'a'),
+      deleteNodeCommand(pageId, 'b'),
+      deleteNodeCommand(pageId, 'c'),
+    ])
+    const result = composite.apply(withThree)
+
+    expect(findNode(result.pages[0]!.nodes, 'a')).toBeNull()
+    expect(findNode(result.pages[0]!.nodes, 'b')).toBeNull()
+    expect(findNode(result.pages[0]!.nodes, 'c')).toBeNull()
+  })
+
+  it('s inverse en une seule commande qui restaure tout, y compris l ordre exact de la fratrie', () => {
+    const { doc, pageId } = baseDoc()
+    const withThree = [rect('a', 0, 0), rect('b', 10, 0), rect('c', 20, 0)].reduce(
+      (d, n) => createNodeCommand(pageId, null, n).apply(d),
+      doc,
+    )
+
+    const composite = compositeCommand('Supprimer la selection', [
+      deleteNodeCommand(pageId, 'a'),
+      deleteNodeCommand(pageId, 'b'),
+      deleteNodeCommand(pageId, 'c'),
+    ])
+    const inverse = composite.invert(withThree)
+    const deleted = composite.apply(withThree)
+
+    const restored = inverse.apply(deleted)
+    expect(restored.pages[0]!.nodes.map((n) => n.id)).toEqual(['a', 'b', 'c'])
+    expect(restored).toEqual(withThree)
+  })
+
+  it('n applique rien si une commande du lot echoue (tout ou rien)', () => {
+    const { doc, pageId } = baseDoc()
+    const withA = createNodeCommand(pageId, null, rect('a', 0, 0)).apply(doc)
+
+    const composite = compositeCommand('Lot invalide', [
+      deleteNodeCommand(pageId, 'a'),
+      deleteNodeCommand(pageId, 'fantome'),
+    ])
+
+    expect(() => composite.apply(withA)).toThrow(NodeNotFoundError)
   })
 })
 

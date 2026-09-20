@@ -9,7 +9,7 @@
 // desselectionne. Ils sont desactives quand le focus est dans un champ de
 // saisie (input, textarea, contenteditable).
 import { useEffect, useRef } from 'react'
-import { deleteNodeCommand, findNode } from '@calque/core'
+import { compositeCommand, deleteNodeCommand, findNode } from '@calque/core'
 import type { Node as CalqueNode } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import { NodeView } from './NodeView'
@@ -56,10 +56,14 @@ export function Canvas() {
       if ((e.key === 'Delete' || e.key === 'Backspace') && state.selection.length > 0) {
         e.preventDefault()
         const nodes = pageNodesOf(state.document, state.pageId)
-        for (const id of state.selection) {
-          if (findNode(nodes, id) !== null) {
-            state.execute(deleteNodeCommand(state.pageId, id))
-          }
+        const idsToDelete = state.selection.filter((id) => findNode(nodes, id) !== null)
+        // Round de correction 1 : une seule commande composite pour toute
+        // la selection, pour qu'un seul "annuler" restaure tous les noeuds
+        // supprimes -- l'utilisateur percoit "supprimer ma selection" comme
+        // un geste unique, pas comme N suppressions independantes.
+        if (idsToDelete.length > 0) {
+          const commands = idsToDelete.map((id) => deleteNodeCommand(state.pageId, id))
+          state.execute(compositeCommand('Supprimer la selection', commands))
         }
         state.select([])
         return

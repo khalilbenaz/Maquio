@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, beforeEach } from 'vitest'
+import { describe, expect, it, beforeEach, vi } from 'vitest'
 import { Canvas } from '../src/renderer/canvas/Canvas'
 import { useEditorStore } from '../src/renderer/state/editorStore'
 import { documentDeTest } from './helpers/documentDeTest'
@@ -192,5 +192,73 @@ describe('Canvas - outils de creation (decision 11)', () => {
     expect(created).toBeDefined()
     expect(created?.type).toBe('rect')
     expect(created?.frame).toMatchObject({ x: 200, y: 200, w: 50, h: 40 })
+  })
+})
+
+describe('Canvas - nettoyage au demontage (Critical, round de correction 1)', () => {
+  it('retire les ecouteurs window si le composant est demonte en plein glissement', () => {
+    const addSpy = vi.spyOn(window, 'addEventListener')
+    const removeSpy = vi.spyOn(window, 'removeEventListener')
+
+    const { unmount } = render(<Canvas />)
+    fireEvent.pointerDown(screen.getByTestId('node-rect1'), { clientX: 0, clientY: 0 })
+    fireEvent.pointerMove(window, { clientX: 10, clientY: 10 })
+    // Pas de pointerup : le geste est abandonne en plein vol par le demontage.
+
+    unmount()
+
+    const countCalls = (spy: typeof addSpy, type: string) =>
+      spy.mock.calls.filter(([eventType]) => eventType === type).length
+
+    expect(countCalls(removeSpy, 'pointermove')).toBe(countCalls(addSpy, 'pointermove'))
+    expect(countCalls(removeSpy, 'pointerup')).toBe(countCalls(addSpy, 'pointerup'))
+
+    addSpy.mockRestore()
+    removeSpy.mockRestore()
+  })
+
+  it('un pointerup tardif apres demontage et chargement d un autre document n execute aucune commande fantome', () => {
+    const { unmount } = render(<Canvas />)
+    fireEvent.pointerDown(screen.getByTestId('node-rect1'), { clientX: 0, clientY: 0 })
+    fireEvent.pointerMove(window, { clientX: 10, clientY: 10 })
+
+    unmount()
+
+    // Exactement le scenario cite pour justifier le garde-fou "un seul
+    // geste actif" : un nouveau document est charge avant que le pointerup
+    // du geste abandonne n'arrive.
+    useEditorStore.getState().load(documentDeTest())
+
+    fireEvent.pointerUp(window, { clientX: 20, clientY: 30 })
+
+    const state = useEditorStore.getState()
+    expect(state.history.canUndo).toBe(false)
+    expect(state.document.pages[0]!.nodes[0]!.frame).toMatchObject({ x: 0, y: 0 })
+  })
+})
+
+describe('Canvas - suppression multiple (points a traiter, round de correction 1)', () => {
+  it('supprime toute la selection en une seule commande : un seul undo restaure les trois noeuds a leur position exacte', () => {
+    const doc = documentDeTest()
+    const [rect1, rect2] = doc.pages[0]!.nodes
+    const rect3 = { ...rect1!, id: 'rect3', name: 'rect3', frame: { x: 200, y: 200, w: 50, h: 50 } }
+    useEditorStore.getState().load({ ...doc, pages: [{ ...doc.pages[0]!, nodes: [rect1!, rect2!, rect3] }] })
+
+    render(<Canvas />)
+    fireEvent.pointerDown(screen.getByTestId('node-rect1'))
+    fireEvent.pointerDown(screen.getByTestId('node-rect2'), { shiftKey: true })
+    fireEvent.pointerDown(screen.getByTestId('node-rect3'), { shiftKey: true })
+    expect(useEditorStore.getState().selection).toEqual(['rect1', 'rect2', 'rect3'])
+
+    fireEvent.keyDown(window, { key: 'Delete' })
+    expect(useEditorStore.getState().document.pages[0]!.nodes).toHaveLength(0)
+    expect(useEditorStore.getState().history.canUndo).toBe(true)
+
+    useEditorStore.getState().undo()
+
+    const state = useEditorStore.getState()
+    expect(state.history.canUndo).toBe(false)
+    expect(state.document.pages[0]!.nodes.map((n) => n.id)).toEqual(['rect1', 'rect2', 'rect3'])
+    expect(state.document.pages[0]!.nodes[2]!.frame).toMatchObject({ x: 200, y: 200 })
   })
 })
