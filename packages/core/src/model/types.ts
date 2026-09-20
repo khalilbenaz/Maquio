@@ -27,6 +27,12 @@ export type NodeBase = {
   visible: boolean
   locked: boolean
   opacity: number
+  // Degres (pas radians), sens horaire, comme dans l'inspecteur des outils
+  // de ce type (Figma, etc.) : c'est cet inspecteur (Tache 16) qui lit et
+  // ecrit ce champ directement, donc l'unite naturelle pour la saisie/
+  // l'affichage prime sur le confort d'un seul generateur de code. Les
+  // exportateurs (ex. @calque/codegen/flutter) convertissent en radians
+  // quand leur cible l'exige.
   rotation: number
 }
 
