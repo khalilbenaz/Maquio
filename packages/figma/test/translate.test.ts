@@ -27,6 +27,29 @@ const wrapAsFile = (node: FigmaNode): FigmaFileResponse => ({
   },
 })
 
+// Reservee aux tests de donnees Figma hostiles/malformees (round de
+// correction 1) : contourne intentionnellement le typage de FigmaNode pour
+// simuler ce qu'une vraie reponse d'API malformee ferait a l'execution
+// (name manquant, layoutMode hors de l'union litterale...). figma-types.ts
+// n'est qu'un typage a la compilation, jamais verifie au runtime — c'est
+// precisement ce que ces tests exercent.
+const wrapAsFileUnsafe = (node: Record<string, unknown>): FigmaFileResponse =>
+  ({
+    document: {
+      id: '0:0',
+      name: 'Doc',
+      type: 'DOCUMENT',
+      children: [
+        {
+          id: '0:1',
+          name: 'Page',
+          type: 'CANVAS',
+          children: [node],
+        },
+      ],
+    },
+  }) as unknown as FigmaFileResponse
+
 describe('figmaToDocument', () => {
   it('traduit une page, une frame, un texte et un rectangle', () => {
     const { document, report } = figmaToDocument(fixture('simple-file.json'))
@@ -281,5 +304,350 @@ describe('comptage des noeuds importes (point 11)', () => {
   it('compte recursivement les enfants des frames (root + COMPONENT + INSTANCE)', () => {
     const { report } = figmaToDocument(fixture('autolayout-file.json'))
     expect(report.nodesImported).toBe(3)
+  })
+})
+
+// Correction Critical, round 1 : le relecteur a construit quatorze reponses
+// Figma degenerees et documentSchema.parse levait sur cinq d'entre elles.
+// Le traducteur assainit desormais a la frontiere plutot que de lever (voir
+// sanitize.ts) ; ces tests reprennent les quatorze cas et verifient a la
+// fois que le document produit reste valide et que chaque valeur reellement
+// aberrante (par opposition a une simple absence, geree silencieusement)
+// produit un avertissement portant le nodeId et la valeur d'origine.
+describe('assainissement des donnees Figma hostiles (Critical, round 1)', () => {
+  const cases: Array<{ label: string; file: FigmaFileResponse }> = [
+    {
+      label: 'absoluteBoundingBox absent',
+      file: wrapAsFile({ id: 'n1', name: 'N1', type: 'RECTANGLE', fills: [], strokes: [] }),
+    },
+    {
+      label: 'largeur negative',
+      file: wrapAsFile({
+        id: 'n2',
+        name: 'N2',
+        type: 'RECTANGLE',
+        absoluteBoundingBox: { x: 0, y: 0, width: -50, height: 10 },
+      }),
+    },
+    {
+      label: 'hauteur negative',
+      file: wrapAsFile({
+        id: 'n3',
+        name: 'N3',
+        type: 'RECTANGLE',
+        absoluteBoundingBox: { x: 0, y: 0, width: 10, height: -50 },
+      }),
+    },
+    {
+      label: 'children vide',
+      file: wrapAsFile({
+        id: 'n4',
+        name: 'N4',
+        type: 'FRAME',
+        absoluteBoundingBox: { x: 0, y: 0, width: 10, height: 10 },
+        children: [],
+      }),
+    },
+    {
+      label: 'children absent',
+      file: wrapAsFile({
+        id: 'n5',
+        name: 'N5',
+        type: 'FRAME',
+        absoluteBoundingBox: { x: 0, y: 0, width: 10, height: 10 },
+      }),
+    },
+    {
+      label: 'opacity > 1',
+      file: wrapAsFile({
+        id: 'n6',
+        name: 'N6',
+        type: 'RECTANGLE',
+        absoluteBoundingBox: { x: 0, y: 0, width: 10, height: 10 },
+        opacity: 2,
+      }),
+    },
+    {
+      label: 'opacity < 0',
+      file: wrapAsFile({
+        id: 'n7',
+        name: 'N7',
+        type: 'RECTANGLE',
+        absoluteBoundingBox: { x: 0, y: 0, width: 10, height: 10 },
+        opacity: -1,
+      }),
+    },
+    {
+      label: 'composante de couleur > 1',
+      file: wrapAsFile({
+        id: 'n8',
+        name: 'N8',
+        type: 'RECTANGLE',
+        absoluteBoundingBox: { x: 0, y: 0, width: 10, height: 10 },
+        fills: [{ type: 'SOLID', color: { r: 2, g: 0, b: 0, a: 1 } }],
+      }),
+    },
+    {
+      label: 'TEXT sans characters',
+      file: wrapAsFile({
+        id: 'n9',
+        name: 'N9',
+        type: 'TEXT',
+        absoluteBoundingBox: { x: 0, y: 0, width: 10, height: 10 },
+        style: { fontFamily: 'Inter', fontSize: 14, fontWeight: 400 },
+      }),
+    },
+    {
+      label: 'TEXT sans style',
+      file: wrapAsFile({
+        id: 'n10',
+        name: 'N10',
+        type: 'TEXT',
+        absoluteBoundingBox: { x: 0, y: 0, width: 10, height: 10 },
+        characters: 'Bonjour',
+      }),
+    },
+    {
+      label: 'noeud sans name',
+      file: wrapAsFileUnsafe({ id: 'n11', type: 'RECTANGLE', absoluteBoundingBox: { x: 0, y: 0, width: 10, height: 10 } }),
+    },
+    {
+      label: 'CANVAS sans enfant',
+      file: {
+        document: {
+          id: '0:0',
+          name: 'Doc',
+          type: 'DOCUMENT',
+          children: [{ id: '0:1', name: 'Page vide', type: 'CANVAS', children: [] }],
+        },
+      },
+    },
+    {
+      label: 'layoutMode inconnu',
+      file: wrapAsFileUnsafe({
+        id: 'n12',
+        name: 'N12',
+        type: 'FRAME',
+        absoluteBoundingBox: { x: 0, y: 0, width: 10, height: 10 },
+        layoutMode: 'DIAGONAL',
+        children: [],
+      }),
+    },
+    {
+      label: 'imbrication a cinq niveaux',
+      file: wrapAsFile(
+        (() => {
+          let n: FigmaNode = {
+            id: 'deep-5',
+            name: 'Niveau 5',
+            type: 'RECTANGLE',
+            absoluteBoundingBox: { x: 40, y: 40, width: 10, height: 10 },
+          }
+          for (let level = 4; level >= 1; level -= 1) {
+            n = {
+              id: `deep-${level}`,
+              name: `Niveau ${level}`,
+              type: 'FRAME',
+              absoluteBoundingBox: {
+                x: level * 10,
+                y: level * 10,
+                width: 100 - level * 10,
+                height: 100 - level * 10,
+              },
+              children: [n],
+            }
+          }
+          return n
+        })(),
+      ),
+    },
+  ]
+
+  it.each(cases)('documentSchema.parse accepte le document malgre : $label', ({ file }) => {
+    const { document } = figmaToDocument(file)
+    expect(() => documentSchema.parse(document)).not.toThrow()
+  })
+
+  it('absoluteBoundingBox absent : positionne a (0,0) avec une taille nulle, avec avertissement', () => {
+    const { document, report } = figmaToDocument(cases[0]!.file)
+    const node = document.pages[0]!.nodes[0]! as { frame: { x: number; y: number; w: number; h: number } }
+    expect(node.frame).toEqual({ x: 0, y: 0, w: 0, h: 0 })
+    expect(report.warnings.some((w) => w.nodeId === 'n1' && /absoluteBoundingBox/.test(w.reason))).toBe(true)
+  })
+
+  it('largeur negative : ramenee a 0 avec avertissement citant la valeur d origine', () => {
+    const { document, report } = figmaToDocument(cases[1]!.file)
+    const node = document.pages[0]!.nodes[0]! as { frame: { w: number } }
+    expect(node.frame.w).toBe(0)
+    expect(report.warnings.some((w) => w.nodeId === 'n2' && /-50/.test(w.reason))).toBe(true)
+  })
+
+  it('hauteur negative : ramenee a 0 avec avertissement citant la valeur d origine', () => {
+    const { document, report } = figmaToDocument(cases[2]!.file)
+    const node = document.pages[0]!.nodes[0]! as { frame: { h: number } }
+    expect(node.frame.h).toBe(0)
+    expect(report.warnings.some((w) => w.nodeId === 'n3' && /-50/.test(w.reason))).toBe(true)
+  })
+
+  it('opacity > 1 : ramenee a 1 avec avertissement citant la valeur d origine', () => {
+    const { document, report } = figmaToDocument(cases[5]!.file)
+    const node = document.pages[0]!.nodes[0]! as { opacity: number }
+    expect(node.opacity).toBe(1)
+    expect(report.warnings.some((w) => w.nodeId === 'n6' && /2/.test(w.reason))).toBe(true)
+  })
+
+  it('opacity < 0 : ramenee a 0 avec avertissement citant la valeur d origine', () => {
+    const { document, report } = figmaToDocument(cases[6]!.file)
+    const node = document.pages[0]!.nodes[0]! as { opacity: number }
+    expect(node.opacity).toBe(0)
+    expect(report.warnings.some((w) => w.nodeId === 'n7' && /-1/.test(w.reason))).toBe(true)
+  })
+
+  it('composante de couleur > 1 : ramenee a 1 avec avertissement citant la valeur d origine', () => {
+    const { document, report } = figmaToDocument(cases[7]!.file)
+    const node = document.pages[0]!.nodes[0]! as { fills: { type: string; color: { r: number } }[] }
+    expect(node.fills[0]!.color.r).toBe(1)
+    expect(report.warnings.some((w) => w.nodeId === 'n8' && /2/.test(w.reason))).toBe(true)
+  })
+
+  it('noeud sans name : nom de repli derive du type, avec avertissement', () => {
+    const { document, report } = figmaToDocument(cases[10]!.file)
+    const node = document.pages[0]!.nodes[0]!
+    expect(node.name.length).toBeGreaterThan(0)
+    expect(report.warnings.some((w) => w.nodeId === 'n11' && /[Nn]om/.test(w.reason))).toBe(true)
+  })
+
+  it('layoutMode inconnu : traite comme absolute, avec avertissement citant la valeur d origine', () => {
+    const { document, report } = figmaToDocument(cases[12]!.file)
+    const node = document.pages[0]!.nodes[0]! as { layout: { mode: string } }
+    expect(node.layout.mode).toBe('absolute')
+    expect(report.warnings.some((w) => w.nodeId === 'n12' && /DIAGONAL/.test(w.reason))).toBe(true)
+  })
+
+  it('imbrication a cinq niveaux : la traduction descend jusqu au niveau le plus profond, sans avertissement', () => {
+    const { document, report } = figmaToDocument(cases[13]!.file)
+    let depth = 0
+    let current: { children?: unknown[] } | undefined = document.pages[0]!.nodes[0] as { children?: unknown[] }
+    while (current) {
+      depth += 1
+      current = current.children?.[0] as { children?: unknown[] } | undefined
+    }
+    expect(depth).toBe(5)
+    expect(report.warnings).toEqual([])
+  })
+
+  it('children vide/absent et CANVAS sans enfant ne produisent aucun avertissement (etats Figma normaux)', () => {
+    expect(figmaToDocument(cases[3]!.file).report.warnings).toEqual([])
+    expect(figmaToDocument(cases[4]!.file).report.warnings).toEqual([])
+    expect(figmaToDocument(cases[11]!.file).report.warnings).toEqual([])
+  })
+})
+
+// Minor 1 (round 1) : FigmaNode.visible et FigmaPaint.visible sont declares
+// et utilises par translate.ts mais n'etaient exerces par aucune fixture ni
+// aucun test.
+describe('visible sur un noeud et sur un remplissage (Minor 1, round 1)', () => {
+  it('un noeud visible:false devient un noeud Calque avec visible:false', () => {
+    const { document } = figmaToDocument(
+      wrapAsFile({
+        id: 'v1',
+        name: 'Cache',
+        type: 'RECTANGLE',
+        absoluteBoundingBox: { x: 0, y: 0, width: 10, height: 10 },
+        visible: false,
+        fills: [],
+      }),
+    )
+    const node = document.pages[0]!.nodes[0]!
+    expect(node.visible).toBe(false)
+  })
+
+  it('un noeud sans visible devient visible:true par defaut', () => {
+    const { document } = figmaToDocument(
+      wrapAsFile({
+        id: 'v2',
+        name: 'Par defaut',
+        type: 'RECTANGLE',
+        absoluteBoundingBox: { x: 0, y: 0, width: 10, height: 10 },
+        fills: [],
+      }),
+    )
+    expect(document.pages[0]!.nodes[0]!.visible).toBe(true)
+  })
+
+  it('un remplissage visible:false est exclu sans avertissement', () => {
+    const { document, report } = figmaToDocument(
+      wrapAsFile({
+        id: 'v3',
+        name: 'Rect',
+        type: 'RECTANGLE',
+        absoluteBoundingBox: { x: 0, y: 0, width: 10, height: 10 },
+        fills: [{ type: 'SOLID', color: { r: 1, g: 0, b: 0, a: 1 }, visible: false }],
+      }),
+    )
+    const node = document.pages[0]!.nodes[0]! as { fills: unknown[] }
+    expect(node.fills).toEqual([])
+    expect(report.warnings).toEqual([])
+  })
+
+  it('un trait visible:false est exclu sans avertissement', () => {
+    const { document, report } = figmaToDocument(
+      wrapAsFile({
+        id: 'v4',
+        name: 'Rect trait',
+        type: 'RECTANGLE',
+        absoluteBoundingBox: { x: 0, y: 0, width: 10, height: 10 },
+        strokes: [{ type: 'SOLID', color: { r: 0, g: 0, b: 1, a: 1 }, visible: false }],
+      }),
+    )
+    const node = document.pages[0]!.nodes[0]! as { strokes: unknown[] }
+    expect(node.strokes).toEqual([])
+    expect(report.warnings).toEqual([])
+  })
+})
+
+// Minor 2 (round 1) : un meme noeud texte peut etre traduit normalement ET
+// relu par buildTokens parce qu'un style publie TEXT pointe vers lui, ce qui
+// appelait deux fois translateTextStyle et dupliquait l'avertissement
+// JUSTIFIED/BASELINE. Les avertissements identiques (meme nodeId, meme
+// reason) sont desormais deduppliques.
+describe('deduplication des avertissements (Minor 2, round 1)', () => {
+  it('ne duplique pas l avertissement JUSTIFIED quand un style publie TEXT pointe vers le meme noeud', () => {
+    const file: FigmaFileResponse = {
+      document: {
+        id: '0:0',
+        name: 'Doc',
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: '0:1',
+            name: 'Page',
+            type: 'CANVAS',
+            children: [
+              {
+                id: 't1',
+                name: 'Corps de texte',
+                type: 'TEXT',
+                absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 20 },
+                characters: 'Bonjour',
+                style: {
+                  fontFamily: 'Inter',
+                  fontSize: 14,
+                  fontWeight: 400,
+                  textAlignHorizontal: 'JUSTIFIED',
+                },
+                styles: { text: 'TS1' },
+              },
+            ],
+          },
+        ],
+      },
+      styles: { TS1: { name: 'Body', styleType: 'TEXT' } },
+    }
+
+    const { report } = figmaToDocument(file)
+    const justified = report.warnings.filter((w) => /JUSTIFIED/.test(w.reason))
+    expect(justified).toHaveLength(1)
+    expect(justified[0]!.nodeId).toBe('t1')
   })
 })

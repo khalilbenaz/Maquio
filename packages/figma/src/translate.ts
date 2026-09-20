@@ -1,10 +1,17 @@
 // Traducteur Figma -> document Calque (Tache 10).
 //
 // Fonction pure : pas de reseau, pas d'acces disque, pas d'horodatage, et
-// surtout jamais crypto.randomUUID() (voir README de tache : deux appels
-// sur le meme fichier Figma doivent rendre deux documents strictement
-// identiques). Les identifiants de noeud, de page et de document sont ceux
-// de Figma, repris tels quels.
+// surtout jamais crypto.randomUUID() (deux appels sur le meme fichier Figma
+// doivent rendre deux documents strictement identiques). Les identifiants de
+// noeud, de page et de document sont ceux de Figma, repris tels quels.
+//
+// Assainissement (correction Critical, round 1) : `figma-types.ts` n'est
+// qu'un typage a la compilation, jamais verifie au runtime. Toute valeur qui
+// alimente une propriete du modele Calque passe par les fonctions de
+// sanitize.ts (point de passage unique), qui la ramenent a une valeur valide
+// et emettent un ImportWarning si une correction reelle a ete necessaire.
+// Un import ne s'arrete jamais au milieu a cause d'une reponse Figma
+// malformee : voir sanitize.ts pour le detail des bornes appliquees.
 import {
   DEVICE_PRESETS,
   DOCUMENT_VERSION,
@@ -26,14 +33,8 @@ import {
   type TextNode,
   type TextStyle,
 } from '@calque/core'
-import type {
-  FigmaAlignCross,
-  FigmaAlignMain,
-  FigmaColor,
-  FigmaFileResponse,
-  FigmaNode,
-  FigmaRect,
-} from './figma-types'
+import type { FigmaAlignCross, FigmaAlignMain, FigmaFileResponse, FigmaNode, FigmaRect } from './figma-types'
+import { sanitizeBox, sanitizeColor, sanitizeName, sanitizeNumber, type WarnFn } from './sanitize'
 
 export type ImportWarning = { nodeId: string; nodeName: string; reason: string }
 export type ImportReport = { nodesImported: number; warnings: ImportWarning[] }
@@ -53,6 +54,31 @@ const FRAME_LIKE_TYPES: ReadonlySet<string> = new Set([
   'COMPONENT_SET',
 ])
 
+function safeId(node: FigmaNode): string {
+  return typeof node.id === 'string' && node.id !== '' ? node.id : '(id inconnu)'
+}
+
+function makeWarn(ctx: TranslateContext, nodeId: string, nodeName: string): WarnFn {
+  return (_property, reason) => ctx.warnings.push({ nodeId, nodeName, reason })
+}
+
+// Deduplique les avertissements identiques (meme noeud, meme raison). Un
+// meme noeud peut etre visite deux fois dans des roles differents — par
+// exemple un noeud texte traduit normalement puis relu par buildTokens parce
+// qu'un style publie de type TEXT pointe vers lui — sans que cela doive
+// produire deux fois le meme avertissement (Minor, round 1).
+function dedupeWarnings(warnings: ImportWarning[]): ImportWarning[] {
+  const seen = new Set<string>()
+  const result: ImportWarning[] = []
+  for (const w of warnings) {
+    const key = `${w.nodeId}\u0000${w.reason}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    result.push(w)
+  }
+  return result
+}
+
 export function figmaToDocument(file: FigmaFileResponse): { document: CalqueDocument; report: ImportReport } {
   const ctx: TranslateContext = { warnings: [], nodesImported: 0 }
 
@@ -69,7 +95,10 @@ export function figmaToDocument(file: FigmaFileResponse): { document: CalqueDocu
     tokens,
   }
 
-  return { document, report: { nodesImported: ctx.nodesImported, warnings: ctx.warnings } }
+  return {
+    document,
+    report: { nodesImported: ctx.nodesImported, warnings: dedupeWarnings(ctx.warnings) },
+  }
 }
 
 function translatePage(canvas: FigmaNode, ctx: TranslateContext): Page {
@@ -107,54 +136,52 @@ function pickClosestDevice(rootBox: FigmaRect | undefined): DevicePreset {
   return { ...best }
 }
 
-function toColor(c: FigmaColor): Color {
-  return { r: c.r, g: c.g, b: c.b, a: c.a }
-}
-
-function extractSolidColor(fills: FigmaNode['fills']): Color | undefined {
+function extractSolidColor(fills: FigmaNode['fills'], warn: WarnFn, property: string): Color | undefined {
   const solid = (fills ?? []).find((f) => f.visible !== false && f.type === 'SOLID' && f.color !== undefined)
-  return solid?.color ? toColor(solid.color) : undefined
+  return solid?.color ? sanitizeColor(solid.color, warn, property) : undefined
 }
 
 // Traduit les remplissages d'un noeud. Seul le type SOLID a un equivalent
 // dans le modele Calque (Fill = solid | none) : tout autre type de peinture
-// (degrade, image, ...) est une perte reelle et produit un avertissement
-// (point 10), plutot qu'une approximation silencieuse.
-function translateFills(node: FigmaNode, ctx: TranslateContext): Fill[] {
+// (degrade, image, ...) est une perte reelle et produit un avertissement,
+// plutot qu'une approximation silencieuse. Un remplissage explicitement
+// masque (`visible: false`) est exclu sans avertissement : c'est un usage
+// normal de Figma, pas une anomalie.
+function translateFills(node: FigmaNode, warn: WarnFn): Fill[] {
   const result: Fill[] = []
-  for (const paint of node.fills ?? []) {
-    if (paint.visible === false) continue
+  const fills = node.fills ?? []
+  fills.forEach((paint, i) => {
+    if (paint.visible === false) return
     if (paint.type === 'SOLID' && paint.color !== undefined) {
-      result.push({ type: 'solid', color: toColor(paint.color) })
+      result.push({ type: 'solid', color: sanitizeColor(paint.color, warn, `fills[${i}].color`) })
     } else {
-      ctx.warnings.push({
-        nodeId: node.id,
-        nodeName: node.name,
-        reason: `Remplissage Figma de type "${paint.type}" non pris en charge (seul SOLID est traduit) : ignore`,
-      })
+      warn(
+        `fills[${i}]`,
+        `Remplissage Figma de type "${paint.type}" non pris en charge (seul SOLID est traduit) : ignore`,
+      )
     }
-  }
+  })
   return result
 }
 
 // Traduit les traits d'un noeud. Figma porte l'epaisseur au niveau du
 // noeud (strokeWeight), partagee par tous ses traits, contrairement au
 // modele Calque ou chaque Stroke porte sa propre largeur.
-function translateStrokes(node: FigmaNode, ctx: TranslateContext): Stroke[] {
-  const width = node.strokeWeight ?? 0
+function translateStrokes(node: FigmaNode, warn: WarnFn): Stroke[] {
+  const width = sanitizeNumber(node.strokeWeight, 0, warn, 'strokeWeight')
   const result: Stroke[] = []
-  for (const paint of node.strokes ?? []) {
-    if (paint.visible === false) continue
+  const strokes = node.strokes ?? []
+  strokes.forEach((paint, i) => {
+    if (paint.visible === false) return
     if (paint.type === 'SOLID' && paint.color !== undefined) {
-      result.push({ color: toColor(paint.color), width })
+      result.push({ color: sanitizeColor(paint.color, warn, `strokes[${i}].color`), width })
     } else {
-      ctx.warnings.push({
-        nodeId: node.id,
-        nodeName: node.name,
-        reason: `Trait Figma de type "${paint.type}" non pris en charge (seul SOLID est traduit) : ignore`,
-      })
+      warn(
+        `strokes[${i}]`,
+        `Trait Figma de type "${paint.type}" non pris en charge (seul SOLID est traduit) : ignore`,
+      )
     }
-  }
+  })
   return result
 }
 
@@ -173,24 +200,18 @@ function translateAlignMain(v: FigmaAlignMain | undefined): Layout['alignMain'] 
 }
 
 // BASELINE n'a pas d'equivalent dans Layout.alignCross (start/center/end/
-// stretch) : approxime en 'start', avec avertissement (point 7 et 10).
-function translateAlignCross(
-  node: FigmaNode,
-  ctx: TranslateContext,
-): Layout['alignCross'] {
-  const v: FigmaAlignCross | undefined = node.counterAxisAlignItems
+// stretch) : approxime en 'start', avec avertissement.
+function translateAlignCross(v: FigmaAlignCross | undefined, warn: WarnFn): Layout['alignCross'] {
   switch (v) {
     case 'CENTER':
       return 'center'
     case 'MAX':
       return 'end'
     case 'BASELINE':
-      ctx.warnings.push({
-        nodeId: node.id,
-        nodeName: node.name,
-        reason:
-          'Alignement transverse Figma "BASELINE" approxime en "start" (aucun equivalent dans le modele Calque)',
-      })
+      warn(
+        'counterAxisAlignItems',
+        'Alignement transverse Figma "BASELINE" approxime en "start" (aucun equivalent dans le modele Calque)',
+      )
       return 'start'
     case 'MIN':
     default:
@@ -199,25 +220,40 @@ function translateAlignCross(
 }
 
 // Point 7 : layoutMode HORIZONTAL/VERTICAL -> row/column, absent ou NONE ->
-// absolute ; itemSpacing -> gap ; les quatre padding* -> padding.
-function translateLayout(node: FigmaNode, ctx: TranslateContext): Layout {
-  const mode: Layout['mode'] =
-    node.layoutMode === 'HORIZONTAL' ? 'row' : node.layoutMode === 'VERTICAL' ? 'column' : 'absolute'
+// absolute. Toute autre valeur est une donnee Figma invalide : traitee comme
+// absente (absolute), avec avertissement citant la valeur d'origine.
+function translateLayout(node: FigmaNode, warn: WarnFn): Layout {
+  const rawMode = node.layoutMode
+  let mode: Layout['mode']
+  if (rawMode === undefined || rawMode === 'NONE') {
+    mode = 'absolute'
+  } else if (rawMode === 'HORIZONTAL') {
+    mode = 'row'
+  } else if (rawMode === 'VERTICAL') {
+    mode = 'column'
+  } else {
+    warn(
+      'layoutMode',
+      `Valeur Figma inconnue pour "layoutMode" (${JSON.stringify(rawMode)}), traitee comme absence de mise en page automatique ("absolute")`,
+    )
+    mode = 'absolute'
+  }
+
   return {
     mode,
-    gap: node.itemSpacing ?? 0,
+    gap: sanitizeNumber(node.itemSpacing, 0, warn, 'itemSpacing'),
     padding: {
-      top: node.paddingTop ?? 0,
-      right: node.paddingRight ?? 0,
-      bottom: node.paddingBottom ?? 0,
-      left: node.paddingLeft ?? 0,
+      top: sanitizeNumber(node.paddingTop, 0, warn, 'paddingTop'),
+      right: sanitizeNumber(node.paddingRight, 0, warn, 'paddingRight'),
+      bottom: sanitizeNumber(node.paddingBottom, 0, warn, 'paddingBottom'),
+      left: sanitizeNumber(node.paddingLeft, 0, warn, 'paddingLeft'),
     },
     alignMain: translateAlignMain(node.primaryAxisAlignItems),
-    alignCross: translateAlignCross(node, ctx),
+    alignCross: translateAlignCross(node.counterAxisAlignItems, warn),
   }
 }
 
-function translateTextAlign(node: FigmaNode, ctx: TranslateContext): TextStyle['align'] {
+function translateTextAlign(node: FigmaNode, warn: WarnFn): TextStyle['align'] {
   const v = node.style?.textAlignHorizontal
   switch (v) {
     case 'CENTER':
@@ -225,11 +261,7 @@ function translateTextAlign(node: FigmaNode, ctx: TranslateContext): TextStyle['
     case 'RIGHT':
       return 'right'
     case 'JUSTIFIED':
-      ctx.warnings.push({
-        nodeId: node.id,
-        nodeName: node.name,
-        reason: 'Alignement de texte Figma "JUSTIFIED" non pris en charge, approxime en "left"',
-      })
+      warn('style.textAlignHorizontal', 'Alignement de texte Figma "JUSTIFIED" non pris en charge, approxime en "left"')
       return 'left'
     case 'LEFT':
     default:
@@ -237,35 +269,33 @@ function translateTextAlign(node: FigmaNode, ctx: TranslateContext): TextStyle['
   }
 }
 
-function translateTextStyle(node: FigmaNode, ctx: TranslateContext): TextStyle {
+function translateTextStyle(node: FigmaNode, warn: WarnFn): TextStyle {
   const style = node.style
-  const color = extractSolidColor(node.fills) ?? { r: 0, g: 0, b: 0, a: 1 }
-  const fontSize = style?.fontSize ?? 16
+  const color = extractSolidColor(node.fills, warn, 'style.color') ?? { r: 0, g: 0, b: 0, a: 1 }
+  const fontSize = sanitizeNumber(style?.fontSize, 16, warn, 'style.fontSize')
   return {
-    fontFamily: style?.fontFamily ?? 'Inter',
+    fontFamily: typeof style?.fontFamily === 'string' && style.fontFamily !== '' ? style.fontFamily : 'Inter',
     fontSize,
-    fontWeight: style?.fontWeight ?? 400,
-    lineHeight: style?.lineHeightPx ?? fontSize,
-    letterSpacing: style?.letterSpacing ?? 0,
+    fontWeight: sanitizeNumber(style?.fontWeight, 400, warn, 'style.fontWeight'),
+    lineHeight: sanitizeNumber(style?.lineHeightPx, fontSize, warn, 'style.lineHeightPx'),
+    letterSpacing: sanitizeNumber(style?.letterSpacing, 0, warn, 'style.letterSpacing'),
     color,
-    align: translateTextAlign(node, ctx),
+    align: translateTextAlign(node, warn),
   }
 }
 
 // Heuristique "vecteur simple" (point 6) : un VECTOR dont une des deux
-// dimensions de sa boite englobante absolue est nulle se comporte comme un
-// simple segment de droite et est traduit en `line`. Tout le reste (formes
-// vectorielles libres) est considere complexe et remplace par un espace
-// reserve `image`, avec avertissement.
-function isSimpleVector(node: FigmaNode): boolean {
-  const box = node.absoluteBoundingBox
-  if (!box) return false
+// dimensions de sa boite englobante absolue (deja assainie) est nulle se
+// comporte comme un simple segment de droite et est traduit en `line`. Tout
+// le reste (formes vectorielles libres) est considere complexe et remplace
+// par un espace reserve `image`, avec avertissement.
+function isSimpleVector(box: { width: number; height: number }): boolean {
   return box.width === 0 || box.height === 0
 }
 
 type NodeKind = 'frame' | 'text' | 'rect' | 'ellipse' | 'line' | 'image'
 
-function classify(node: FigmaNode): { kind: NodeKind; warning?: string } {
+function classify(node: FigmaNode, box: { width: number; height: number }): { kind: NodeKind; warning?: string } {
   const t = node.type
   if (FRAME_LIKE_TYPES.has(t)) return { kind: 'frame' }
   if (t === 'TEXT') return { kind: 'text' }
@@ -273,7 +303,7 @@ function classify(node: FigmaNode): { kind: NodeKind; warning?: string } {
   if (t === 'ELLIPSE') return { kind: 'ellipse' }
   if (t === 'LINE') return { kind: 'line' }
   if (t === 'VECTOR') {
-    if (isSimpleVector(node)) return { kind: 'line' }
+    if (isSimpleVector(box)) return { kind: 'line' }
     return {
       kind: 'image',
       warning: `Vecteur Figma complexe (type VECTOR) non pris en charge, remplace par un espace reserve image`,
@@ -286,27 +316,36 @@ function classify(node: FigmaNode): { kind: NodeKind; warning?: string } {
 }
 
 function translateNode(node: FigmaNode, parentOrigin: { x: number; y: number }, ctx: TranslateContext): Node {
-  const box = node.absoluteBoundingBox ?? { x: parentOrigin.x, y: parentOrigin.y, width: 0, height: 0 }
+  const nodeId = safeId(node)
+
+  // Le nom final n'est connu qu'apres assainissement, mais l'avertissement
+  // sur son absence doit deja pouvoir s'emettre : on utilise le type Figma
+  // brut comme nodeName pour cet unique avertissement, puis le nom resolu
+  // pour tous les suivants.
+  const name = sanitizeName(node.name, node.type, (property, reason) =>
+    ctx.warnings.push({ nodeId, nodeName: node.type, reason }),
+  )
+  const warn = makeWarn(ctx, nodeId, name)
+
+  const box = sanitizeBox(node.absoluteBoundingBox, parentOrigin, warn)
   const frame: Rect = { x: box.x - parentOrigin.x, y: box.y - parentOrigin.y, w: box.width, h: box.height }
   const childOrigin = { x: box.x, y: box.y }
 
   const base = {
-    id: node.id,
-    name: node.name,
+    id: nodeId,
+    name,
     frame,
     // `locked` n'a pas de source dans le sous-ensemble type de la reponse
     // Figma retenu pour cette tache (voir figma-types.ts) : un noeud importe
     // n'est jamais verrouille par defaut.
     locked: false,
     visible: node.visible ?? true,
-    opacity: node.opacity ?? 1,
-    rotation: node.rotation ?? 0,
+    opacity: sanitizeNumber(node.opacity, 1, warn, 'opacity', { min: 0, max: 1 }),
+    rotation: sanitizeNumber(node.rotation, 0, warn, 'rotation'),
   }
 
-  const { kind, warning } = classify(node)
-  if (warning) {
-    ctx.warnings.push({ nodeId: node.id, nodeName: node.name, reason: warning })
-  }
+  const { kind, warning } = classify(node, box)
+  if (warning) warn('type', warning)
   ctx.nodesImported += 1
 
   switch (kind) {
@@ -314,10 +353,10 @@ function translateNode(node: FigmaNode, parentOrigin: { x: number; y: number }, 
       const result: FrameNode = {
         ...base,
         type: 'frame',
-        layout: translateLayout(node, ctx),
-        fills: translateFills(node, ctx),
-        strokes: translateStrokes(node, ctx),
-        cornerRadius: node.cornerRadius ?? 0,
+        layout: translateLayout(node, warn),
+        fills: translateFills(node, warn),
+        strokes: translateStrokes(node, warn),
+        cornerRadius: sanitizeNumber(node.cornerRadius, 0, warn, 'cornerRadius'),
         clipsContent: node.clipsContent ?? false,
         children: (node.children ?? []).map((child) => translateNode(child, childOrigin, ctx)),
       }
@@ -328,7 +367,7 @@ function translateNode(node: FigmaNode, parentOrigin: { x: number; y: number }, 
         ...base,
         type: 'text',
         characters: node.characters ?? '',
-        style: translateTextStyle(node, ctx),
+        style: translateTextStyle(node, warn),
       }
       return result
     }
@@ -336,9 +375,9 @@ function translateNode(node: FigmaNode, parentOrigin: { x: number; y: number }, 
       const result: RectNode = {
         ...base,
         type: 'rect',
-        fills: translateFills(node, ctx),
-        strokes: translateStrokes(node, ctx),
-        cornerRadius: node.cornerRadius ?? 0,
+        fills: translateFills(node, warn),
+        strokes: translateStrokes(node, warn),
+        cornerRadius: sanitizeNumber(node.cornerRadius, 0, warn, 'cornerRadius'),
       }
       return result
     }
@@ -346,14 +385,17 @@ function translateNode(node: FigmaNode, parentOrigin: { x: number; y: number }, 
       const result: EllipseNode = {
         ...base,
         type: 'ellipse',
-        fills: translateFills(node, ctx),
-        strokes: translateStrokes(node, ctx),
+        fills: translateFills(node, warn),
+        strokes: translateStrokes(node, warn),
       }
       return result
     }
     case 'line': {
-      const strokes = translateStrokes(node, ctx)
-      const stroke: Stroke = strokes[0] ?? { color: { r: 0, g: 0, b: 0, a: 1 }, width: node.strokeWeight ?? 1 }
+      const strokes = translateStrokes(node, warn)
+      const stroke: Stroke = strokes[0] ?? {
+        color: { r: 0, g: 0, b: 0, a: 1 },
+        width: sanitizeNumber(node.strokeWeight, 1, warn, 'strokeWeight'),
+      }
       const result: LineNode = { ...base, type: 'line', stroke }
       return result
     }
@@ -402,41 +444,39 @@ function buildTokens(file: FigmaFileResponse, ctx: TranslateContext): DesignToke
   for (const [styleId, style] of Object.entries(styles)) {
     const tokenName = normalizeStyleName(style.name)
     const usedBy = usage.get(styleId)
+    const styleWarn = makeWarn(ctx, styleId, style.name)
 
     if (style.styleType === 'FILL') {
-      const color = usedBy ? extractSolidColor(usedBy.fills) : undefined
+      const color = usedBy ? extractSolidColor(usedBy.fills, makeWarn(ctx, usedBy.id, usedBy.name), 'fill.color') : undefined
       if (color) {
         tokens.colors[tokenName] = color
       } else {
-        ctx.warnings.push({
-          nodeId: styleId,
-          nodeName: style.name,
-          reason: `Style de couleur publie "${style.name}" non utilise par un remplissage SOLID d'un noeud du fichier : impossible d'en extraire la couleur`,
-        })
+        styleWarn(
+          'styles',
+          `Style de couleur publie "${style.name}" non utilise par un remplissage SOLID d'un noeud du fichier : impossible d'en extraire la couleur`,
+        )
       }
       continue
     }
 
     if (style.styleType === 'TEXT') {
       if (usedBy) {
-        tokens.typography[tokenName] = translateTextStyle(usedBy, ctx)
+        tokens.typography[tokenName] = translateTextStyle(usedBy, makeWarn(ctx, usedBy.id, usedBy.name))
       } else {
-        ctx.warnings.push({
-          nodeId: styleId,
-          nodeName: style.name,
-          reason: `Style de texte publie "${style.name}" non utilise par aucun noeud du fichier : impossible d'en extraire les proprietes`,
-        })
+        styleWarn(
+          'styles',
+          `Style de texte publie "${style.name}" non utilise par aucun noeud du fichier : impossible d'en extraire les proprietes`,
+        )
       }
       continue
     }
 
     // EFFECT et GRID n'ont pas de categorie correspondante dans
-    // DesignTokens : signale plutot que d'etre perdu en silence (point 10).
-    ctx.warnings.push({
-      nodeId: styleId,
-      nodeName: style.name,
-      reason: `Style publie de type "${style.styleType}" sans equivalent dans les tokens Calque (colors/typography/spacing) : ignore`,
-    })
+    // DesignTokens : signale plutot qu'ignore en silence.
+    styleWarn(
+      'styles',
+      `Style publie de type "${style.styleType}" sans equivalent dans les tokens Calque (colors/typography/spacing) : ignore`,
+    )
   }
 
   return tokens
