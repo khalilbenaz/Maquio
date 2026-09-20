@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nodeSchema } from './schema'
+import { documentSchema, nodeSchema } from './schema'
 import type { EllipseNode, FrameNode, ImageNode, LineNode, RectNode, TextNode } from './types'
 
 describe('nodeSchema', () => {
@@ -229,5 +229,57 @@ describe('colorSchema (via nodeSchema) : composantes bornees a 0..1', () => {
       },
     }
     expect(() => nodeSchema.parse(text)).toThrow()
+  })
+})
+
+// Round de correction 1 (Tache 5) : la non-negativite de w/h est un invariant
+// du MODELE (rectSchema), pas des commandes, car parseDocument, un Node deja
+// invalide passe a createNodeCommand, ou un futur patch de Claude Code
+// contournent tous la couche commandes sans jamais contourner nodeSchema.
+// w: 0 reste accepte : une dimension nulle est un etat transitoire legitime
+// (debut de trace d'une forme au canvas).
+describe('rectSchema (via nodeSchema) : w/h non negatifs', () => {
+  const baseRect = (): RectNode => ({
+    id: 'r1',
+    name: 'Rect',
+    type: 'rect',
+    frame: { x: 0, y: 0, w: 10, h: 10 },
+    visible: true,
+    locked: false,
+    opacity: 1,
+    rotation: 0,
+    fills: [],
+    strokes: [],
+    cornerRadius: 0,
+  })
+
+  it('rejette une largeur negative et accepte une largeur nulle', () => {
+    expect(() => nodeSchema.parse({ ...baseRect(), frame: { x: 0, y: 0, w: -10, h: 10 } })).toThrow()
+    expect(() => nodeSchema.parse({ ...baseRect(), frame: { x: 0, y: 0, w: 0, h: 10 } })).not.toThrow()
+  })
+
+  it('rejette une hauteur negative et accepte une hauteur nulle', () => {
+    expect(() => nodeSchema.parse({ ...baseRect(), frame: { x: 0, y: 0, w: 10, h: -10 } })).toThrow()
+    expect(() => nodeSchema.parse({ ...baseRect(), frame: { x: 0, y: 0, w: 10, h: 0 } })).not.toThrow()
+  })
+
+  it('documentSchema rejette un document dont un noeud a une largeur negative, et accepte une largeur nulle', () => {
+    const buildDoc = (frame: { x: number; y: number; w: number; h: number }) => ({
+      version: 1,
+      id: 'doc1',
+      name: 'Test',
+      pages: [
+        {
+          id: 'p1',
+          name: 'Page 1',
+          device: { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 },
+          nodes: [{ ...baseRect(), frame }],
+        },
+      ],
+      tokens: { colors: {}, typography: {}, spacing: {} },
+    })
+
+    expect(() => documentSchema.parse(buildDoc({ x: 0, y: 0, w: -10, h: 10 }))).toThrow()
+    expect(() => documentSchema.parse(buildDoc({ x: 0, y: 0, w: 0, h: 10 }))).not.toThrow()
   })
 })

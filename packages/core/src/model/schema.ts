@@ -28,12 +28,17 @@ import type {
   TextStyle,
 } from './types'
 
+// w/h bornes a 0..Infinity : une dimension nulle est un etat transitoire
+// legitime (debut de trace d'une forme au canvas), mais une dimension
+// negative n'a de sens pour aucun consommateur du modele (fichier .calque,
+// generateurs de code par plateforme, patchs de Claude Code) et doit etre
+// rejetee ici, a la seule frontiere que ces consommateurs traversent tous.
 const rectSchema: z.ZodType<Rect> = z
   .object({
     x: z.number(),
     y: z.number(),
-    w: z.number(),
-    h: z.number(),
+    w: z.number().min(0),
+    h: z.number().min(0),
   })
   .strict()
 

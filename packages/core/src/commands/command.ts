@@ -82,17 +82,16 @@ export function updatePageNodes(
 
 // Chemin de mutation partage par toutes les fabriques qui modifient UN noeud
 // existant en place (move, resize, update, setText) : trouve le noeud (sinon
-// NodeNotFoundError), applique la transformation, refuse un cadre resultant a
-// largeur ou hauteur negative, puis revalide le noeud entier via nodeSchema
-// avant de le reinjecter dans l'arbre via replaceNode (qui preserve le
-// partage structurel des branches non touchees).
+// NodeNotFoundError), applique la transformation, puis revalide le noeud
+// entier via nodeSchema avant de le reinjecter dans l'arbre via replaceNode
+// (qui preserve le partage structurel des branches non touchees).
 //
-// La verification de largeur/hauteur negative est ici et pas seulement dans
-// nodeSchema car rectSchema (Tache 2) n'interdit pas les dimensions
-// negatives : un Rect degenere doit neanmoins etre rejete a la frontiere des
-// commandes, avant d'atteindre le fichier .calque ou les generateurs de code
-// par plateforme, plutot que d'etre decouvert bien plus tard dans du code
-// Flutter incorrect.
+// nodeSchema (donc rectSchema, Tache 2) rejette deja une largeur/hauteur
+// negative : c'est un invariant du MODELE, pas des commandes, car
+// parseDocument (fichier .calque malforme), createNodeCommand (recevant un
+// Node deja invalide) et un futur patch de Claude Code contournent tous la
+// couche commandes sans jamais contourner nodeSchema. Cette fonction n'a
+// donc pas de verification dediee a ajouter : elle herite de la contrainte.
 export function updateNodeIn(
   doc: CalqueDocument,
   pageId: string,
@@ -103,9 +102,6 @@ export function updateNodeIn(
     const node = findNode(nodes, nodeId)
     if (node === null) throw new NodeNotFoundError(nodeId)
     const updated = fn(node)
-    if (updated.frame.w < 0 || updated.frame.h < 0) {
-      throw new InvalidPatchError('Un cadre ne peut pas avoir une largeur ou une hauteur negative')
-    }
     const parsed = nodeSchema.parse(updated)
     return replaceNode(nodes, nodeId, parsed)
   })
