@@ -98,13 +98,16 @@ Pour importer depuis l'API, il faut un jeton d'accès personnel Figma :
 3. cliquer **Generate new token**, lui donner un nom, le générer ;
 4. copier le jeton immédiatement — Figma ne le réaffiche plus ensuite.
 
-Ce jeton est fourni à Calque via l'appel exposé sur le pont Electron,
-`window.calque.setFigmaToken(votreJeton)` : Calque le chiffre alors avec
-`safeStorage` d'Electron et l'écrit dans un fichier du dossier de données
-de l'application (jamais dans le document `.calque`, jamais dans le
-dépôt). **La v1 n'a pas encore d'écran de réglages dédié** pour saisir ce
-jeton dans l'interface ; en attendant cet écran, l'appel se fait depuis les
-outils de développement de la fenêtre Electron. Une fois le jeton
+Ce jeton se saisit dans l'écran **Réglages** de l'application (bouton
+« Réglages » dans la barre d'outils) : le champ est masqué (type mot de
+passe), et le bouton Enregistrer le transmet à `window.calque.setFigmaToken`.
+Calque le chiffre alors avec `safeStorage` d'Electron et l'écrit dans un
+fichier du dossier de données de l'application (jamais dans le document
+`.calque`, jamais dans le dépôt). Une fois enregistré, le jeton n'est plus
+jamais réaffiché : l'écran indique seulement si un jeton est enregistré ou
+non. Si le chiffrement du système n'est pas disponible sur la machine
+courante, l'enregistrement est refusé et la raison s'affiche dans l'écran
+Réglages, plutôt que d'écrire le jeton en clair. Une fois le jeton
 enregistré, le dialogue d'import Figma de la barre d'outils accepte la clé
 ou le lien d'un fichier Figma.
 

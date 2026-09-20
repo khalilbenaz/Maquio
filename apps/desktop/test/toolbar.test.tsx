@@ -80,4 +80,13 @@ describe('Toolbar', () => {
     fireEvent.click(cible)
     expect(screen.getByLabelText('Exporter le projet')).toBeTruthy()
   })
+
+  // Correction round 2 (Critical) : sans ce bouton, aucun composant ne
+  // permettait de saisir le jeton Figma -- l'import par l'API etait
+  // inatteignable pour un utilisateur.
+  it('le bouton Reglages ouvre le dialogue des reglages', () => {
+    render(<Toolbar api={apiFactice} />)
+    fireEvent.click(screen.getByLabelText('Reglages'))
+    expect(screen.getByLabelText('Reglages', { selector: 'section' })).toBeTruthy()
+  })
 })

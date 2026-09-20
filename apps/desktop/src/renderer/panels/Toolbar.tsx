@@ -19,6 +19,7 @@ import type { Tool } from '../state/editorStore'
 import type { CalqueApi, ExporterId, ExportTargetInfo } from '../../shared/api'
 import { FigmaImportDialog } from '../dialogs/FigmaImportDialog'
 import { ExportDialog } from '../dialogs/ExportDialog'
+import { SettingsDialog } from '../dialogs/SettingsDialog'
 import './Toolbar.css'
 
 const TOOLS: { id: Tool; label: string; icon: string }[] = [
@@ -60,6 +61,10 @@ export function Toolbar({ api }: { api: CalqueApi }) {
   const [exportTargets, setExportTargets] = useState<ExportTargetInfo[]>([])
   const [exporterOuvert, setExporterOuvert] = useState<ExporterId | null>(null)
   const [figmaOuvert, setFigmaOuvert] = useState(false)
+  // Correction round 2 (Critical) : sans ce dialogue, aucun composant
+  // n'appelait jamais setFigmaToken/getSettings -- l'import Figma par
+  // l'API etait inatteignable pour un utilisateur (jeton toujours absent).
+  const [reglagesOuverts, setReglagesOuverts] = useState(false)
 
   useEffect(() => {
     if (!exportOpen) return
@@ -171,10 +176,17 @@ export function Toolbar({ api }: { api: CalqueApi }) {
         </div>
       </div>
 
+      <div className="toolbar-group" role="group" aria-label="Reglages de l application">
+        <button type="button" aria-label="Reglages" className="toolbar-button" onClick={() => setReglagesOuverts(true)}>
+          Reglages
+        </button>
+      </div>
+
       {figmaOuvert ? <FigmaImportDialog api={api} onClose={() => setFigmaOuvert(false)} /> : null}
       {exporterOuvert ? (
         <ExportDialog api={api} exporterId={exporterOuvert} onClose={() => setExporterOuvert(null)} />
       ) : null}
+      {reglagesOuverts ? <SettingsDialog api={api} onClose={() => setReglagesOuverts(false)} /> : null}
     </header>
   )
 }
