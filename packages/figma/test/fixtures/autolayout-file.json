@@ -1,0 +1,53 @@
+{
+  "document": {
+    "id": "0:0",
+    "name": "Document",
+    "type": "DOCUMENT",
+    "children": [
+      {
+        "id": "0:1",
+        "name": "Page 1",
+        "type": "CANVAS",
+        "children": [
+          {
+            "id": "2:1",
+            "name": "Root",
+            "type": "FRAME",
+            "absoluteBoundingBox": { "x": 0, "y": 0, "width": 393, "height": 852 },
+            "layoutMode": "VERTICAL",
+            "itemSpacing": 16,
+            "paddingTop": 8,
+            "paddingRight": 8,
+            "paddingBottom": 8,
+            "paddingLeft": 8,
+            "primaryAxisAlignItems": "MIN",
+            "counterAxisAlignItems": "CENTER",
+            "clipsContent": true,
+            "fills": [],
+            "strokes": [],
+            "children": [
+              {
+                "id": "2:2",
+                "name": "Button",
+                "type": "COMPONENT",
+                "absoluteBoundingBox": { "x": 8, "y": 8, "width": 100, "height": 40 },
+                "fills": [],
+                "strokes": [],
+                "children": []
+              },
+              {
+                "id": "2:3",
+                "name": "Button Instance",
+                "type": "INSTANCE",
+                "absoluteBoundingBox": { "x": 8, "y": 64, "width": 100, "height": 40 },
+                "fills": [],
+                "strokes": [],
+                "children": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

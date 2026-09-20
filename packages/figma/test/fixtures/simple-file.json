@@ -1,0 +1,69 @@
+{
+  "document": {
+    "id": "0:0",
+    "name": "Document",
+    "type": "DOCUMENT",
+    "children": [
+      {
+        "id": "0:1",
+        "name": "Page 1",
+        "type": "CANVAS",
+        "children": [
+          {
+            "id": "1:1",
+            "name": "Root Frame",
+            "type": "FRAME",
+            "absoluteBoundingBox": { "x": 0, "y": 0, "width": 393, "height": 852 },
+            "fills": [],
+            "strokes": [],
+            "clipsContent": true,
+            "children": [
+              {
+                "id": "1:2",
+                "name": "Title",
+                "type": "TEXT",
+                "absoluteBoundingBox": { "x": 24, "y": 60, "width": 200, "height": 32 },
+                "characters": "Bienvenue",
+                "style": {
+                  "fontFamily": "Inter",
+                  "fontSize": 24,
+                  "fontWeight": 700,
+                  "lineHeightPx": 32,
+                  "letterSpacing": 0,
+                  "textAlignHorizontal": "LEFT"
+                },
+                "fills": [
+                  { "type": "SOLID", "color": { "r": 0, "g": 0, "b": 0, "a": 1 } }
+                ]
+              },
+              {
+                "id": "1:3",
+                "name": "Card",
+                "type": "RECTANGLE",
+                "absoluteBoundingBox": { "x": 24, "y": 120, "width": 345, "height": 100 },
+                "cornerRadius": 8,
+                "fills": [
+                  { "type": "SOLID", "color": { "r": 0.2, "g": 0.4, "b": 0.9, "a": 1 } }
+                ],
+                "strokes": [],
+                "styles": { "fill": "S1" }
+              },
+              {
+                "id": "1:4",
+                "name": "Divider",
+                "type": "RECTANGLE",
+                "absoluteBoundingBox": { "x": 24, "y": 240, "width": 345, "height": 1 },
+                "cornerRadius": 0,
+                "fills": [],
+                "strokes": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "styles": {
+    "S1": { "name": "Primary", "styleType": "FILL" }
+  }
+}
