@@ -71,7 +71,11 @@ export function resizeRect(
   let rawW = xEdge === 'left' ? r.w - dx : xEdge === 'right' ? r.w + dx : r.w
   let rawH = yEdge === 'top' ? r.h - dy : yEdge === 'bottom' ? r.h + dy : r.h
 
-  if (opts?.keepRatio) {
+  // keepRatio n'a de sens que si le rectangle d'origine a un ratio defini :
+  // avec une dimension nulle, il n'y a pas de ratio a conserver, l'option
+  // est alors ignoree (comportement identique a sans keepRatio, clamp min-1
+  // inclus) plutot que d'inventer une contrainte (ex. carre) non demandee.
+  if (opts?.keepRatio && r.w !== 0 && r.h !== 0) {
     const ratio = r.w / r.h
     const isCorner = xEdge !== 'none' && yEdge !== 'none'
     if (isCorner) {
