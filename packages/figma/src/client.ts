@@ -67,11 +67,16 @@ export class FigmaHttpError extends Error {
 // attendue (pas de `document`, ou `document` qui n'est pas un objet). Ne
 // revalide pas tout le fichier Figma : le traducteur et sanitize.ts s'en
 // chargent deja. Sert seulement a ne jamais rendre une valeur qui ferait
-// planter le traducteur plus loin, avec un message clair a la place.
+// planter le traducteur plus loin, avec un message clair a la place. Le
+// `status` est attache (toujours 2xx ici) car il est disponible et peut
+// interesser l'appelant (journalisation, telemetrie).
 export class FigmaResponseError extends Error {
-  constructor() {
+  readonly status: number
+
+  constructor(status: number) {
     super('Reponse Figma inattendue : le fichier recu est incomplet ou malforme')
     this.name = 'FigmaResponseError'
+    this.status = status
   }
 }
 
@@ -79,7 +84,9 @@ export class FigmaResponseError extends Error {
 // pas, ...), distinct d'une reponse HTTP d'erreur. L'erreur d'origine
 // n'est jamais attachee (ni en `cause`, ni en propriete) : elle peut
 // contenir l'URL complete, et potentiellement le jeton si un jour
-// l'implementation change.
+// l'implementation change. Pas de `status` ici, contrairement aux autres
+// erreurs de ce fichier : par definition aucune reponse HTTP n'a ete
+// recue, il n'y a donc rien a porter (choix delibere, pas un oubli).
 export class FigmaNetworkError extends Error {
   constructor() {
     super('Impossible de contacter Figma, verifiez votre connexion reseau')
@@ -89,21 +96,25 @@ export class FigmaNetworkError extends Error {
 
 // Un segment de chemin `/design/<cle>/...` ou `/file/<cle>/...` : au moins
 // un caractere non-slash suivi optionnellement d'un slash et d'un reste
-// de chemin/requete quelconque.
-const FIGMA_URL_PATTERN = /^https:\/\/(?:www\.)?figma\.com\/(?:design|file)\/([^/?]+)(?:\/.*)?$/
+// de chemin/requete quelconque. `http` et `https` sont acceptes tous les
+// deux : une vieille URL collee en `http://` est une intention d'import
+// tout aussi claire.
+const FIGMA_URL_PATTERN = /^https?:\/\/(?:www\.)?figma\.com\/(?:design|file)\/([^/?]+)(?:\/.*)?$/
 
 // Accepte une cle nue ou une URL Figma (`/design/<cle>/...` ou
-// `/file/<cle>/...`, avec ou sans parametres de requete) et rend la cle
-// seule. Elague les espaces superflus (un utilisateur colle souvent avec
-// un espace de trop) et leve si l'entree est vide ou n'est manifestement
-// pas une reference a un fichier Figma.
+// `/file/<cle>/...`, en http ou https, avec ou sans parametres de
+// requete) et rend la cle seule. Elague les espaces superflus (un
+// utilisateur colle souvent avec un espace de trop) et leve si l'entree
+// est vide. Toute chaine qui ressemble a une URL (contient "://") et
+// dont la cle ne peut pas en etre extraite leve egalement : elle ne doit
+// jamais ressortir intacte comme si c'etait une cle valide.
 export function parseFigmaFileKey(input: string): string {
   const trimmed = input.trim()
   if (trimmed === '') {
     throw new Error('Cle ou lien Figma vide')
   }
 
-  if (trimmed.startsWith('https://')) {
+  if (trimmed.includes('://')) {
     const match = FIGMA_URL_PATTERN.exec(trimmed)
     if (!match?.[1]) {
       throw new Error("Lien Figma invalide : impossible d'en extraire la cle du fichier")
@@ -126,7 +137,12 @@ export class FigmaClient {
   async getFile(key: string): Promise<FigmaFileResponse> {
     let response: Awaited<ReturnType<FetchLike>>
     try {
-      response = await this.fetch(`https://api.figma.com/v1/files/${key}`, {
+      // La cle est encodee avant d'etre inseree dans l'URL : sans cela,
+      // une cle non validee en amont contenant '/', '?', '#' ou une
+      // sequence '../' changerait reellement la requete envoyee (avec
+      // le jeton attache), au lieu d'etre traitee comme une simple
+      // valeur d'identifiant.
+      response = await this.fetch(`https://api.figma.com/v1/files/${encodeURIComponent(key)}`, {
         headers: { 'X-Figma-Token': this.token },
       })
     } catch {
@@ -148,7 +164,7 @@ export class FigmaClient {
 
     const body = await response.json()
     if (!isFigmaFileResponse(body)) {
-      throw new FigmaResponseError()
+      throw new FigmaResponseError(response.status)
     }
 
     return body
