@@ -2,6 +2,7 @@
 // que le format des couleurs, l'echappement des chaines et la casse des
 // noms ne divergent jamais entre l'ecran genere et le theme genere.
 import type { Color, DesignTokens } from '@calque/core'
+import { findColorToken } from '../shared/tokens'
 
 // snake_case : utilise pour les noms de fichiers Dart (login_screen.dart).
 export function toSnakeCase(input: string): string {
@@ -57,21 +58,6 @@ function toByte(component: number): number {
 export function colorHex(color: Color): string {
   const toHex = (n: number) => n.toString(16).toUpperCase().padStart(2, '0')
   return `0x${toHex(toByte(color.a))}${toHex(toByte(color.r))}${toHex(toByte(color.g))}${toHex(toByte(color.b))}`
-}
-
-function colorsEqual(a: Color, b: Color): boolean {
-  return a.r === b.r && a.g === b.g && a.b === b.b && a.a === b.a
-}
-
-// Cherche un token de couleur correspondant exactement (composantes
-// identiques). L'ordre d'iteration suit l'ordre d'insertion des cles de
-// l'objet (deterministe pour des cles chaine non numeriques), jamais un
-// Set/Map a ordre incertain.
-function findColorToken(color: Color, tokens: DesignTokens): string | null {
-  for (const [name, tokenColor] of Object.entries(tokens.colors)) {
-    if (colorsEqual(color, tokenColor)) return name
-  }
-  return null
 }
 
 // Expression Dart pour une couleur : la constante de theme quand elle

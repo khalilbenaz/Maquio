@@ -194,8 +194,21 @@ function renderStackChildren(frame: FrameNode, ctx: RenderContext): Block[] {
   return blocks
 }
 
-function interleaveGap(blocks: Block[], gap: number, axis: 'width' | 'height'): Block[] {
-  if (blocks.length <= 1 || gap === 0) return blocks
+// N'insere jamais de SizedBox entre les enfants quand alignMain vaut
+// `space-between` : Flutter compterait ce SizedBox comme un enfant de
+// plus et repartirait l'espace libre autour de lui EN PLUS de sa largeur
+// fixe, ce qui diverge visiblement du rendu voulu. C'est exactement la
+// semantique de `applyAutoLayout` dans @calque/core, qui ignore deja
+// `gap` en mode `space-between` (l'espacement vient alors entierement de
+// MainAxisAlignment.spaceBetween) : le generateur doit s'aligner sur le
+// moteur de mise en page, pas le contredire.
+function interleaveGap(
+  blocks: Block[],
+  gap: number,
+  axis: 'width' | 'height',
+  alignMain: 'start' | 'center' | 'end' | 'space-between',
+): Block[] {
+  if (blocks.length <= 1 || gap === 0 || alignMain === 'space-between') return blocks
   const result: Block[] = []
   blocks.forEach((block, index) => {
     if (index > 0) result.push(lit(`const SizedBox(${axis}: ${formatNumber(gap)})`))
@@ -216,7 +229,12 @@ function renderFrame(frame: FrameNode, ctx: RenderContext): Block {
   } else {
     const isRow = frame.layout.mode === 'row'
     const rawChildren = frame.children.map((c) => renderNode(c, ctx)).filter((b): b is Block => b !== null)
-    const children = interleaveGap(rawChildren, frame.layout.gap, isRow ? 'width' : 'height')
+    const children = interleaveGap(
+      rawChildren,
+      frame.layout.gap,
+      isRow ? 'width' : 'height',
+      frame.layout.alignMain,
+    )
     const widgetName = isRow ? 'Row' : 'Column'
     const layoutWidget = call(widgetName, [
       { key: 'mainAxisAlignment', block: lit(mainAxisAlignmentExpr(frame.layout.alignMain)) },

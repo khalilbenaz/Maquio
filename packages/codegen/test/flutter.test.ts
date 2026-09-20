@@ -115,4 +115,123 @@ describe('flutterExporter', () => {
     expect(unknownResult.warnings.length).toBeGreaterThan(0)
     expect(unknownResult.warnings[0]).toContain('polygon')
   })
+
+  // Correction round 1 (Important 1) : alignMain: 'space-between' ne doit
+  // JAMAIS inserer de SizedBox de gap entre les enfants. `applyAutoLayout`
+  // de @calque/core ignore deja `gap` dans ce mode (l'espacement vient
+  // entierement de MainAxisAlignment.spaceBetween) ; un SizedBox compterait
+  // comme un enfant de plus pour Flutter, qui repartirait l'espace libre
+  // autour de lui EN PLUS de sa largeur fixe — divergence visible du rendu
+  // voulu, reproduite par le relecteur avant ce correctif.
+  it('n insere aucun SizedBox de gap en mode space-between', () => {
+    const doc: CalqueDocument = {
+      version: loginScreenDocument.version,
+      id: 'doc-space-between',
+      name: 'SpaceBetween',
+      pages: [
+        {
+          id: 'page-space-between',
+          name: 'SpaceBetweenRow',
+          device: loginScreenDocument.pages[0]!.device,
+          nodes: [
+            {
+              id: 'frame-row',
+              name: 'SpaceBetweenRow',
+              type: 'frame',
+              frame: { x: 0, y: 0, w: 239, h: 50 },
+              visible: true,
+              locked: false,
+              opacity: 1,
+              rotation: 0,
+              layout: {
+                mode: 'row',
+                gap: 20,
+                padding: { top: 0, right: 0, bottom: 0, left: 0 },
+                alignMain: 'space-between',
+                alignCross: 'center',
+              },
+              fills: [{ type: 'none' }],
+              strokes: [],
+              cornerRadius: 0,
+              clipsContent: true,
+              children: [
+                {
+                  id: 'rect-a',
+                  name: 'A',
+                  type: 'rect',
+                  frame: { x: 0, y: 0, w: 50, h: 50 },
+                  visible: true,
+                  locked: false,
+                  opacity: 1,
+                  rotation: 0,
+                  fills: [{ type: 'solid', color: { r: 0, g: 0, b: 0, a: 1 } }],
+                  strokes: [],
+                  cornerRadius: 0,
+                },
+                {
+                  id: 'rect-b',
+                  name: 'B',
+                  type: 'rect',
+                  frame: { x: 0, y: 0, w: 50, h: 50 },
+                  visible: true,
+                  locked: false,
+                  opacity: 1,
+                  rotation: 0,
+                  fills: [{ type: 'solid', color: { r: 0, g: 0, b: 0, a: 1 } }],
+                  strokes: [],
+                  cornerRadius: 0,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      tokens: { colors: {}, typography: {}, spacing: {} },
+    }
+
+    const spaceBetweenResult = flutterExporter.export(doc, { projectName: 'demo' })
+    const file = spaceBetweenResult.files.find((f) => f.path.endsWith('space_between_row.dart'))!
+    expect(file.contents).toBe(golden('space_between_row.dart'))
+    expect(file.contents).not.toContain('SizedBox')
+  })
+
+  // Correction round 1 (Important 2) : rotation est exprimee en degres
+  // dans le modele (ruling du coordinateur, a documenter dans
+  // packages/core/src/model/types.ts) ; l'exportateur Flutter la convertit
+  // en radians pour Transform.rotate. On fige la forme exacte produite
+  // pour 90 degres plutot que de verifier une valeur approximative.
+  it('convertit rotation (degres) en radians pour Transform.rotate', () => {
+    const doc: CalqueDocument = {
+      version: loginScreenDocument.version,
+      id: 'doc-rotated',
+      name: 'Rotated',
+      pages: [
+        {
+          id: 'page-rotated',
+          name: 'RotatedScreen',
+          device: loginScreenDocument.pages[0]!.device,
+          nodes: [
+            {
+              id: 'rect-rotated',
+              name: 'RotatedRect',
+              type: 'rect',
+              frame: { x: 0, y: 0, w: 100, h: 40 },
+              visible: true,
+              locked: false,
+              opacity: 1,
+              rotation: 90,
+              fills: [{ type: 'solid', color: { r: 0, g: 0, b: 0, a: 1 } }],
+              strokes: [],
+              cornerRadius: 0,
+            },
+          ],
+        },
+      ],
+      tokens: { colors: {}, typography: {}, spacing: {} },
+    }
+
+    const rotatedResult = flutterExporter.export(doc, { projectName: 'demo' })
+    const file = rotatedResult.files.find((f) => f.path.endsWith('rotated_screen.dart'))!
+    expect(file.contents).toBe(golden('rotated_screen.dart'))
+  })
 })
