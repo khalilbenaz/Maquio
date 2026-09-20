@@ -1,3 +1,6 @@
 export * from './patch'
 export * from './prompt'
 export * from './apply'
+export * from './runner'
+export * from './fake-runner'
+export * from './service'
