@@ -1,0 +1,25 @@
+{
+  "document": {
+    "id": "0:0",
+    "name": "Document",
+    "type": "DOCUMENT",
+    "children": [
+      {
+        "id": "0:1",
+        "name": "Page 1",
+        "type": "CANVAS",
+        "children": [
+          {
+            "id": "3:1",
+            "name": "Weird Shape",
+            "type": "BOOLEAN_OPERATION",
+            "absoluteBoundingBox": { "x": 0, "y": 0, "width": 100, "height": 100 },
+            "fills": [],
+            "strokes": [],
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}
