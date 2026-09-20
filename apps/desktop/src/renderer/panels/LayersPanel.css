@@ -1,0 +1,87 @@
+/* Panneau des calques (Tache 16). Sobre et sombre par defaut, comme les
+   editeurs de ce type ; les comportements sont ce qui est teste, pas le
+   style, donc ce fichier reste volontairement minimal. */
+
+.layers-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  background: #1e1f22;
+  color: #e4e4e7;
+  border-right: 1px solid #2f3033;
+  font-size: 13px;
+}
+
+.layers-title {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9a9aa2;
+}
+
+.layers-tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.layers-children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.layers-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.layers-row:hover {
+  background: #2a2b2f;
+}
+
+.layers-row-selected {
+  background: #2b3f6f;
+}
+
+.layers-row-main {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.layers-row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layers-row-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.layers-toggle,
+.layers-icon-button {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+}
+
+.layers-toggle-spacer {
+  display: inline-block;
+  width: 16px;
+}
