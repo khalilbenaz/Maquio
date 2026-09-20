@@ -5,8 +5,19 @@ import { ClaudePanel } from '../src/renderer/panels/ClaudePanel'
 import { useEditorStore } from '../src/renderer/state/editorStore'
 import { documentDeTest } from './helpers/documentDeTest'
 import { apiFactice } from './helpers/apiFactice'
+import { documentJsonDeFormeInvalide } from './helpers/documentJsonInvalide'
 
 beforeEach(() => useEditorStore.getState().load(documentDeTest()))
+
+// Round de correction 1 (Critical) : un SyntaxError (JSON tronque) ou un
+// ZodError (document de forme invalide), leves localement par
+// JSON.parse/parseDocument sur la reponse d'askClaude, ne doivent jamais
+// s'afficher comme un dump technique dans le panneau.
+function verifieMessagePropre(message: string): void {
+  expect(message).not.toContain('{')
+  expect(message).not.toContain('"code"')
+  expect(message).not.toContain('invalid_type')
+}
 
 describe('ClaudePanel', () => {
   it('desactive le panneau quand le binaire claude est absent, des l ouverture', async () => {
@@ -76,5 +87,37 @@ describe('ClaudePanel', () => {
 
     fireEvent.click(screen.getByText(/Relancer/))
     expect(askClaude).toHaveBeenCalledTimes(2)
+  })
+
+  it('affiche un message francais propre (sans dump) quand documentJson est un JSON tronque', async () => {
+    const api = {
+      ...apiFactice,
+      askClaude: async () => ({
+        patchJson: JSON.stringify({ summary: 'x', ops: [] }),
+        documentJson: '{"version":1,"id":"d1","name":"X","pages":[',
+      }),
+    }
+    render(<ClaudePanel api={api} />)
+    fireEvent.click(screen.getByLabelText('Demander a Claude'))
+
+    const alerte = await screen.findByRole('alert')
+    verifieMessagePropre(alerte.textContent ?? '')
+    expect(useEditorStore.getState().history.canUndo).toBe(false)
+  })
+
+  it('affiche un message francais propre (sans dump) quand documentJson est de forme invalide', async () => {
+    const api = {
+      ...apiFactice,
+      askClaude: async () => ({
+        patchJson: JSON.stringify({ summary: 'x', ops: [] }),
+        documentJson: documentJsonDeFormeInvalide(),
+      }),
+    }
+    render(<ClaudePanel api={api} />)
+    fireEvent.click(screen.getByLabelText('Demander a Claude'))
+
+    const alerte = await screen.findByRole('alert')
+    verifieMessagePropre(alerte.textContent ?? '')
+    expect(useEditorStore.getState().history.canUndo).toBe(false)
   })
 })

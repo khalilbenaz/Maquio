@@ -5,6 +5,15 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createDocument, serializeDocument } from '@calque/core'
 import { createDocumentHandler } from '../src/main/handlers/documentHandlers'
+import { documentJsonDeFormeInvalide } from './helpers/documentJsonInvalide'
+
+// Round de correction 1 (Critical) : un ZodError (schema invalide) ne doit
+// jamais remonter sous forme de dump JSON technique.
+function verifieMessagePropre(message: string): void {
+  expect(message).not.toContain('{')
+  expect(message).not.toContain('"code"')
+  expect(message).not.toContain('invalid_type')
+}
 
 describe('openDocument', () => {
   it('rend null quand l utilisateur annule le choix du fichier', async () => {
@@ -43,6 +52,25 @@ describe('openDocument', () => {
     })
 
     await expect(openDocument()).rejects.toThrow(/version 999/)
+  })
+
+  it('traduit un document syntaxiquement valide mais de forme invalide sans dump technique', async () => {
+    const { openDocument } = createDocumentHandler({
+      readFile: async () => documentJsonDeFormeInvalide(),
+      writeFile: vi.fn(),
+      chooseOpenPath: async () => '/tmp/doc.calque',
+      chooseSavePath: vi.fn(),
+    })
+
+    let messageErreur = ''
+    try {
+      await openDocument()
+      throw new Error('aurait du lever')
+    } catch (err) {
+      messageErreur = (err as Error).message
+    }
+    verifieMessagePropre(messageErreur)
+    expect(messageErreur).toMatch(/francais|propriete|invalide/i)
   })
 })
 
@@ -88,6 +116,26 @@ describe('saveDocument', () => {
     })
 
     await expect(saveDocument({ path: '/tmp/doc.calque', json: 'pas du json' })).rejects.toThrow(/invalide/i)
+    expect(writeFile).not.toHaveBeenCalled()
+  })
+
+  it('n ecrit rien et traduit sans dump un document de forme invalide', async () => {
+    const writeFile = vi.fn()
+    const { saveDocument } = createDocumentHandler({
+      readFile: vi.fn(),
+      writeFile,
+      chooseOpenPath: vi.fn(),
+      chooseSavePath: vi.fn(),
+    })
+
+    let messageErreur = ''
+    try {
+      await saveDocument({ path: '/tmp/doc.calque', json: documentJsonDeFormeInvalide() })
+      throw new Error('aurait du lever')
+    } catch (err) {
+      messageErreur = (err as Error).message
+    }
+    verifieMessagePropre(messageErreur)
     expect(writeFile).not.toHaveBeenCalled()
   })
 })

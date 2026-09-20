@@ -2,6 +2,15 @@ import { describe, expect, it, vi } from 'vitest'
 import { serializeDocument } from '@calque/core'
 import { loginScreenDocument } from '@calque/codegen/test/fixtures/login-screen'
 import { createExportHandler } from '../src/main/handlers/exportHandlers'
+import { documentJsonDeFormeInvalide } from './helpers/documentJsonInvalide'
+
+// Round de correction 1 (Critical) : un ZodError (schema invalide) ne doit
+// jamais remonter sous forme de dump JSON technique.
+function verifieMessagePropre(message: string): void {
+  expect(message).not.toContain('{')
+  expect(message).not.toContain('"code"')
+  expect(message).not.toContain('invalid_type')
+}
 
 describe('export vers le disque', () => {
   it('ecrit chaque fichier produit sous le dossier choisi', async () => {
@@ -86,5 +95,25 @@ describe('export vers le disque', () => {
     })
     const documentFutur = JSON.stringify({ ...loginScreenDocument, version: 999 })
     await expect(handler({ exporterId: 'flutter', json: documentFutur, projectName: 'd' })).rejects.toThrow(/version/i)
+  })
+
+  it('traduit un document syntaxiquement valide mais de forme invalide sans dump technique', async () => {
+    const writeFile = vi.fn()
+    const handler = createExportHandler({
+      writeFile,
+      mkdir: vi.fn(),
+      chooseDirectory: async () => '/tmp/u',
+      pathExists: async () => false,
+    })
+
+    let messageErreur = ''
+    try {
+      await handler({ exporterId: 'flutter', json: documentJsonDeFormeInvalide(), projectName: 'd' })
+      throw new Error('aurait du lever')
+    } catch (err) {
+      messageErreur = (err as Error).message
+    }
+    verifieMessagePropre(messageErreur)
+    expect(writeFile).not.toHaveBeenCalled()
   })
 })

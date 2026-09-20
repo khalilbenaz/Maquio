@@ -17,6 +17,7 @@ import {
 import type { FigmaFileResponse, ImportReport } from '@calque/figma'
 import type { SecretStore } from '../adapters/secretStore'
 import { SecretStorageUnavailableError } from '../adapters/secretStore'
+import { translateUnknownError } from '../../shared/errors'
 
 export type FigmaImportInput = { source: 'api'; fileKey: string } | { source: 'file' }
 export type FigmaImportResult = { json: string; report: ImportReport } | null
@@ -33,10 +34,26 @@ export class FigmaTokenMissingError extends Error {
   }
 }
 
-// Decision 4 : chaque erreur nommee du paquet @calque/figma porte deja un
-// message francais actionnable et ne contient jamais le jeton (voir
-// packages/figma/src/client.ts) -- on le relaie tel quel, jamais la cause
-// d'origine.
+// Erreur nommee pour un fichier Figma local invalide (JSON illisible ou
+// champ "document" absent) -- round de correction 1 (Minor) : distincte
+// d'une erreur generique pour que translateFigmaError la relaie telle
+// quelle, sans repasser par le prefixe "Import Figma impossible :", ce qui
+// produisait un double prefixe ("Import Figma impossible : Fichier Figma
+// invalide : ...").
+export class FigmaFileInvalidError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'FigmaFileInvalidError'
+  }
+}
+
+// Decision 4 : chaque erreur nommee du paquet @calque/figma (ou de ce
+// fichier) porte deja un message francais actionnable et ne contient
+// jamais le jeton (voir packages/figma/src/client.ts) -- on le relaie tel
+// quel, jamais la cause d'origine. Tout le reste (y compris un dump
+// ZodError, qui ne devrait normalement pas se produire ici mais reste
+// possible si figmaToDocument evoluait) passe par la traduction generique
+// partagee (round de correction 1 : Critical, voir src/shared/errors.ts).
 function translateFigmaError(err: unknown): Error {
   if (
     err instanceof FigmaAuthError ||
@@ -44,12 +61,12 @@ function translateFigmaError(err: unknown): Error {
     err instanceof FigmaHttpError ||
     err instanceof FigmaResponseError ||
     err instanceof FigmaNetworkError ||
-    err instanceof FigmaTokenMissingError
+    err instanceof FigmaTokenMissingError ||
+    err instanceof FigmaFileInvalidError
   ) {
     return new Error(err.message)
   }
-  if (err instanceof Error) return new Error(`Import Figma impossible : ${err.message}`)
-  return new Error('Import Figma impossible : erreur inconnue')
+  return translateUnknownError(err, 'Import Figma impossible')
 }
 
 function parseFigmaJsonFile(raw: string): FigmaFileResponse {
@@ -57,10 +74,10 @@ function parseFigmaJsonFile(raw: string): FigmaFileResponse {
   try {
     parsed = JSON.parse(raw)
   } catch {
-    throw new Error('Fichier Figma invalide : JSON illisible')
+    throw new FigmaFileInvalidError('Fichier Figma invalide : JSON illisible')
   }
   if (typeof parsed !== 'object' || parsed === null || !('document' in parsed)) {
-    throw new Error('Fichier Figma invalide : champ "document" manquant')
+    throw new FigmaFileInvalidError('Fichier Figma invalide : champ "document" manquant')
   }
   return parsed as FigmaFileResponse
 }
