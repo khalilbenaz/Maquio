@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { snapValue, alignmentGuides } from './snap'
+import { alignmentCandidates, snapValue, alignmentGuides } from './snap'
+
+describe('alignmentCandidates', () => {
+  it('rend le bord min, le centre et le bord max de chaque axe', () => {
+    expect(alignmentCandidates({ x: 10, y: 20, w: 40, h: 10 })).toEqual({
+      x: [10, 30, 50],
+      y: [20, 25, 30],
+    })
+  })
+})
 
 describe('snapValue', () => {
   it('accroche au candidat le plus proche sous le seuil', () => {

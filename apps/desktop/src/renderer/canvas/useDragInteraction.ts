@@ -13,10 +13,11 @@
 // modele (verrouille/invisible ignores et leurs descendants, ordre de
 // dessin) est celle qui decide, et rend le comportement testable sans
 // navigateur reel.
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react'
 import {
   absoluteFrame,
+  alignmentCandidates,
   alignmentGuides,
   createNodeCommand,
   findNode,
@@ -95,18 +96,12 @@ export function resolvePreviewAbsoluteFrame(nodes: Node[], id: string, preview: 
   return abs
 }
 
-// Bord gauche/centre/droit (ou haut/centre/bas) d'un intervalle, dans le
-// meme ordre que la convention interne de alignmentGuides (bord min, centre,
-// bord max) : necessaire ici pour retrouver QUEL bord du noeud deplace a
-// declenche un guide (alignmentGuides rend les valeurs des guides, pas
-// l'appariement candidat-guide, donc on refait la recherche par bord avec
-// snapValue pour obtenir le delta exact a appliquer).
-function edgeCandidates(min: number, size: number): [number, number, number] {
-  return [min, min + size / 2, min + size]
-}
-
-// Parmi tous les bords du rectangle deplace, celui qui s'accroche le plus
-// pres (delta le plus petit en valeur absolue) l'emporte : evite qu'un
+// Parmi tous les bords du rectangle deplace (calcules par alignmentCandidates
+// de @calque/core -- la MEME derivation que celle utilisee en interne par
+// alignmentGuides, round de correction 1 : deux derivations separees des
+// points bord/centre/bord auraient fini par diverger, ce qui aurait pu
+// afficher un guide la ou rien n'accroche vraiment), celui qui s'accroche le
+// plus pres (delta le plus petit en valeur absolue) l'emporte : evite qu'un
 // accrochage lointain sur un bord ecrase un accrochage plus pertinent sur
 // un autre bord du meme axe.
 function bestSnapDelta(movingCandidates: number[], otherCandidates: number[], threshold: number): number {
@@ -140,13 +135,12 @@ export function computeSnappedMoveDelta(
   const others = nodes.filter((n) => n.id !== movingId).map((n) => absoluteFrame(nodes, n.id))
   const threshold = snapThreshold(zoom)
 
-  const otherXCandidates = others.flatMap((o) => edgeCandidates(o.x, o.w))
-  const otherYCandidates = others.flatMap((o) => edgeCandidates(o.y, o.h))
-  const movingXCandidates = edgeCandidates(movedAbs.x, movedAbs.w)
-  const movingYCandidates = edgeCandidates(movedAbs.y, movedAbs.h)
+  const otherXCandidates = others.flatMap((o) => alignmentCandidates(o).x)
+  const otherYCandidates = others.flatMap((o) => alignmentCandidates(o).y)
+  const movingCandidates = alignmentCandidates(movedAbs)
 
-  const snapDx = bestSnapDelta(movingXCandidates, otherXCandidates, threshold)
-  const snapDy = bestSnapDelta(movingYCandidates, otherYCandidates, threshold)
+  const snapDx = bestSnapDelta(movingCandidates.x, otherXCandidates, threshold)
+  const snapDy = bestSnapDelta(movingCandidates.y, otherYCandidates, threshold)
 
   const guides = alignmentGuides(translateRect(movedAbs, snapDx, snapDy), others, threshold)
 
@@ -243,9 +237,33 @@ function endGesture(cleanup: () => void): void {
   if (activeGestureCleanup === cleanup) activeGestureCleanup = null
 }
 
+// Garde-fou de DEMONTAGE (Critical, round de correction 1). Le garde-fou
+// ci-dessus (un seul geste actif a la fois) ne protege que contre un
+// NOUVEAU geste demarre pendant qu'un ancien traine : il ne se declenche
+// qu'au prochain pointerdown. Si le composant qui a demarre le geste est
+// demonte AVANT le pointerup (Canvas retire de l'arbre React en plein
+// glissement), rien ne declenchait jusqu'ici le retrait des ecouteurs
+// `window` : ils restaient attaches, et un pointerup tardif executait une
+// commande sur un document qui n'est meme plus celui affiche -- demontre
+// par le relecteur avec un load() d'un autre document suivi d'un pointerup
+// tardif, qui deplacait un noeud du nouveau document. Ce hook enregistre,
+// dans une ref locale a l'instance de composant, le nettoyage du geste EN
+// COURS pour cette instance, et le rejoue automatiquement a l'effet de
+// demontage si le geste n'a pas deja ete termine normalement (auquel cas
+// la ref a ete remise a un no-op).
+function useGestureCleanupRef() {
+  const cleanupRef = useRef<() => void>(() => {})
+  useEffect(() => {
+    return () => cleanupRef.current()
+  }, [])
+  return cleanupRef
+}
+
 // Poignee sur un NodeView : resout la selection (clic simple / Maj+clic) via
 // hitTest, puis demarre un glissement de deplacement.
 export function useNodeInteraction(nodeId: string) {
+  const cleanupRef = useGestureCleanupRef()
+
   return useCallback(
     (e: ReactPointerEvent) => {
       e.stopPropagation()
@@ -288,14 +306,18 @@ export function useNodeInteraction(nodeId: string) {
         current.setDragPreview({ kind: 'move', nodeId: targetId, dx, dy, guides: snapped.guides })
       }
 
+      // Nettoyage "abandon" (pointerup jamais recu) : retire les
+      // ecouteurs et libere les deux garde-fous, mais N'EXECUTE AUCUNE
+      // commande -- un geste abandonne n'a jamais ete termine.
       const cleanup = () => {
         window.removeEventListener('pointermove', handleMove)
         window.removeEventListener('pointerup', handleUp)
+        endGesture(cleanup)
+        cleanupRef.current = () => {}
       }
 
       const handleUp = () => {
         cleanup()
-        endGesture(cleanup)
         const current = useEditorStore.getState()
         current.setDragPreview(null)
         if (moved && (dx !== 0 || dy !== 0)) {
@@ -303,16 +325,19 @@ export function useNodeInteraction(nodeId: string) {
         }
       }
 
+      cleanupRef.current = cleanup
       beginGesture(cleanup)
       window.addEventListener('pointermove', handleMove)
       window.addEventListener('pointerup', handleUp)
     },
-    [nodeId],
+    [nodeId, cleanupRef],
   )
 }
 
 // Poignee de redimensionnement (une des huit, decision 5/8).
 export function useResizeInteraction(nodeId: string, handle: HandleId) {
+  const cleanupRef = useGestureCleanupRef()
+
   return useCallback(
     (e: ReactPointerEvent) => {
       e.stopPropagation()
@@ -341,11 +366,12 @@ export function useResizeInteraction(nodeId: string, handle: HandleId) {
       const cleanup = () => {
         window.removeEventListener('pointermove', handleMove)
         window.removeEventListener('pointerup', handleUp)
+        endGesture(cleanup)
+        cleanupRef.current = () => {}
       }
 
       const handleUp = () => {
         cleanup()
-        endGesture(cleanup)
         const current = useEditorStore.getState()
         current.setDragPreview(null)
         if (resized) {
@@ -353,11 +379,12 @@ export function useResizeInteraction(nodeId: string, handle: HandleId) {
         }
       }
 
+      cleanupRef.current = cleanup
       beginGesture(cleanup)
       window.addEventListener('pointermove', handleMove)
       window.addEventListener('pointerup', handleUp)
     },
-    [nodeId, handle],
+    [nodeId, handle, cleanupRef],
   )
 }
 
@@ -366,6 +393,8 @@ export function useResizeInteraction(nodeId: string, handle: HandleId) {
 // (decision 11). Apres creation, l'outil revient a 'select' et le noeud
 // cree est selectionne.
 export function useCreateInteraction(canvasRef: RefObject<HTMLElement | null>) {
+  const cleanupRef = useGestureCleanupRef()
+
   return useCallback(
     (e: ReactPointerEvent) => {
       const state = useEditorStore.getState()
@@ -395,11 +424,12 @@ export function useCreateInteraction(canvasRef: RefObject<HTMLElement | null>) {
       const cleanup = () => {
         window.removeEventListener('pointermove', handleMove)
         window.removeEventListener('pointerup', handleUp)
+        endGesture(cleanup)
+        cleanupRef.current = () => {}
       }
 
       const handleUp = () => {
         cleanup()
-        endGesture(cleanup)
         const current = useEditorStore.getState()
         current.setDragPreview(null)
 
@@ -415,10 +445,11 @@ export function useCreateInteraction(canvasRef: RefObject<HTMLElement | null>) {
         current.setTool('select')
       }
 
+      cleanupRef.current = cleanup
       beginGesture(cleanup)
       window.addEventListener('pointermove', handleMove)
       window.addEventListener('pointerup', handleUp)
     },
-    [canvasRef],
+    [canvasRef, cleanupRef],
   )
 }

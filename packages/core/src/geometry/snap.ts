@@ -24,9 +24,17 @@ export function snapValue(
   return best === null ? { value: v, snappedTo: null } : { value: best, snappedTo: best }
 }
 
-// Bords et centre d'un rectangle sur un axe donne.
-function edgeCandidates(min: number, size: number): [number, number, number] {
-  return [min, min + size / 2, min + size]
+// Points d'accroche d'un rectangle sur chaque axe : bord min, centre, bord
+// max. Exporte (Tache 15, round de correction 1) pour rester l'UNIQUE
+// derivation de ces points : alignmentGuides s'en sert ci-dessous, et le
+// renderer (apps/desktop) s'en sert pour calculer le delta de magnetisme
+// applique au deplacement. Deux derivations separees finiraient par
+// diverger (un guide affiche la ou rien n'accroche vraiment).
+export function alignmentCandidates(rect: Rect): { x: [number, number, number]; y: [number, number, number] } {
+  return {
+    x: [rect.x, rect.x + rect.w / 2, rect.x + rect.w],
+    y: [rect.y, rect.y + rect.h / 2, rect.y + rect.h],
+  }
 }
 
 function axisGuides(movingCandidates: number[], neighborCandidateLists: number[][], threshold: number): number[] {
@@ -48,14 +56,11 @@ export function alignmentGuides(
   others: Rect[],
   threshold: number,
 ): { x: number[]; y: number[] } {
-  const movingX = edgeCandidates(moving.x, moving.w)
-  const movingY = edgeCandidates(moving.y, moving.h)
-
-  const othersX = others.map((o) => edgeCandidates(o.x, o.w))
-  const othersY = others.map((o) => edgeCandidates(o.y, o.h))
+  const movingCandidates = alignmentCandidates(moving)
+  const othersCandidates = others.map(alignmentCandidates)
 
   return {
-    x: axisGuides(movingX, othersX, threshold),
-    y: axisGuides(movingY, othersY, threshold),
+    x: axisGuides(movingCandidates.x, othersCandidates.map((c) => c.x), threshold),
+    y: axisGuides(movingCandidates.y, othersCandidates.map((c) => c.y), threshold),
   }
 }

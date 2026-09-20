@@ -375,3 +375,40 @@ export function setTokensCommand(tokens: Partial<DesignTokens>): Command {
     },
   }
 }
+
+// --- Composition ---
+
+// Combine plusieurs commandes en une seule, annulable en un seul geste
+// (round de correction 1, Tache 15 : une suppression multi-selection doit
+// se defaire d'un seul "annuler", pas d'un par noeud). `apply` chaine les
+// commandes dans l'ordre et herite du tout-ou-rien de History.execute : si
+// l'une d'elles leve, apply() leve a son tour avant de rendre quoi que ce
+// soit, donc aucun document partiel n'est jamais retourne.
+//
+// `invert` doit inverser dans l'ordre INVERSE de l'application (LIFO), et
+// chaque commande inverse doit etre calculee a partir du document tel qu'il
+// etait juste AVANT que cette commande precise ne soit appliquee -- pas a
+// partir du document final. C'est pourquoi on rejoue apply() ici pendant le
+// calcul de invert() : c'est la seule facon de reconstituer, pour chaque
+// etape, le document "d'avant" que son invert() exige (meme regle que
+// deleteNodeCommand, qui a besoin de l'index de fratrie au moment ou LUI est
+// applique, potentiellement decale par les suppressions precedentes du
+// meme lot).
+export function compositeCommand(label: string, commands: Command[]): Command {
+  return {
+    label,
+    apply(doc: CalqueDocument): CalqueDocument {
+      return commands.reduce((current, command) => command.apply(current), doc)
+    },
+    invert(doc: CalqueDocument): Command {
+      const inverses: Command[] = []
+      let current = doc
+      for (const command of commands) {
+        inverses.push(command.invert(current))
+        current = command.apply(current)
+      }
+      inverses.reverse()
+      return compositeCommand(label, inverses)
+    },
+  }
+}
