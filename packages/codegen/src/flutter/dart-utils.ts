@@ -1,7 +1,15 @@
 // Utilitaires de generation Dart partages par flutter.ts et theme.ts, pour
 // que le format des couleurs, l'echappement des chaines et la casse des
 // noms ne divergent jamais entre l'ecran genere et le theme genere.
+//
+// `toPascalCase`, `formatNumber` et le calcul hexadecimal ARGB sont
+// vraiment communs aux quatre exportateurs (Taches 8/9) : ils vivent dans
+// `../shared/` et sont ici re-exportes sous leur nom Dart historique pour
+// ne rien changer au comportement de ce fichier.
 import type { Color, DesignTokens } from '@calque/core'
+import { colorHexARGB } from '../shared/color-hex'
+import { formatNumber as sharedFormatNumber } from '../shared/format-number'
+import { toPascalCase as sharedToPascalCase } from '../shared/naming'
 import { findColorToken } from '../shared/tokens'
 
 // snake_case : utilise pour les noms de fichiers Dart (login_screen.dart).
@@ -14,13 +22,7 @@ export function toSnakeCase(input: string): string {
 }
 
 // PascalCase : utilise pour les noms de classe (StatelessWidget).
-export function toPascalCase(input: string): string {
-  return input
-    .split(/[^a-zA-Z0-9]+/)
-    .filter((part) => part.length > 0)
-    .map((part) => part[0]!.toUpperCase() + part.slice(1))
-    .join('')
-}
+export const toPascalCase = sharedToPascalCase
 
 // Echappe une chaine pour l'inserer dans un litteral Dart entoure de
 // guillemets simples : antislash, guillemet simple, `$` (interpolation
@@ -43,22 +45,12 @@ export function escapeDartString(input: string): string {
 // autres sont arrondis a `decimals` decimales puis debarrasses de leurs
 // zeros de fin, pour un rendu deterministe et lisible plutot que des
 // flottants a 15 chiffres.
-export function formatNumber(value: number, decimals = 4): string {
-  if (Number.isInteger(value)) return String(value)
-  const fixed = value.toFixed(decimals)
-  return fixed.includes('.') ? fixed.replace(/0+$/, '').replace(/\.$/, '') : fixed
-}
-
-function toByte(component: number): number {
-  return Math.max(0, Math.min(255, Math.round(component * 255)))
-}
+export const formatNumber = sharedFormatNumber
 
 // Color(0xAARRGGBB) hexadecimal majuscule, converti depuis les composantes
-// 0..1 par Math.round(c * 255) (decision 9 du brief Tache 7).
-export function colorHex(color: Color): string {
-  const toHex = (n: number) => n.toString(16).toUpperCase().padStart(2, '0')
-  return `0x${toHex(toByte(color.a))}${toHex(toByte(color.r))}${toHex(toByte(color.g))}${toHex(toByte(color.b))}`
-}
+// 0..1 par Math.round(c * 255) (decision 9 du brief Tache 7). Identique au
+// format hexadecimal de Compose (Tache 9) : voir ../shared/color-hex.ts.
+export const colorHex = colorHexARGB
 
 // Expression Dart pour une couleur : la constante de theme quand elle
 // correspond exactement a un token (decision 8 du brief Tache 7), sinon la
