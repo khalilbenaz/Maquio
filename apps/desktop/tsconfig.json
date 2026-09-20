@@ -1,7 +1,15 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    // Surcharge locale a ce paquet : le renderer a besoin du DOM et de JSX.
+    // Ne remonte pas dans tsconfig.base.json (partage par tous les
+    // paquets), pour que packages/core, packages/codegen, packages/figma
+    // et packages/ai restent agnostiques de l'environnement et compilent
+    // sous Node seul (garantie que la Tache 18 verifiera par un test
+    // d'architecture).
+    "lib": ["ES2022", "DOM"],
+    "jsx": "react-jsx"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "test/**/*.tsx"]
 }

@@ -3,8 +3,13 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["ES2022", "DOM"],
-    "jsx": "react-jsx",
+    // Explicite (et non omis) : sans "lib", TypeScript injecte par defaut
+    // DOM + DOM.Iterable pour une cible ES2022, ce qui rendrait document/
+    // window/fetch visibles depuis packages/core, packages/codegen,
+    // packages/figma et packages/ai -- l'inverse du confinement voulu
+    // (verifie empiriquement : le simple retrait d'un "lib" explicite ne
+    // suffit pas, voir le rapport de la Tache 14, round de correction 1).
+    "lib": ["ES2022"],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": false,
