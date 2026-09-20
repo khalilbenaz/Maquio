@@ -16,8 +16,18 @@ describe('swiftUIExporter', () => {
   it('correspond au temoin de l ecran', () => {
     expect(result.files[0]!.contents).toBe(golden('LoginScreen.swift'))
   })
-  it('ne produit aucun avertissement sur la fixture (aucun noeud non couvert)', () => {
-    expect(result.warnings).toEqual([])
+  // Correction Important 1/2 (vague de correction finale) : la fixture
+  // login-screen a un frame racine en `alignCross: 'stretch'` et deux
+  // frames `clipsContent: true` -- des le round precedent, mais jamais
+  // verifie faute de test traversant figma -> codegen (Critical 4). Ce
+  // generateur `preview` n'honore ni l'un ni l'autre : il doit desormais
+  // le dire plutot que produire un rendu approxime en silence.
+  it('avertit pour le stretch et le clipsContent non honores par cet exportateur preview', () => {
+    expect(result.warnings).toEqual([
+      "clipsContent non pris en charge par l export swiftui (apercu) (noeud frame-login-screen)",
+      "alignCross: 'stretch' non pris en charge par l export swiftui (apercu) (noeud frame-login-screen)",
+      'clipsContent non pris en charge par l export swiftui (apercu) (noeud frame-button)',
+    ])
   })
   it('est deterministe', () => {
     expect(swiftuiExporter.export(loginScreenDocument, { projectName: 'demo' }).files).toEqual(result.files)

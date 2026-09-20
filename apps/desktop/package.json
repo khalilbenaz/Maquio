@@ -16,6 +16,7 @@
   },
   "build": {
     "appId": "com.calque.desktop",
+    "productName": "Calque",
     "electronVersion": "44.4.3",
     "files": ["dist/**/*"],
     "directories": {

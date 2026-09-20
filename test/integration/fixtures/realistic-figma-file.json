@@ -1,0 +1,89 @@
+{
+  "document": {
+    "id": "0:0",
+    "name": "Document",
+    "type": "DOCUMENT",
+    "children": [
+      {
+        "id": "0:1",
+        "name": "Page 1",
+        "type": "CANVAS",
+        "children": [
+          {
+            "id": "1:1",
+            "name": "Home",
+            "type": "FRAME",
+            "absoluteBoundingBox": { "x": 0, "y": 0, "width": 390, "height": 844 },
+            "layoutMode": "VERTICAL",
+            "itemSpacing": 16,
+            "paddingTop": 24,
+            "paddingRight": 24,
+            "paddingBottom": 24,
+            "paddingLeft": 24,
+            "primaryAxisAlignItems": "MIN",
+            "counterAxisAlignItems": "CENTER",
+            "clipsContent": true,
+            "fills": [{ "type": "SOLID", "color": { "r": 1, "g": 1, "b": 1, "a": 1 } }],
+            "strokes": [],
+            "children": [
+              {
+                "id": "1:2",
+                "name": "Title",
+                "type": "TEXT",
+                "absoluteBoundingBox": { "x": 24, "y": 60, "width": 280, "height": 32 },
+                "characters": "Bienvenue",
+                "style": {
+                  "fontFamily": "Inter",
+                  "fontSize": 24,
+                  "fontWeight": 700,
+                  "lineHeightPx": 32,
+                  "letterSpacing": 0,
+                  "textAlignHorizontal": "LEFT"
+                },
+                "fills": [{ "type": "SOLID", "color": { "r": 0, "g": 0, "b": 0, "a": 1 } }]
+              },
+              {
+                "id": "12:345",
+                "name": "Card",
+                "type": "FRAME",
+                "absoluteBoundingBox": { "x": 20, "y": 520, "width": 350, "height": 220 },
+                "clipsContent": false,
+                "fills": [],
+                "strokes": [],
+                "children": [
+                  {
+                    "id": "12:346",
+                    "name": "CardLabel",
+                    "type": "TEXT",
+                    "absoluteBoundingBox": { "x": 40, "y": 540, "width": 200, "height": 24 },
+                    "characters": "Premium",
+                    "style": {
+                      "fontFamily": "Inter",
+                      "fontSize": 16,
+                      "fontWeight": 600,
+                      "lineHeightPx": 20,
+                      "letterSpacing": 0,
+                      "textAlignHorizontal": "LEFT"
+                    },
+                    "fills": [{ "type": "SOLID", "color": { "r": 0.2, "g": 0.4, "b": 0.9, "a": 1 } }],
+                    "styles": { "fill": "S-BRAND" }
+                  },
+                  {
+                    "id": "12:347",
+                    "name": "Icon",
+                    "type": "STAR",
+                    "absoluteBoundingBox": { "x": 280, "y": 540, "width": 24, "height": 24 },
+                    "fills": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "styles": {
+    "S-BRAND": { "name": "Brand/Primary 500", "styleType": "FILL" }
+  }
+}

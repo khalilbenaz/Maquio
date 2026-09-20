@@ -38,17 +38,11 @@ import type {
 } from '@calque/core'
 import { layoutPage } from '@calque/core'
 import { formatNumber } from '../shared/format-number'
+import { createUniqueIdentifierNamer } from '../shared/identifier'
 import { toPascalCase } from '../shared/naming'
 import { firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
-import {
-  alignItemsExpr,
-  colorExpr as colorExprBase,
-  fontWeightExpr,
-  jsString,
-  justifyContentExpr,
-  toCamelCase,
-} from './rn-utils'
+import { alignItemsExpr, colorExpr as colorExprBase, fontWeightExpr, jsString, justifyContentExpr } from './rn-utils'
 import { generateThemeFile } from './theme'
 
 type StyleProp = [key: string, value: string]
@@ -60,6 +54,12 @@ type RenderContext = {
   styles: StyleEntry[]
   usedComponents: Set<'View' | 'Text' | 'Image'>
   usedTheme: boolean
+  // Correction Critical 1 : une seule instance par page, partagee par tous
+  // les noeuds ET par la cle de repli 'root' du multi-racine (voir plus
+  // bas) -- c'est ce qui garantit l'unicite des cles de style meme quand
+  // deux ids Figma distincts se normalisent en la meme chaine, ou quand un
+  // noeud a pour id ce qui normaliserait justement en 'root'.
+  styleKey: (nodeId: string) => string
 }
 
 // `theme.colors.<nom>` quand la couleur correspond exactement a un token
@@ -164,6 +164,12 @@ function buildFrameStyle(frame: FrameNode, ctx: RenderContext): StyleProp[] {
     ...decorationProps(frame.fills, frame.strokes, frame.cornerRadius, ctx),
   ]
 
+  // Important 2 (round de correction finale) : `overflow: 'hidden'` est
+  // l'equivalent natif React Native de `clipsContent`, trivial a honorer
+  // ici (contrairement a SwiftUI/Compose, restes en apercu) -- jamais de
+  // decoupe silencieusement perdue pour une cible qui sait le faire.
+  if (frame.clipsContent) props.push(['overflow', jsString('hidden')])
+
   if (frame.layout.mode !== 'absolute') {
     const isRow = frame.layout.mode === 'row'
     props.push(['flexDirection', jsString(isRow ? 'row' : 'column')])
@@ -244,7 +250,7 @@ function renderNode(
   if (node.opacity < 1) ownProps.push(['opacity', formatNumber(node.opacity)])
   if (node.rotation !== 0) ownProps.push(['transform', `[{ rotate: '${formatNumber(node.rotation)}deg' }]`])
 
-  const styleKey = toCamelCase(node.id)
+  const styleKey = ctx.styleKey(node.id)
   ctx.styles.push({ key: styleKey, props: ownProps })
 
   const pad = '  '.repeat(depth)
@@ -304,6 +310,7 @@ function renderPage(page: Page, tokens: DesignTokens, warnings: string[]): Expor
     styles: [],
     usedComponents: new Set(),
     usedTheme: false,
+    styleKey: createUniqueIdentifierNamer('node'),
   }
 
   const topLevel = page.nodes.map((n) => renderNode(n, ctx, 2, null)).filter((l): l is string[] => l !== null)
@@ -315,8 +322,15 @@ function renderPage(page: Page, tokens: DesignTokens, warnings: string[]): Expor
     // Page a plusieurs noeuds racine (cas non couvert par la fixture) :
     // enveloppes dans une View neutre plutot que de choisir arbitrairement
     // le premier noeud ou d'echouer.
-    ctx.styles.unshift({ key: 'root', props: [] })
-    bodyLines = ['    <View style={styles.root}>', ...topLevel.flat(), '    </View>']
+    //
+    // Correction Critical 1 (corollaire) : la cle 'root' passe par le meme
+    // namer que les noeuds ci-dessus, PAS une chaine fixe -- un noeud dont
+    // l'id se normalise justement en 'root' a deja reserve cette cle a ce
+    // stade (rendu avant ce bloc), et `ctx.styleKey('root')` repliera alors
+    // sur 'root2' au lieu d'ecraser silencieusement le style de ce noeud.
+    const rootKey = ctx.styleKey('root')
+    ctx.styles.unshift({ key: rootKey, props: [] })
+    bodyLines = [`    <View style={styles.${rootKey}}>`, ...topLevel.flat(), '    </View>']
   }
 
   const componentName = toPascalCase(page.name)

@@ -38,10 +38,17 @@ import { layoutPage } from '@calque/core'
 import { formatNumber } from '../shared/format-number'
 import { pad } from '../shared/indent'
 import { toPascalCase } from '../shared/naming'
+import { unsupportedPropertyWarning } from '../shared/lost-property-warning'
 import { firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
 import { PREVIEW_SUPPORTED_NODE_TYPES, unsupportedNodeWarning } from '../shared/preview-coverage'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
-import { colorTokenComment, composeColorExpr as composeColorExprRaw, composeFontWeightExpr, kotlinString } from './kotlin-utils'
+import {
+  androidDrawableResourceName,
+  colorTokenComment,
+  composeColorExpr as composeColorExprRaw,
+  composeFontWeightExpr,
+  kotlinString,
+} from './kotlin-utils'
 
 const EXPORTER_ID = 'compose'
 
@@ -164,7 +171,23 @@ function renderText(node: TextNode, ctx: RenderContext, depth: number, extraMods
     `${pad(depth + 2)}color = ${composeColorExpr(node.style.color, ctx.tokens, ctx)},${colorTokenComment(node.style.color, ctx.tokens)}`,
     `${pad(depth + 1)}),`,
   ]
-  extraMods.forEach((mod) => lines.push(`${pad(depth + 1)}${mod},`))
+  // Correction Critical 2 : `extraMods` (le `.offset(x, y)` du mode
+  // `absolute`, le cas COURANT -- toute frame Figma sans auto-layout) doit
+  // devenir un argument NOMME `modifier = Modifier` a part entiere, pas
+  // des lignes ajoutees telles quelles apres l'argument `style = ...`
+  // deja ferme par sa virgule : l'ancienne version produisait
+  // `.offset(x = ..., y = ...),` comme argument de Text() sans nom,
+  // invalide en Kotlin (voir renderRect/renderEllipse/renderFrame, qui
+  // eux passent deja `extraMods` a l'interieur d'une chaine `modifier =
+  // Modifier` via `boxModifierLines`).
+  if (extraMods.length > 0) {
+    ctx.imports.add('androidx.compose.ui.Modifier')
+    lines.push(`${pad(depth + 1)}modifier = Modifier`)
+    extraMods.forEach((mod, i) => {
+      const isLast = i === extraMods.length - 1
+      lines.push(`${pad(depth + 2)}${modifierLine(mod, '', isLast)}`)
+    })
+  }
   lines.push(`${pad(depth)})`)
   return lines
 }
@@ -175,17 +198,28 @@ function fitToContentScale(fit: 'cover' | 'contain' | 'fill'): string {
   return 'ContentScale.FillBounds'
 }
 
-function renderImage(node: ImageNode, ctx: RenderContext, depth: number, extraMods: string[]): string[] {
+// Correction Critical 2 (meme classe de bug que renderText, assemblage
+// distinct de boxModifierLines) : `.size(...)` portait toujours la virgule
+// finale, y compris quand `extraMods` suivait -- `.offset(...)` devenait
+// alors une ligne orpheline (pas rattachee a la chaine `Modifier`) plutot
+// que le dernier maillon de la chaine. `modifierLine` place la virgule sur
+// la DERNIERE ligne seulement, comme pour Box/Row/Column.
+function imageModifierLines(w: number, h: number, extraMods: string[], depth: number): string[] {
+  const isLastSize = extraMods.length === 0
+  return [
+    `${pad(depth)}modifier = Modifier`,
+    `${pad(depth + 1)}${modifierLine(`.size(width = ${dp(w)}, height = ${dp(h)})`, '', isLastSize)}`,
+    ...extraMods.map((m, i) => `${pad(depth + 1)}${modifierLine(m, '', i === extraMods.length - 1)}`),
+  ]
+}
+
+function renderImage(node: ImageNode, ctx: RenderContext, depth: number, extraMods: string[]): string[] | null {
   ctx.imports.add('androidx.compose.ui.Modifier')
   ctx.imports.add('androidx.compose.foundation.layout.size')
   ctx.imports.add('androidx.compose.ui.unit.dp')
   ctx.imports.add('androidx.compose.ui.layout.ContentScale')
 
-  const modifierLines = [
-    `${pad(depth + 1)}modifier = Modifier`,
-    `${pad(depth + 2)}.size(width = ${dp(node.frame.w)}, height = ${dp(node.frame.h)}),`,
-    ...extraMods.map((m) => `${pad(depth + 1)}${m},`),
-  ]
+  const modifierLines = imageModifierLines(node.frame.w, node.frame.h, extraMods, depth + 1)
 
   if (isRemoteUrl(node.src)) {
     ctx.imports.add('coil.compose.AsyncImage')
@@ -199,11 +233,27 @@ function renderImage(node: ImageNode, ctx: RenderContext, depth: number, extraMo
     ]
   }
 
+  // Correction Critical 2 (corollaire) : `painterResource` attend une
+  // ressource `@DrawableRes Int` (`R.drawable.<nom>`), jamais une
+  // `String` -- `painterResource(kotlinString(node.src))` ne compilait
+  // pas. Le nom de ressource Android valide est derive du chemin ; s'il
+  // ne peut pas l'etre (aucun caractere alphanumerique exploitable), on
+  // avertit plutot que d'emettre un appel qui ne compile pas (le noeud
+  // n'est alors pas rendu, comme pour tout autre defaut d'emission dans
+  // ce generateur).
+  const resourceName = androidDrawableResourceName(node.src)
+  if (resourceName === null) {
+    ctx.warnings.push(
+      `image non exportee par l export compose (apercu) : impossible de deriver un nom de ressource Android valide depuis "${node.src}" (noeud ${node.id})`,
+    )
+    return null
+  }
+
   ctx.imports.add('androidx.compose.foundation.Image')
   ctx.imports.add('androidx.compose.ui.res.painterResource')
   return [
     `${pad(depth)}Image(`,
-    `${pad(depth + 1)}painter = painterResource(${kotlinString(node.src)}),`,
+    `${pad(depth + 1)}painter = painterResource(R.drawable.${resourceName}),`,
     `${pad(depth + 1)}contentDescription = null,`,
     `${pad(depth + 1)}contentScale = ${fitToContentScale(node.fit)},`,
     ...modifierLines,
@@ -256,6 +306,13 @@ function crossAlignmentExpr(align: 'start' | 'center' | 'end' | 'stretch', isRow
 function renderFrame(frame: FrameNode, ctx: RenderContext, depth: number, extraMods: string[]): string[] {
   const isAbsolute = frame.layout.mode === 'absolute'
   const isRow = frame.layout.mode === 'row'
+
+  // Important 2 : contrairement a Flutter (`clipBehavior`) et React Native
+  // (`overflow`), ce generateur `preview` ne decoupe pas le contenu qui
+  // deborde -- jamais perdu en silence.
+  if (frame.clipsContent) {
+    ctx.warnings.push(unsupportedPropertyWarning('clipsContent', frame.id, EXPORTER_ID))
+  }
 
   ctx.imports.add('androidx.compose.foundation.layout.size')
   ctx.imports.add('androidx.compose.ui.Modifier')
@@ -328,6 +385,13 @@ function renderFrame(frame: FrameNode, ctx: RenderContext, depth: number, extraM
   const mainArrangementKey = isRow ? 'horizontalArrangement' : 'verticalArrangement'
   const crossAlignmentKey = isRow ? 'verticalAlignment' : 'horizontalAlignment'
 
+  // Important 1 : `stretch` est approxime par le debut de l'axe
+  // (crossAlignmentExpr, ci-dessus) faute d'equivalent Compose direct --
+  // jamais en silence.
+  if (frame.layout.alignCross === 'stretch') {
+    ctx.warnings.push(unsupportedPropertyWarning("alignCross: 'stretch'", frame.id, EXPORTER_ID))
+  }
+
   const header = [
     `${pad(depth)}${widget}(`,
     ...modLines,
@@ -357,6 +421,12 @@ function renderNode(node: Node, ctx: RenderContext, depth: number, extraMods: st
     ctx.warnings.push(unsupportedNodeWarning(node.type, EXPORTER_ID))
     return null
   }
+
+  // Important 1 : contrairement a Flutter et React Native, ce generateur
+  // `preview` n'implemente ni `.alpha()` ni `.rotate()` -- jamais perdu en
+  // silence, meme si le type de noeud lui-meme est couvert.
+  if (node.opacity < 1) ctx.warnings.push(unsupportedPropertyWarning('opacity', node.id, EXPORTER_ID))
+  if (node.rotation !== 0) ctx.warnings.push(unsupportedPropertyWarning('rotation', node.id, EXPORTER_ID))
 
   switch (node.type) {
     case 'frame':

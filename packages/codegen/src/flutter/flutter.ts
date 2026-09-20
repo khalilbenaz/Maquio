@@ -243,6 +243,11 @@ function renderFrame(frame: FrameNode, ctx: RenderContext): Block {
     { key: 'height', block: lit(formatNumber(frame.frame.h)) },
   ]
   if (decoration) containerArgs.push({ key: 'decoration', block: decoration })
+  // Important 2 : `clipBehavior: Clip.hardEdge` est l'equivalent natif
+  // Flutter de `clipsContent`, trivial a honorer ici (Clip vient de
+  // package:flutter/material.dart, deja importe) -- jamais de decoupe
+  // silencieusement perdue pour une cible qui sait le faire.
+  if (frame.clipsContent) containerArgs.push({ key: 'clipBehavior', block: lit('Clip.hardEdge') })
   containerArgs.push({ key: 'child', block: content })
 
   return call('Container', containerArgs)

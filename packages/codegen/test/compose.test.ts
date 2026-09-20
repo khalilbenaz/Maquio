@@ -16,8 +16,16 @@ describe('composeExporter', () => {
   it('correspond au temoin de l ecran', () => {
     expect(result.files[0]!.contents).toBe(golden('LoginScreen.kt'))
   })
-  it('ne produit aucun avertissement sur la fixture (aucun noeud non couvert)', () => {
-    expect(result.warnings).toEqual([])
+  // Correction Important 1/2 (vague de correction finale) : voir le
+  // commentaire equivalent dans swiftui.test.ts -- meme fixture, meme
+  // defaut (stretch et clipsContent approximes en silence par les deux
+  // generateurs preview).
+  it('avertit pour le stretch et le clipsContent non honores par cet exportateur preview', () => {
+    expect(result.warnings).toEqual([
+      'clipsContent non pris en charge par l export compose (apercu) (noeud frame-login-screen)',
+      "alignCross: 'stretch' non pris en charge par l export compose (apercu) (noeud frame-login-screen)",
+      'clipsContent non pris en charge par l export compose (apercu) (noeud frame-button)',
+    ])
   })
   it('est deterministe', () => {
     expect(composeExporter.export(loginScreenDocument, { projectName: 'demo' }).files).toEqual(result.files)
