@@ -311,10 +311,22 @@ function FillSection({
   const firstFill = first?.fills[0]
   const hex = firstFill && firstFill.type === 'solid' ? colorToHex(firstFill.color) : '#000000'
 
-  function setFills(fills: Fill[]) {
+  // Round de correction 1 (Critical) : chaque noeud construit SA PROPRE
+  // nouvelle valeur de `fills` a partir de SON tableau courant -- jamais un
+  // tableau unique partage applique tel quel a toute la selection. C'est ce
+  // qui garantit que l'alpha courant du premier remplissage et les
+  // remplissages suivants (fills[1:]) restent intacts : une simple edition
+  // de couleur ne doit jamais silencieusement figer l'alpha a 1 ni tronquer
+  // le tableau a un seul element (perte de donnees constatee a l'usage, y
+  // compris sur un document importe depuis Figma en tache 17).
+  function applyFills(build: (n: FillableNode) => Fill[]) {
     const commands = nodes
-      .filter((n) => JSON.stringify(n.fills) !== JSON.stringify(fills))
-      .map((n) => updateNodeCommand(pageId, n.id, { fills }))
+      .map((n) => {
+        const newFills = build(n)
+        if (JSON.stringify(n.fills) === JSON.stringify(newFills)) return null
+        return updateNodeCommand(pageId, n.id, { fills: newFills })
+      })
+      .filter((c): c is Command => c !== null)
     if (commands.length === 0) return
     execute(commands.length === 1 ? commands[0]! : compositeCommand('Modifier le remplissage', commands))
   }
@@ -325,13 +337,28 @@ function FillSection({
       <CheckboxField
         label="Remplissage actif"
         checked={enabled}
-        onCommit={(v) => setFills(v ? [{ type: 'solid', color: hexToColor(hex, 1) }] : [{ type: 'none' }])}
+        onCommit={(v) =>
+          applyFills((n) => {
+            const currentFirst = n.fills[0]
+            const rest = n.fills.slice(1)
+            if (!v) return [{ type: 'none' }, ...rest]
+            const color = currentFirst && currentFirst.type === 'solid' ? currentFirst.color : hexToColor(hex, 1)
+            return [{ type: 'solid', color }, ...rest]
+          })
+        }
       />
       {enabled ? (
         <ColorField
           label="Couleur de remplissage"
           value={hex}
-          onCommit={(newHex) => setFills([{ type: 'solid', color: hexToColor(newHex, 1) }])}
+          onCommit={(newHex) =>
+            applyFills((n) => {
+              const currentFirst = n.fills[0]
+              const alpha = currentFirst && currentFirst.type === 'solid' ? currentFirst.color.a : 1
+              const rest = n.fills.slice(1)
+              return [{ type: 'solid', color: hexToColor(newHex, alpha) }, ...rest]
+            })
+          }
         />
       ) : null}
     </section>
@@ -354,10 +381,21 @@ function StrokeSection({
   const hex = firstStroke ? colorToHex(firstStroke.color) : '#000000'
   const width = commonOf(nodes, (n) => (n as FillableNode).strokes[0]?.width ?? 0)
 
-  function setStrokes(strokes: Stroke[]) {
+  // Round de correction 1 (Critical) : meme principe que FillSection.
+  // applyFills ci-dessus -- chaque noeud reconstruit SON PROPRE tableau
+  // `strokes` a partir de son etat courant, pour ne jamais figer l'alpha ni
+  // tronquer les contours suivants (strokes[1:]) d'une edition de couleur
+  // ou d'epaisseur. Desactiver le contour (checkbox) reste volontairement
+  // un vidage complet du tableau : c'est une action explicite et
+  // intentionnelle de l'utilisateur, pas une perte accidentelle.
+  function applyStrokes(build: (n: FillableNode) => Stroke[]) {
     const commands = nodes
-      .filter((n) => JSON.stringify(n.strokes) !== JSON.stringify(strokes))
-      .map((n) => updateNodeCommand(pageId, n.id, { strokes }))
+      .map((n) => {
+        const newStrokes = build(n)
+        if (JSON.stringify(n.strokes) === JSON.stringify(newStrokes)) return null
+        return updateNodeCommand(pageId, n.id, { strokes: newStrokes })
+      })
+      .filter((c): c is Command => c !== null)
     if (commands.length === 0) return
     execute(commands.length === 1 ? commands[0]! : compositeCommand('Modifier le contour', commands))
   }
@@ -368,20 +406,44 @@ function StrokeSection({
       <CheckboxField
         label="Contour actif"
         checked={enabled}
-        onCommit={(v) => setStrokes(v ? [{ color: hexToColor(hex, 1), width: 1 }] : [])}
+        onCommit={(v) =>
+          applyStrokes((n) => {
+            if (!v) return []
+            const currentFirst = n.strokes[0]
+            const rest = n.strokes.slice(1)
+            const color = currentFirst ? currentFirst.color : hexToColor(hex, 1)
+            const strokeWidth = currentFirst ? currentFirst.width : 1
+            return [{ color, width: strokeWidth }, ...rest]
+          })
+        }
       />
       {enabled ? (
         <>
           <ColorField
             label="Couleur du contour"
             value={hex}
-            onCommit={(newHex) => setStrokes([{ color: hexToColor(newHex, 1), width: firstStroke?.width ?? 1 }])}
+            onCommit={(newHex) =>
+              applyStrokes((n) => {
+                const currentFirst = n.strokes[0]
+                const alpha = currentFirst ? currentFirst.color.a : 1
+                const strokeWidth = currentFirst ? currentFirst.width : 1
+                const rest = n.strokes.slice(1)
+                return [{ color: hexToColor(newHex, alpha), width: strokeWidth }, ...rest]
+              })
+            }
           />
           <NumberField
             label="Epaisseur du contour"
             value={width}
             min={0}
-            onCommit={(v) => setStrokes([{ color: firstStroke?.color ?? hexToColor(hex, 1), width: v }])}
+            onCommit={(v) =>
+              applyStrokes((n) => {
+                const currentFirst = n.strokes[0]
+                const color = currentFirst ? currentFirst.color : hexToColor(hex, 1)
+                const rest = n.strokes.slice(1)
+                return [{ color, width: v }, ...rest]
+              })
+            }
           />
         </>
       ) : null}
