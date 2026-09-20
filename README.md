@@ -164,13 +164,31 @@ est assumée.
 ## Ce que la v1 ne fait pas
 
 - l'édition collaborative en temps réel (multi-curseurs, présence) ;
+- le versionnage cloud, les comptes utilisateurs, tout backend distant
+  autre que l'API Figma ;
 - les composants et variantes réutilisables au sens Figma (l'import les
   aplatit en simples frames) ;
 - l'édition vectorielle (nœuds de Bézier, opérations booléennes) ;
 - le prototypage interactif (transitions entre écrans, animations) ;
 - le réimport code → design (l'export est à sens unique) ;
+- la publication, la signature et la distribution de l'application
+  elle-même ;
 - les tests bout-en-bout Electron (Playwright).
 
 Chacun de ces points est un projet à part entière ; les YAGNI explicites
 de la v1 sont détaillés dans la spec de conception,
 `docs/superpowers/specs/2026-09-20-calque-design.md`.
+
+## Écarts connus par rapport à la spec
+
+Constatés lors de la revue finale de branche, non corrigés dans cette
+vague de correction (coût assumé, à reprendre plus tard) :
+
+- le champ `constraints` du §5.1 de la spec n'existe pas dans le modèle
+  de document (`packages/core/src/model/types.ts`) ;
+- le générateur Flutter n'émet pas de `Scaffold` et produit une classe
+  par page plutôt qu'un widget par frame nommée, contrairement à ce que
+  décrit le §7 de la spec ;
+- la première édition d'un nœud réordonne ses clés dans le fichier
+  `.calque` : le document reste lisible et valide, mais le premier
+  `git diff` qui suit une édition est bruyant.

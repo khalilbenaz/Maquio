@@ -10,6 +10,7 @@ import type { Color, DesignTokens } from '@calque/core'
 import { colorHexARGB } from '../shared/color-hex'
 import { formatNumber as sharedFormatNumber } from '../shared/format-number'
 import { toPascalCase as sharedToPascalCase } from '../shared/naming'
+import { tokenIdentifier } from '../shared/token-identifiers'
 import { findColorToken } from '../shared/tokens'
 
 // snake_case : utilise pour les noms de fichiers Dart (login_screen.dart).
@@ -55,9 +56,16 @@ export const colorHex = colorHexARGB
 // Expression Dart pour une couleur : la constante de theme quand elle
 // correspond exactement a un token (decision 8 du brief Tache 7), sinon la
 // valeur litterale.
+//
+// Correction Critical 3 : `token` est le nom BRUT ("brand-primary-500"),
+// pas forcement un identifiant Dart valide -- `static const Color brand-
+// primary-500` ne compile pas. `tokenIdentifier` le fait correspondre a la
+// meme cle que celle emise par theme.ts pour ce document (meme categorie
+// de noms `tokens.colors`), jamais recalculee independamment.
 export function colorExpr(color: Color, tokens: DesignTokens): string {
   const token = findColorToken(color, tokens)
-  return token !== null ? `AppColors.${token}` : `const Color(${colorHex(color)})`
+  if (token === null) return `const Color(${colorHex(color)})`
+  return `AppColors.${tokenIdentifier(token, Object.keys(tokens.colors))}`
 }
 
 // FontWeight.wNNN le plus proche (arrondi au multiple de 100, borne a

@@ -10,6 +10,7 @@ class SpaceBetweenRow extends StatelessWidget {
     return Container(
       width: 239,
       height: 50,
+      clipBehavior: Clip.hardEdge,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,

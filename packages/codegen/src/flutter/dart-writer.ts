@@ -29,15 +29,30 @@ export type Arg = { key?: string; block: Block }
 // Rend un appel `Nom(arg1: v1, arg2: v2, ...)`. Un appel a un seul
 // argument dont la valeur tient sur une ligne reste sur une seule ligne
 // (ex. `SizedBox(height: 16)`, `ColorScheme.fromSeed(seedColor: ...)`) ;
-// tout le reste (2 arguments ou plus, ou un argument multi-lignes) est
+// un appel a PLUSIEURS arguments dont chacun tient sur une seule ligne
+// reste egalement sur une seule ligne si l'ensemble reste tres court (ex.
+// `Border.all(color: ..., width: 1)`) -- c'est le choix de `dart format`
+// lui-meme (Important 3, garde-fou `dart format --set-exit-if-changed`) :
+// sans cette regle, ce garde-fou reecrirait un tel appel et ferait
+// echouer le test des qu'un SDK Dart est present. Le seuil, bien en-deca
+// de 80 colonnes, laisse de la marge pour l'indentation et le prefixe
+// `cle: ` que l'appelant ajoutera via `attach`, inconnus a ce point.
+// Tout le reste (un argument multi-lignes, ou un total trop long) est
 // developpe avec une virgule finale par ligne, comme le ferait un
 // developpeur Flutter a la main.
+const SINGLE_LINE_CALL_MAX_LENGTH = 60
+
 export function call(name: string, args: Arg[]): Block {
   if (args.length === 0) return [`${name}()`]
   if (args.length === 1 && args[0]!.block.length === 1) {
     const arg = args[0]!
     const prefix = arg.key ? `${arg.key}: ` : ''
     return [`${name}(${prefix}${arg.block[0]!})`]
+  }
+  if (args.every((arg) => arg.block.length === 1)) {
+    const parts = args.map((arg) => `${arg.key ? `${arg.key}: ` : ''}${arg.block[0]!}`)
+    const candidate = `${name}(${parts.join(', ')})`
+    if (candidate.length <= SINGLE_LINE_CALL_MAX_LENGTH) return [candidate]
   }
   const lines: Block = [`${name}(`]
   for (const arg of args) {

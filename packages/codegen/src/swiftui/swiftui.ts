@@ -38,6 +38,7 @@ import type {
 import { layoutPage } from '@calque/core'
 import { formatNumber } from '../shared/format-number'
 import { pad } from '../shared/indent'
+import { unsupportedPropertyWarning } from '../shared/lost-property-warning'
 import { toPascalCase } from '../shared/naming'
 import { firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
 import { PREVIEW_SUPPORTED_NODE_TYPES, unsupportedNodeWarning } from '../shared/preview-coverage'
@@ -160,10 +161,23 @@ function renderFrame(frame: FrameNode, ctx: RenderContext, depth: number, extraM
   // fixe, qui romprait l'effet de repartition sur tout l'espace libre.
   const isSpaceBetween = frame.layout.alignMain === 'space-between'
 
+  // Important 2 : contrairement a Flutter (`clipBehavior`) et React Native
+  // (`overflow`), ce generateur `preview` ne decoupe pas le contenu qui
+  // deborde -- jamais perdu en silence.
+  if (frame.clipsContent) {
+    ctx.warnings.push(unsupportedPropertyWarning('clipsContent', frame.id, EXPORTER_ID))
+  }
+
   let header: string
   if (isAbsolute) {
     header = 'ZStack(alignment: .topLeading)'
   } else {
+    // Important 1 : `stretch` est approxime par le debut de l'axe
+    // (alignmentExpr, ci-dessus) faute d'equivalent SwiftUI direct --
+    // jamais en silence.
+    if (frame.layout.alignCross === 'stretch') {
+      ctx.warnings.push(unsupportedPropertyWarning("alignCross: 'stretch'", frame.id, EXPORTER_ID))
+    }
     const widget = isRow ? 'HStack' : 'VStack'
     const axis = isRow ? 'vertical' : 'horizontal'
     const spacing = isSpaceBetween ? 0 : frame.layout.gap
@@ -221,6 +235,12 @@ function renderNode(node: Node, ctx: RenderContext, depth: number, extraMods: st
     ctx.warnings.push(unsupportedNodeWarning(node.type, EXPORTER_ID))
     return null
   }
+
+  // Important 1 : contrairement a Flutter et React Native, ce generateur
+  // `preview` n'implemente ni `.opacity()` ni `.rotationEffect()` -- jamais
+  // perdu en silence, meme si le type de noeud lui-meme est couvert.
+  if (node.opacity < 1) ctx.warnings.push(unsupportedPropertyWarning('opacity', node.id, EXPORTER_ID))
+  if (node.rotation !== 0) ctx.warnings.push(unsupportedPropertyWarning('rotation', node.id, EXPORTER_ID))
 
   switch (node.type) {
     case 'frame':

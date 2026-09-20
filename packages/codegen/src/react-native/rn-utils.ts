@@ -4,18 +4,29 @@
 // le theme genere.
 import type { Color, DesignTokens } from '@calque/core'
 import { colorByte } from '../shared/color-hex'
+import { toSafeIdentifier } from '../shared/identifier'
 import { findColorToken } from '../shared/tokens'
+import { tokenIdentifier } from '../shared/token-identifiers'
 
 // camelCase a partir d'un id de noeud ('frame-login-screen' ->
 // 'frameLoginScreen') : utilise pour les cles de StyleSheet.create. On
 // part de l'id (unique) plutot que du nom (potentiellement duplique entre
 // deux noeuds, ex. deux boutons "Button") pour garantir des cles uniques
-// de maniere deterministe, sans compteur de collision a maintenir.
+// de maniere deterministe.
+//
+// Correction Critical 1 (round de correction finale) : un id Figma comme
+// '1:1' ne contient qu'un seul "mot" alphanumerique par separateur
+// (['1','1']), ce qui produisait ici la cle '11' -- un identifiant JS
+// invalide (`styles.11` ne parse pas). `toSafeIdentifier` (shared/
+// identifier.ts) garde exactement le meme decoupage/casse pour toute
+// chaine deja valide (aucun changement sur la fixture existante) et
+// prefixe seulement les ids qui commenceraient par un chiffre.
+// L'UNICITE des cles (y compris avec le repli 'root' du multi-racine,
+// react-native.ts) est de la responsabilite de l'appelant, qui doit
+// utiliser un `createUniqueIdentifierNamer` partage pour toute une page --
+// cette fonction reste pure et sans etat pour rester testable isolement.
 export function toCamelCase(input: string): string {
-  const parts = input.split(/[^a-zA-Z0-9]+/).filter((part) => part.length > 0)
-  if (parts.length === 0) return input
-  const [first, ...rest] = parts
-  return [first!.toLowerCase(), ...rest.map((part) => part[0]!.toUpperCase() + part.slice(1).toLowerCase())].join('')
+  return toSafeIdentifier(input, 'node')
 }
 
 // Echappe une chaine pour l'inserer dans un litteral JS/TS a guillemets
@@ -52,11 +63,18 @@ export function colorToHex(color: Color): string {
 // ete utilise, pour que l'appelant (react-native.ts) sache s'il doit
 // importer `theme` dans le fichier genere, sans dupliquer ici la logique
 // de correspondance couleur -> token.
+//
+// Correction Critical 3 : `token` est le nom BRUT du token ("brand-
+// primary-500"), lisible mais pas un identifiant JS valide en notation
+// pointee. `tokenIdentifier` le fait correspondre exactement a la cle
+// emise par theme.ts pour ce meme document (meme categorie de noms,
+// `tokens.colors`, meme regle d'unicite) : les deux ne peuvent jamais
+// diverger, calcules a partir des memes noms bruts.
 export function colorExpr(color: Color, tokens: DesignTokens, onTokenUsed?: () => void): string {
   const token = findColorToken(color, tokens)
   if (token !== null) {
     onTokenUsed?.()
-    return `theme.colors.${token}`
+    return `theme.colors.${tokenIdentifier(token, Object.keys(tokens.colors))}`
   }
   return jsString(colorToHex(color))
 }
