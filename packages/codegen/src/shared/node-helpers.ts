@@ -26,3 +26,16 @@ export function firstStroke(strokes: Stroke[]): Stroke | null {
 export function isRemoteUrl(src: string): boolean {
   return /^https?:\/\//.test(src)
 }
+
+// Ecart connu fermé (voir le README, section « Écarts connus ») : un
+// noeud image dont `src` est vide (systématique pour tout espace réservé
+// `image` importé de Figma, ou tracé dans l'éditeur avant tout choix de
+// fichier) ne doit plus jamais produire `Image.asset('')`, `require('')`
+// ou `Image("")` EN SILENCE — chaque generateur doit avertir et n'émettre
+// AUCUNE référence à la ressource vide pour ce noeud. Message partagé par
+// les quatre exportateurs, au même titre que unsupportedNodeWarning /
+// unsupportedPropertyWarning : seul l'id de l'exportateur et celui du
+// noeud changent.
+export function emptyImageSourceWarning(nodeId: string, exporterId: string): string {
+  return `image ignoree (src vide) par l export ${exporterId} : aucun fichier n'a ete choisi pour ce noeud (noeud ${nodeId})`
+}

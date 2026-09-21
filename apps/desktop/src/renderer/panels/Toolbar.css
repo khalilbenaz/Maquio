@@ -121,11 +121,15 @@
   position: relative;
 }
 
+/* Defaut n2 (menu d'export coupe) : ce menu est desormais rendu par
+   ExporterMenu (Toolbar.tsx) dans un portail sous document.body, en
+   dehors de tout conteneur a overflow -- sa position (top/left en
+   `fixed`) est calculee en JS et posee directement en style inline, cette
+   regle ne porte plus que l'HABILLAGE visuel. z-index eleve conserve par
+   precaution (un portail sous body est deja apres tout le reste dans
+   l'ordre du DOM, donc deja au-dessus par defaut, mais un autre element
+   de plus haut niveau pourrait un jour partager ce parent). */
 .toolbar-export-menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 4px;
   display: flex;
   flex-direction: column;
   background: var(--calque-panel-raised);
@@ -134,7 +138,7 @@
   padding: 4px;
   min-width: 190px;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
-  z-index: 10;
+  z-index: 1000;
 }
 
 .toolbar-export-item {

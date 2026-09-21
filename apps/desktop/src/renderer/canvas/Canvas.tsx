@@ -40,6 +40,7 @@ import { compositeCommand, deleteNodeCommand, findNode } from '@calque/core'
 import type { Node as CalqueNode } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import type { Tool } from '../state/editorStore'
+import type { CalqueApi } from '../../shared/api'
 import { NodeView } from './NodeView'
 import { SelectionOverlay } from './SelectionOverlay'
 import { pageNodesOf, useCreateInteraction } from './useDragInteraction'
@@ -121,7 +122,7 @@ function ToolIcon({ tool }: { tool: Exclude<Tool, 'select'> }) {
   }
 }
 
-export function Canvas() {
+export function Canvas({ api }: { api: CalqueApi }) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const document_ = useEditorStore((s) => s.document)
   const pageId = useEditorStore((s) => s.pageId)
@@ -130,7 +131,7 @@ export function Canvas() {
   const tool = useEditorStore((s) => s.tool)
   const fitToWindowToken = useEditorStore((s) => s.fitToWindowToken)
 
-  const onBackgroundPointerDown = useCreateInteraction(canvasRef)
+  const onBackgroundPointerDown = useCreateInteraction(canvasRef, api)
 
   const page = document_.pages.find((p) => p.id === pageId)
   const device = page?.device

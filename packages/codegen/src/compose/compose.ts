@@ -39,7 +39,7 @@ import { formatNumber } from '../shared/format-number'
 import { pad } from '../shared/indent'
 import { toPascalCase } from '../shared/naming'
 import { unsupportedPropertyWarning } from '../shared/lost-property-warning'
-import { firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
+import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
 import { PREVIEW_SUPPORTED_NODE_TYPES, unsupportedNodeWarning } from '../shared/preview-coverage'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
 import {
@@ -212,7 +212,17 @@ function imageModifierLines(w: number, h: number, extraMods: string[], depth: nu
   ]
 }
 
+// Ecart connu ferme (README, « Écarts connus ») : un src vide n'emet plus
+// `painterResource(...)`/`AsyncImage(...)` en silence -- le noeud n'est
+// pas rendu et un avertissement dedie est ajoute a ctx.warnings, distinct
+// de celui (deja existant) pour une ressource locale dont le nom EST
+// connu mais dont le paquet applicatif ne l'est pas (voir plus bas).
 function renderImage(node: ImageNode, ctx: RenderContext, depth: number, extraMods: string[]): string[] | null {
+  if (node.src === '') {
+    ctx.warnings.push(emptyImageSourceWarning(node.id, EXPORTER_ID))
+    return null
+  }
+
   ctx.imports.add('androidx.compose.ui.Modifier')
   ctx.imports.add('androidx.compose.foundation.layout.size')
   ctx.imports.add('androidx.compose.ui.unit.dp')

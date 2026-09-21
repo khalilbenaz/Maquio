@@ -40,7 +40,7 @@ import { formatNumber } from '../shared/format-number'
 import { pad } from '../shared/indent'
 import { unsupportedPropertyWarning } from '../shared/lost-property-warning'
 import { toPascalCase } from '../shared/naming'
-import { firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
+import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
 import { PREVIEW_SUPPORTED_NODE_TYPES, unsupportedNodeWarning } from '../shared/preview-coverage'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
 import { colorTokenComment, swiftColorExpr, swiftFontWeightExpr, swiftString } from './swift-utils'
@@ -126,7 +126,14 @@ function fitToAspect(fit: 'cover' | 'contain' | 'fill'): string | null {
   return null
 }
 
-function renderImage(node: ImageNode, depth: number, extraMods: string[]): string[] {
+// Ecart connu ferme (README, « Écarts connus ») : un src vide n'emet plus
+// `Image("")` en silence -- le noeud n'est pas rendu (comme un type de
+// noeud non supporte) et un avertissement est ajoute a ctx.warnings.
+function renderImage(node: ImageNode, ctx: RenderContext, depth: number, extraMods: string[]): string[] | null {
+  if (node.src === '') {
+    ctx.warnings.push(emptyImageSourceWarning(node.id, EXPORTER_ID))
+    return null
+  }
   const modDepth = depth + 1
   const aspect = fitToAspect(node.fit)
 
@@ -252,7 +259,7 @@ function renderNode(node: Node, ctx: RenderContext, depth: number, extraMods: st
     case 'ellipse':
       return renderEllipse(node, ctx, depth, extraMods)
     case 'image':
-      return renderImage(node, depth, extraMods)
+      return renderImage(node, ctx, depth, extraMods)
     default:
       return null
   }

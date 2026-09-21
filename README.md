@@ -240,13 +240,18 @@ assumé, à reprendre plus tard) :
   de ses champs, une fois passé par une commande de modification ses
   clés sont réordonnées selon le schéma de validation) — le document
   reste lisible et valide, mais le premier `git diff` qui suit une
-  édition est bruyant ;
-- tout nœud `image` importé de Figma a `src: ''` (aucune URL d'asset
-  n'est résolue par le traducteur), d'où `require('')`, `Image.asset('')`
-  et `Image("")` émis **sans avertissement** par React Native, Flutter et
-  SwiftUI — seul Jetpack Compose avertit (et n'émet rien) pour une image
-  locale, faute de connaître le nom de paquet applicatif nécessaire à
-  `R.drawable`.
+  édition est bruyant.
+
+Écart fermé depuis (usage-w3a) : tout nœud `image` dont `src` est vide
+(importé de Figma sans URL d'asset résolue, ou tracé dans l'éditeur avant
+tout choix de fichier) produit désormais un **avertissement** dans
+`ExportResult.warnings`, identique dans son principe entre les quatre
+générateurs (`emptyImageSourceWarning`, `packages/codegen/src/shared/node-helpers.ts`) —
+aucun des quatre n'émet plus de référence à la ressource vide
+(`require('')`, `Image.asset('')`, `Image("")` ou un
+`painterResource(...)`/`AsyncImage(...)` construit sur une chaîne vide) :
+le nœud est simplement omis de la sortie, comme un type de nœud non
+supporté.
 
 La normalisation des noms de token en identifiant (Flutter) traite
 désormais les mots réservés du langage cible (`class`, `default`,

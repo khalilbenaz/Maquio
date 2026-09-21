@@ -16,6 +16,7 @@ import { LayersPanel } from './panels/LayersPanel'
 import { InspectorPanel } from './panels/InspectorPanel'
 import { Toolbar } from './panels/Toolbar'
 import { ClaudePanel } from './panels/ClaudePanel'
+import { SettingsDialog } from './dialogs/SettingsDialog'
 import './App.css'
 
 // Point de passage unique pour l'absence de passerelle (correction du
@@ -55,9 +56,29 @@ function Editeur({ api }: { api: CalqueApi }) {
   // document et un indicateur de modification -- `savedJson` est
   // l'instantane du contenu enregistre (ou charge) le plus recent ;
   // `dirty` compare le document courant a cet instantane.
-  const [documentPath, setDocumentPath] = useState<string | null>(null)
+  //
+  // `documentPath` vit desormais dans editorStore (defaut n3, ruling sur
+  // le stockage des images) : NodeView (canvas) en a besoin pour resoudre
+  // le src RELATIF d'une image deja enregistree, et n'a pas de lien de
+  // parente direct avec ce composant -- voir la note dans editorStore.ts.
+  // Ecrit ici exactement comme l'etait l'ancien useState local (nouveau ->
+  // null, ouvrir -> chemin lu, enregistrer -> chemin ecrit).
+  const documentPath = useEditorStore((s) => s.documentPath)
+  const setDocumentPath = useEditorStore((s) => s.setDocumentPath)
   const [savedJson, setSavedJson] = useState(() => serializeDocument(documentCourant))
   const dirty = serializeDocument(documentCourant) !== savedJson
+
+  // Defaut n1 (« les reglages ont disparu ») : le dialogue des reglages
+  // doit rester joignable depuis DEUX points d'entree independants --
+  // le bouton "Reglages" de la barre d'outils (correction round 2,
+  // toujours present) ET, desormais, le renvoi du panneau Claude quand la
+  // connexion echoue (un vrai bouton cliquable, plus une simple phrase).
+  // Toolbar et ClaudePanel sont freres sous ce composant, sans lien de
+  // parente direct entre eux : l'etat d'ouverture du dialogue et son rendu
+  // remontent donc ici, au plus proche ancetre commun, plutot que d'etre
+  // duplique ou pousse dans un magasin partage supplementaire pour un
+  // simple booleen d'affichage.
+  const [reglagesOuverts, setReglagesOuverts] = useState(false)
 
   // "Nouveau" (finition v1) : aucun canal main n'est necessaire (voir la
   // note dans preload.ts) -- un document vierge se construit entierement
@@ -129,19 +150,20 @@ function Editeur({ api }: { api: CalqueApi }) {
           </span>
         ) : null}
       </div>
-      <Toolbar api={api} />
+      <Toolbar api={api} onOpenSettings={() => setReglagesOuverts(true)} />
       <div className="calque-body">
         <div className="calque-column-layers">
           <LayersPanel />
         </div>
         <div className="calque-column-canvas">
-          <Canvas />
+          <Canvas api={api} />
         </div>
         <div className="calque-column-right">
-          <InspectorPanel />
-          <ClaudePanel api={api} />
+          <InspectorPanel api={api} />
+          <ClaudePanel api={api} onOpenSettings={() => setReglagesOuverts(true)} />
         </div>
       </div>
+      {reglagesOuverts ? <SettingsDialog api={api} onClose={() => setReglagesOuverts(false)} /> : null}
     </main>
   )
 }

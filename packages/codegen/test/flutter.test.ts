@@ -80,6 +80,47 @@ describe('flutterExporter', () => {
     expect(file.contents).toContain("'it\\'s a\\\\b \\$100\\nline two'")
   })
 
+  // Ecart connu ferme (README, « Écarts connus ») : un noeud image dont
+  // le src est vide (systematique pour tout espace reserve `image`
+  // importe de Figma, ou trace dans l'editeur avant tout choix de
+  // fichier) n'emet plus `Image.asset('')` en silence -- avertit, et
+  // n'emet aucune reference a la ressource vide.
+  it('avertit pour un noeud image de src vide au lieu d emettre Image.asset(\'\')', () => {
+    const docAvecImageVide: CalqueDocument = {
+      version: loginScreenDocument.version,
+      id: 'doc-image-vide',
+      name: 'ImageVide',
+      pages: [
+        {
+          id: 'page-image-vide',
+          name: 'ImageVideScreen',
+          device: loginScreenDocument.pages[0]!.device,
+          nodes: [
+            {
+              id: 'image-vide',
+              name: 'Image',
+              type: 'image',
+              frame: { x: 0, y: 0, w: 80, h: 80 },
+              visible: true,
+              locked: false,
+              opacity: 1,
+              rotation: 0,
+              src: '',
+              fit: 'cover',
+            },
+          ],
+        },
+      ],
+      tokens: { colors: {}, typography: {}, spacing: {} },
+    }
+
+    const out = flutterExporter.export(docAvecImageVide, { projectName: 'demo' })
+    const file = out.files.find((f) => f.path.endsWith('image_vide_screen.dart'))!
+    expect(file.contents).not.toContain('Image.asset(')
+    expect(file.contents).not.toContain('Image.network(')
+    expect(out.warnings.some((w) => w.includes('image-vide'))).toBe(true)
+  })
+
   // Decision 11 du brief Tache 7 : un type de noeud inconnu du generateur
   // n'est jamais ignore en silence, il ajoute une ligne dans warnings. On
   // force ce cas via un cast, un CalqueDocument valide ne peut pas le

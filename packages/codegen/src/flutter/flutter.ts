@@ -30,7 +30,7 @@ import type {
   TextNode,
 } from '@calque/core'
 import { layoutPage } from '@calque/core'
-import { firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
+import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
 import { type Arg, type Block, attach, call, collapseShortCalls, lit, list } from './dart-writer'
 import {
@@ -155,7 +155,15 @@ function renderEllipse(node: EllipseNode, ctx: RenderContext): Block {
   return boxOrSizedBox(node.frame.w, node.frame.h, decoration, false, null)
 }
 
-function renderImage(node: ImageNode): Block {
+// Ecart connu ferme (README, « Écarts connus ») : un src vide n'emet plus
+// `Image.asset('')` / `Image.network('')` en silence -- le noeud n'est
+// pas rendu (comme un type de noeud non supporte) et un avertissement est
+// ajoute a ExportResult.warnings.
+function renderImage(node: ImageNode, ctx: RenderContext): Block | null {
+  if (node.src === '') {
+    ctx.warnings.push(emptyImageSourceWarning(node.id, 'flutter'))
+    return null
+  }
   const args: Arg[] = [
     { block: lit(dartString(node.src)) },
     { key: 'width', block: lit(formatNumber(node.frame.w)) },
@@ -312,7 +320,7 @@ function renderNodeInner(node: Node, ctx: RenderContext): Block | null {
     case 'ellipse':
       return renderEllipse(node, ctx)
     case 'image':
-      return renderImage(node)
+      return renderImage(node, ctx)
     case 'line':
       return renderLine(node, ctx)
     default: {

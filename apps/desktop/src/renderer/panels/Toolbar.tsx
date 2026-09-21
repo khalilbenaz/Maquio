@@ -19,14 +19,37 @@
 // desormais son raccourci clavier (V/F/R/E/T/I, actives dans Canvas.tsx)
 // dans son infobulle -- aria-label reste inchange (teste verbatim par
 // toolbar.test.tsx), seul `title` gagne le raccourci.
-import { useEffect, useState } from 'react'
-import type { ReactNode } from 'react'
+//
+// Defaut n1 (« les reglages ont disparu ») : le bouton Reglages porte
+// desormais un LIBELLE VISIBLE, au meme format (icone + texte, meme
+// hauteur, meme bordure -- classe `toolbar-button-text`, partagee avec
+// "Importer Figma" et "Exporter") que ses voisins -- il n'est plus une
+// icone ronde isolee que rien ne distingue d'une simple decoration.
+// L'etat d'ouverture du dialogue des reglages remonte desormais a
+// Editeur (App.tsx), qui le rend une seule fois : c'est ce qui permet au
+// panneau Claude (ClaudePanel.tsx, frere de ce composant) d'ouvrir CE
+// MEME dialogue depuis son renvoi, sans dupliquer l'etat ni le dialogue.
+//
+// Defaut n2 (menu d'export coupe) : `.toolbar` a `overflow-y: hidden`
+// (defilement horizontal quand tous les groupes ne tiennent plus sur une
+// ligne, voir Toolbar.css) -- un menu positionne en `absolute` a
+// l'interieur de ce conteneur etait donc rogne des qu'il depassait le bas
+// de la barre d'outils (seul son bord arrondi superieur restait visible).
+// La cause, pas le symptome : `ExporterMenu` ci-dessous rend le menu dans
+// un portail (`createPortal`) directement sous `document.body`, en dehors
+// de tout conteneur a `overflow` -- plus jamais rogne, quel que soit le
+// contexte d'empilement du bouton qui l'ouvre -- et calcule sa position
+// en `fixed` a partir du rectangle reel du bouton, en se repliant s'il ne
+// tiendrait pas a l'ecran (au-dessus au lieu d'en dessous, borde
+// horizontalement) pres d'un bord de fenetre.
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import type { ReactNode, RefObject } from 'react'
 import { useEditorStore } from '../state/editorStore'
 import type { Tool } from '../state/editorStore'
 import type { CalqueApi, ExporterId, ExportTargetInfo } from '../../shared/api'
 import { FigmaImportDialog } from '../dialogs/FigmaImportDialog'
 import { ExportDialog } from '../dialogs/ExportDialog'
-import { SettingsDialog } from '../dialogs/SettingsDialog'
 import { clampZoom } from '../canvas/viewport'
 import './Toolbar.css'
 
@@ -107,7 +130,89 @@ const TOOLS: { id: Tool; label: string; shortcut: string; icon: ReactNode }[] = 
 
 const ZOOM_STEP = 0.1
 
-export function Toolbar({ api }: { api: CalqueApi }) {
+const MARGE_ECRAN = 8
+
+// Portail (voir la note de defaut n2 en tete de fichier) : mesure le
+// bouton ancre ET le menu lui-meme (apres son premier rendu, hors-ecran)
+// pour placer ce dernier en `position: fixed`, replie au besoin pour
+// rester entierement visible pres d'un bord de fenetre.
+function ExporterMenu({
+  anchorRef,
+  targets,
+  onPick,
+}: {
+  anchorRef: RefObject<HTMLButtonElement | null>
+  targets: ExportTargetInfo[]
+  onPick: (id: ExporterId) => void
+}) {
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [style, setStyle] = useState<{ top: number; left: number; visibility: 'hidden' | 'visible' }>({
+    top: 0,
+    left: 0,
+    visibility: 'hidden',
+  })
+
+  useLayoutEffect(() => {
+    function reposition() {
+      const anchor = anchorRef.current
+      const menu = menuRef.current
+      if (!anchor || !menu) return
+
+      const anchorRect = anchor.getBoundingClientRect()
+      const menuRect = menu.getBoundingClientRect()
+
+      // Par defaut : sous l'ancre, bord droit aligne sur son bord droit
+      // (comme avant la correction).
+      let top = anchorRect.bottom + 4
+      let left = anchorRect.right - menuRect.width
+
+      // Ne tient pas en dessous jusqu'au bas de l'ecran : bascule
+      // au-dessus de l'ancre plutot que de deborder hors de la fenetre.
+      if (top + menuRect.height > window.innerHeight - MARGE_ECRAN) {
+        top = anchorRect.top - menuRect.height - 4
+      }
+      if (top < MARGE_ECRAN) top = MARGE_ECRAN
+
+      // Deborderait a droite ou a gauche : borde a la fenetre avec une
+      // marge, jamais coupe ni hors-ecran.
+      if (left + menuRect.width > window.innerWidth - MARGE_ECRAN) {
+        left = window.innerWidth - MARGE_ECRAN - menuRect.width
+      }
+      if (left < MARGE_ECRAN) left = MARGE_ECRAN
+
+      setStyle({ top, left, visibility: 'visible' })
+    }
+
+    reposition()
+    window.addEventListener('resize', reposition)
+    return () => window.removeEventListener('resize', reposition)
+  }, [anchorRef, targets])
+
+  return createPortal(
+    <div
+      ref={menuRef}
+      role="menu"
+      aria-label="Cibles d'export"
+      className="toolbar-export-menu"
+      style={{ position: 'fixed', top: style.top, left: style.left, visibility: style.visibility }}
+    >
+      {targets.map((target) => (
+        <button
+          key={target.id}
+          type="button"
+          role="menuitem"
+          className="toolbar-export-item"
+          onClick={() => onPick(target.id)}
+        >
+          {target.label} <span className="toolbar-badge">{target.maturity === 'preview' ? 'aperçu' : 'complet'}</span>
+        </button>
+      ))}
+    </div>,
+    document.body,
+  )
+}
+
+export function Toolbar({ api, onOpenSettings }: { api: CalqueApi; onOpenSettings: () => void }) {
   const tool = useEditorStore((s) => s.tool)
   const setTool = useEditorStore((s) => s.setTool)
   const zoom = useEditorStore((s) => s.zoom)
@@ -130,10 +235,7 @@ export function Toolbar({ api }: { api: CalqueApi }) {
   const [exportTargets, setExportTargets] = useState<ExportTargetInfo[]>([])
   const [exporterOuvert, setExporterOuvert] = useState<ExporterId | null>(null)
   const [figmaOuvert, setFigmaOuvert] = useState(false)
-  // Correction round 2 (Critical) : sans ce dialogue, aucun composant
-  // n'appelait jamais setFigmaToken/getSettings -- l'import Figma par
-  // l'API etait inatteignable pour un utilisateur (jeton toujours absent).
-  const [reglagesOuverts, setReglagesOuverts] = useState(false)
+  const exportButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!exportOpen) return
@@ -261,6 +363,7 @@ export function Toolbar({ api }: { api: CalqueApi }) {
 
         <div className="toolbar-export">
           <button
+            ref={exportButtonRef}
             type="button"
             aria-label="Exporter"
             aria-expanded={exportOpen}
@@ -274,39 +377,30 @@ export function Toolbar({ api }: { api: CalqueApi }) {
             Exporter
           </button>
           {exportOpen ? (
-            <div role="menu" aria-label="Cibles d'export" className="toolbar-export-menu">
-              {exportTargets.map((target) => (
-                <button
-                  key={target.id}
-                  type="button"
-                  role="menuitem"
-                  className="toolbar-export-item"
-                  onClick={() => {
-                    setExporterOuvert(target.id)
-                    setExportOpen(false)
-                  }}
-                >
-                  {target.label}{' '}
-                  <span className="toolbar-badge">{target.maturity === 'preview' ? 'aperçu' : 'complet'}</span>
-                </button>
-              ))}
-            </div>
+            <ExporterMenu
+              anchorRef={exportButtonRef}
+              targets={exportTargets}
+              onPick={(id) => {
+                setExporterOuvert(id)
+                setExportOpen(false)
+              }}
+            />
           ) : null}
         </div>
       </div>
 
       <div className="toolbar-group" role="group" aria-label="Réglages de l'application">
-        <button
-          type="button"
-          aria-label="Réglages"
-          title="Réglages"
-          className="toolbar-button toolbar-button-outline"
-          onClick={() => setReglagesOuverts(true)}
-        >
+        {/* Defaut n1 : meme format que "Importer Figma"/"Exporter" ci-dessus
+            (icone + LIBELLE VISIBLE, classe toolbar-button-text partagee) --
+            avant cette correction, seule une icone ronde isolee (classe
+            toolbar-button-outline) distinguait ce bouton, sans rien qui le
+            rattache visuellement aux reglages qu'il ouvre. */}
+        <button type="button" aria-label="Réglages" title="Réglages" className="toolbar-button-text" onClick={onOpenSettings}>
           <Icon>
             <circle cx="8" cy="8" r="2.2" />
             <path d="M8 1.6v1.6M8 12.8v1.6M14.4 8h-1.6M3.2 8H1.6M12.5 3.5l-1.1 1.1M4.6 11.4l-1.1 1.1M12.5 12.5l-1.1-1.1M4.6 4.6L3.5 3.5" />
           </Icon>
+          Réglages
         </button>
       </div>
 
@@ -314,7 +408,6 @@ export function Toolbar({ api }: { api: CalqueApi }) {
       {exporterOuvert ? (
         <ExportDialog api={api} exporterId={exporterOuvert} onClose={() => setExporterOuvert(null)} />
       ) : null}
-      {reglagesOuverts ? <SettingsDialog api={api} onClose={() => setReglagesOuverts(false)} /> : null}
     </header>
   )
 }

@@ -144,6 +144,32 @@ describe('composeExporter', () => {
     expect(out.warnings.some((w) => w.includes('assets/Icon@2x.png'))).toBe(true)
   })
 
+  // Ecart connu ferme (README, « Écarts connus ») : Compose avertissait
+  // deja pour une image locale de nom connu (ci-dessus), mais pas pour le
+  // cas `src: ''` proprement dit (systematique pour tout espace reserve
+  // `image` importe de Figma) -- desormais couvert par le meme mecanisme
+  // que les trois autres generateurs, avec un message dedie.
+  it('avertit pour un noeud image de src vide, distinct du message pour une ressource locale nommee', () => {
+    const doc = docWithNodes([
+      {
+        id: 'image-vide',
+        name: 'Image',
+        type: 'image',
+        frame: { x: 0, y: 0, w: 80, h: 80 },
+        visible: true,
+        locked: false,
+        opacity: 1,
+        rotation: 0,
+        src: '',
+        fit: 'cover',
+      },
+    ])
+    const out = composeExporter.export(doc, { projectName: 'demo' })
+    expect(out.files[0]!.contents).not.toContain('painterResource(')
+    expect(out.files[0]!.contents).not.toContain('AsyncImage(')
+    expect(out.warnings.some((w) => w.includes('image-vide'))).toBe(true)
+  })
+
   it('positionne les enfants d une frame absolute avec Box et Modifier.offset', () => {
     const doc = docWithNodes([
       {

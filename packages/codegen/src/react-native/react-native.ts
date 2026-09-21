@@ -40,7 +40,7 @@ import { layoutPage } from '@calque/core'
 import { formatNumber } from '../shared/format-number'
 import { createUniqueIdentifierNamer } from '../shared/identifier'
 import { toPascalCase } from '../shared/naming'
-import { firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
+import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
 import { alignItemsExpr, colorExpr as colorExprBase, fontWeightExpr, jsString, justifyContentExpr } from './rn-utils'
 import { generateThemeFile } from './theme'
@@ -226,6 +226,14 @@ function renderNode(
       break
     }
     case 'image': {
+      // Ecart connu ferme (README, « Écarts connus ») : un src vide
+      // n'emet plus `require('')` en silence -- le noeud n'est pas rendu
+      // (comme un type de noeud non supporte) et un avertissement est
+      // ajoute a ctx.warnings.
+      if (node.src === '') {
+        ctx.warnings.push(emptyImageSourceWarning(node.id, 'react-native'))
+        return null
+      }
       ctx.usedComponents.add('Image')
       ownProps = buildImageStyle(node)
       break

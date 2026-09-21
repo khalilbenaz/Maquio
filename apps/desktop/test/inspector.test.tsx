@@ -1,9 +1,10 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
-import type { RectNode } from '@calque/core'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ImageNode, RectNode } from '@calque/core'
 import { InspectorPanel } from '../src/renderer/panels/InspectorPanel'
 import { useEditorStore } from '../src/renderer/state/editorStore'
 import { documentDeTest } from './helpers/documentDeTest'
+import { apiFactice } from './helpers/apiFactice'
 
 beforeEach(() => useEditorStore.getState().load(documentDeTest()))
 
@@ -17,7 +18,7 @@ beforeEach(() => useEditorStore.getState().load(documentDeTest()))
 // celles du cahier des charges.
 describe('InspectorPanel', () => {
   it('n emet qu une commande a la validation du champ, pas a chaque frappe', () => {
-    render(<InspectorPanel />)
+    render(<InspectorPanel api={apiFactice} />)
     act(() => {
       useEditorStore.getState().select(['rect1'])
     })
@@ -31,7 +32,7 @@ describe('InspectorPanel', () => {
   })
 
   it('valide aussi a la touche Entree', () => {
-    render(<InspectorPanel />)
+    render(<InspectorPanel api={apiFactice} />)
     act(() => {
       useEditorStore.getState().select(['rect1'])
     })
@@ -47,7 +48,7 @@ describe('InspectorPanel', () => {
   // -- une valeur decimale saisie au clavier dans l'inspecteur doit rester
   // exactement ce que l'utilisateur a tape.
   it('une valeur decimale saisie au clavier est conservee telle quelle, sans arrondi', () => {
-    render(<InspectorPanel />)
+    render(<InspectorPanel api={apiFactice} />)
     act(() => {
       useEditorStore.getState().select(['rect1'])
     })
@@ -69,7 +70,7 @@ describe('InspectorPanel', () => {
     }
     useEditorStore.getState().load({ ...doc, pages: [{ ...doc.pages[0]!, nodes: [precis, doc.pages[0]!.nodes[1]!] }] })
     useEditorStore.getState().select(['rect1'])
-    render(<InspectorPanel />)
+    render(<InspectorPanel api={apiFactice} />)
 
     expect((screen.getByLabelText('X') as HTMLInputElement).value).toBe('81.45')
     expect((screen.getByLabelText('Y') as HTMLInputElement).value).toBe('245.65')
@@ -82,7 +83,7 @@ describe('InspectorPanel', () => {
   })
 
   it("un entier s affiche sans decimale inutile (233, pas 233.00)", () => {
-    render(<InspectorPanel />)
+    render(<InspectorPanel api={apiFactice} />)
     act(() => {
       useEditorStore.getState().select(['rect1'])
     })
@@ -93,7 +94,7 @@ describe('InspectorPanel', () => {
   })
 
   it('une valeur inchangee a la validation n emet aucune commande (corollaire de la decision 2)', () => {
-    render(<InspectorPanel />)
+    render(<InspectorPanel api={apiFactice} />)
     act(() => {
       useEditorStore.getState().select(['rect1'])
     })
@@ -111,7 +112,7 @@ describe('InspectorPanel', () => {
   })
 
   it('une saisie hors bornes (opacite hors 0..1) ne produit aucune commande et revient a la valeur du document', () => {
-    render(<InspectorPanel />)
+    render(<InspectorPanel api={apiFactice} />)
     act(() => {
       useEditorStore.getState().select(['rect1'])
     })
@@ -128,7 +129,7 @@ describe('InspectorPanel', () => {
   })
 
   it('une saisie non numerique sur un champ numerique (x) ne produit aucune commande et revient a la valeur du document', () => {
-    render(<InspectorPanel />)
+    render(<InspectorPanel api={apiFactice} />)
     act(() => {
       useEditorStore.getState().select(['rect1'])
     })
@@ -144,7 +145,7 @@ describe('InspectorPanel', () => {
   })
 
   it('sur une selection multiple, un champ affiche une valeur vide quand les valeurs different, et l edition applique une seule commande composite', () => {
-    render(<InspectorPanel />)
+    render(<InspectorPanel api={apiFactice} />)
     act(() => {
       useEditorStore.getState().select(['rect1', 'rect2'])
     })
@@ -162,7 +163,7 @@ describe('InspectorPanel', () => {
   })
 
   it('n affiche aucun champ specifique quand rien n est selectionne', () => {
-    render(<InspectorPanel />)
+    render(<InspectorPanel api={apiFactice} />)
     expect(screen.queryByLabelText('X')).toBeNull()
   })
 
@@ -190,7 +191,7 @@ describe('InspectorPanel', () => {
     }
     useEditorStore.getState().load({ ...doc, pages: [{ ...doc.pages[0]!, nodes: [textNode] }] })
     useEditorStore.getState().select(['text1'])
-    render(<InspectorPanel />)
+    render(<InspectorPanel api={apiFactice} />)
 
     expect(screen.queryByLabelText("Rayon d'angle")).toBeNull()
     expect(screen.getByLabelText('Famille de police')).toBeTruthy()
@@ -214,7 +215,7 @@ describe('InspectorPanel', () => {
     }
     useEditorStore.getState().load({ ...doc, pages: [{ ...doc.pages[0]!, nodes: [deuxRemplissages, rect2] }] })
     useEditorStore.getState().select(['rect1'])
-    render(<InspectorPanel />)
+    render(<InspectorPanel api={apiFactice} />)
 
     const couleur = screen.getByLabelText('Couleur de remplissage') as HTMLInputElement
     fireEvent.change(couleur, { target: { value: '#0000ff' } })
@@ -237,12 +238,81 @@ describe('InspectorPanel', () => {
       .getState()
       .load({ ...doc, pages: [{ ...doc.pages[0]!, nodes: [remplissageSemiTransparent, rect2] }] })
     useEditorStore.getState().select(['rect1'])
-    render(<InspectorPanel />)
+    render(<InspectorPanel api={apiFactice} />)
 
     const couleur = screen.getByLabelText('Couleur de remplissage') as HTMLInputElement
     fireEvent.change(couleur, { target: { value: '#00ff00' } })
 
     const fill = (useEditorStore.getState().document.pages[0]!.nodes[0] as RectNode).fills[0]
     expect(fill).toEqual({ type: 'solid', color: { r: 0, g: 1, b: 0, a: 0.5 } })
+  })
+
+  // Defaut n3 (« comment mettre l'image ? »), test requis par le brief :
+  // l'inspecteur d'un noeud image expose le choix de fichier ET le mode
+  // d'ajustement -- avant cette correction, rien n'existait pour
+  // renseigner ou remplacer `src` une fois le noeud cree.
+  it("l inspecteur d un noeud image expose le choix de fichier et le mode d ajustement", async () => {
+    const doc = documentDeTest()
+    const rect2 = doc.pages[0]!.nodes[1]!
+    const image: ImageNode = {
+      id: 'rect1',
+      name: 'rect1',
+      type: 'image',
+      frame: { x: 0, y: 0, w: 50, h: 50 },
+      visible: true,
+      locked: false,
+      opacity: 1,
+      rotation: 0,
+      src: '',
+      fit: 'cover',
+    }
+    useEditorStore.getState().load({ ...doc, pages: [{ ...doc.pages[0]!, nodes: [image, rect2] }] })
+    useEditorStore.getState().select(['rect1'])
+
+    const chooseImage = vi.fn(async () => '/Users/lilou/Images/photo.png')
+    render(<InspectorPanel api={{ ...apiFactice, chooseImage }} />)
+
+    fireEvent.click(screen.getByText('Choisir une image…'))
+    await waitFor(() => {
+      const node = useEditorStore.getState().document.pages[0]!.nodes[0] as ImageNode
+      expect(node.src).toBe('/Users/lilou/Images/photo.png')
+    })
+    expect(chooseImage).toHaveBeenCalledTimes(1)
+
+    const modeAjustement = screen.getByLabelText("Mode d'ajustement") as HTMLSelectElement
+    expect(modeAjustement.value).toBe('cover')
+    fireEvent.change(modeAjustement, { target: { value: 'contain' } })
+
+    const node = useEditorStore.getState().document.pages[0]!.nodes[0] as ImageNode
+    expect(node.fit).toBe('contain')
+  })
+
+  it("l inspecteur d un noeud image n applique aucun changement si l utilisateur annule le choix de fichier", async () => {
+    const doc = documentDeTest()
+    const rect2 = doc.pages[0]!.nodes[1]!
+    const image: ImageNode = {
+      id: 'rect1',
+      name: 'rect1',
+      type: 'image',
+      frame: { x: 0, y: 0, w: 50, h: 50 },
+      visible: true,
+      locked: false,
+      opacity: 1,
+      rotation: 0,
+      src: '',
+      fit: 'cover',
+    }
+    useEditorStore.getState().load({ ...doc, pages: [{ ...doc.pages[0]!, nodes: [image, rect2] }] })
+    useEditorStore.getState().select(['rect1'])
+
+    const chooseImage = vi.fn(async () => null)
+    render(<InspectorPanel api={{ ...apiFactice, chooseImage }} />)
+
+    fireEvent.click(screen.getByText('Choisir une image…'))
+    await waitFor(() => expect(chooseImage).toHaveBeenCalledTimes(1))
+
+    const node = useEditorStore.getState().document.pages[0]!.nodes[0] as ImageNode
+    expect(node.src).toBe('')
+    expect(useEditorStore.getState().history.canUndo).toBe(false)
   })
 })

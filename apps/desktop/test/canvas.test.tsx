@@ -1,41 +1,42 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
 import { createDocument } from '@calque/core'
 import { Canvas } from '../src/renderer/canvas/Canvas'
 import { computeFitTransform } from '../src/renderer/canvas/viewport'
 import { useEditorStore } from '../src/renderer/state/editorStore'
 import { documentDeTest } from './helpers/documentDeTest'
+import { apiFactice } from './helpers/apiFactice'
 
 beforeEach(() => useEditorStore.getState().load(documentDeTest()))
 
 describe('Canvas', () => {
   it('rend un element par noeud visible', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     expect(screen.getByTestId('node-rect1')).toBeTruthy()
   })
 
   it('selectionne le noeud clique', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     fireEvent.pointerDown(screen.getByTestId('node-rect1'))
     expect(useEditorStore.getState().selection).toEqual(['rect1'])
   })
 
   it('desselectionne au clic dans le vide', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     fireEvent.pointerDown(screen.getByTestId('node-rect1'))
     fireEvent.pointerDown(screen.getByTestId('canvas-background'))
     expect(useEditorStore.getState().selection).toEqual([])
   })
 
   it('ajoute a la selection avec majuscule', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     fireEvent.pointerDown(screen.getByTestId('node-rect1'))
     fireEvent.pointerDown(screen.getByTestId('node-rect2'), { shiftKey: true })
     expect(useEditorStore.getState().selection).toEqual(['rect1', 'rect2'])
   })
 
   it('n emet qu une seule commande de deplacement pour tout un glissement', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     const el = screen.getByTestId('node-rect1')
     fireEvent.pointerDown(el, { clientX: 0, clientY: 0 })
     fireEvent.pointerMove(window, { clientX: 10, clientY: 10 })
@@ -48,13 +49,13 @@ describe('Canvas', () => {
   })
 
   it('affiche huit poignees quand un seul noeud est selectionne', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     fireEvent.pointerDown(screen.getByTestId('node-rect1'))
     expect(screen.getAllByTestId(/^handle-/)).toHaveLength(8)
   })
 
   it('supprime la selection avec la touche Suppr', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     fireEvent.pointerDown(screen.getByTestId('node-rect1'))
     fireEvent.keyDown(window, { key: 'Delete' })
     expect(screen.queryByTestId('node-rect1')).toBeNull()
@@ -65,7 +66,7 @@ describe('Canvas', () => {
 
 describe('Canvas - selection (decision 8)', () => {
   it('un clic simple sur un noeud deja selectionne avec d autres ne garde que lui', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     fireEvent.pointerDown(screen.getByTestId('node-rect1'))
     fireEvent.pointerDown(screen.getByTestId('node-rect2'), { shiftKey: true })
     expect(useEditorStore.getState().selection).toEqual(['rect1', 'rect2'])
@@ -74,7 +75,7 @@ describe('Canvas - selection (decision 8)', () => {
   })
 
   it('Maj+clic sur un noeud deja selectionne le retire (bascule)', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     fireEvent.pointerDown(screen.getByTestId('node-rect1'))
     fireEvent.pointerDown(screen.getByTestId('node-rect2'), { shiftKey: true })
     fireEvent.pointerDown(screen.getByTestId('node-rect2'), { shiftKey: true })
@@ -82,7 +83,7 @@ describe('Canvas - selection (decision 8)', () => {
   })
 
   it('sur une selection de plusieurs noeuds, aucune poignee n est affichee', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     fireEvent.pointerDown(screen.getByTestId('node-rect1'))
     fireEvent.pointerDown(screen.getByTestId('node-rect2'), { shiftKey: true })
     expect(screen.queryAllByTestId(/^handle-/)).toHaveLength(0)
@@ -91,7 +92,7 @@ describe('Canvas - selection (decision 8)', () => {
 
 describe('Canvas - redimensionnement (decision 4, meme regle que le deplacement)', () => {
   it('n emet qu une seule commande de redimensionnement pour tout un glissement de poignee', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     fireEvent.pointerDown(screen.getByTestId('node-rect1'))
     const handle = screen.getByTestId('handle-se')
     fireEvent.pointerDown(handle, { clientX: 50, clientY: 50 })
@@ -108,7 +109,7 @@ describe('Canvas - redimensionnement (decision 4, meme regle que le deplacement)
 
 describe('Canvas - raccourcis clavier (decision 7)', () => {
   it('Cmd+Z annule et Cmd+Maj+Z retablit', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     const el = screen.getByTestId('node-rect1')
     fireEvent.pointerDown(el, { clientX: 0, clientY: 0 })
     fireEvent.pointerMove(window, { clientX: 20, clientY: 30 })
@@ -123,7 +124,7 @@ describe('Canvas - raccourcis clavier (decision 7)', () => {
   })
 
   it('Echap desselectionne', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     fireEvent.pointerDown(screen.getByTestId('node-rect1'))
     expect(useEditorStore.getState().selection).toEqual(['rect1'])
     fireEvent.keyDown(window, { key: 'Escape' })
@@ -134,7 +135,7 @@ describe('Canvas - raccourcis clavier (decision 7)', () => {
     render(
       <>
         <input data-testid="champ-externe" />
-        <Canvas />
+        <Canvas api={apiFactice} />
       </>,
     )
     fireEvent.pointerDown(screen.getByTestId('node-rect1'))
@@ -156,7 +157,7 @@ describe('Canvas - noeuds verrouilles/invisibles (decisions 6 et 8)', () => {
     const invisible = { ...rect1!, visible: false }
     useEditorStore.getState().load({ ...doc, pages: [{ ...doc.pages[0]!, nodes: [invisible, rect2!] }] })
 
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
 
     expect(screen.queryByTestId('node-rect1')).toBeNull()
     expect(screen.getByTestId('node-rect2')).toBeTruthy()
@@ -168,7 +169,7 @@ describe('Canvas - noeuds verrouilles/invisibles (decisions 6 et 8)', () => {
     const locked = { ...rect1!, locked: true }
     useEditorStore.getState().load({ ...doc, pages: [{ ...doc.pages[0]!, nodes: [locked, rect2!] }] })
 
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     fireEvent.pointerDown(screen.getByTestId('node-rect1'))
 
     expect(useEditorStore.getState().selection).toEqual([])
@@ -177,7 +178,7 @@ describe('Canvas - noeuds verrouilles/invisibles (decisions 6 et 8)', () => {
 
 describe('Canvas - outils de creation (decision 11)', () => {
   it('pose un rectangle par cliquer-glisser sur le fond puis revient a l outil select', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     useEditorStore.getState().setTool('rect')
 
     const background = screen.getByTestId('canvas-background')
@@ -195,6 +196,94 @@ describe('Canvas - outils de creation (decision 11)', () => {
     expect(created?.type).toBe('rect')
     expect(created?.frame).toMatchObject({ x: 200, y: 200, w: 50, h: 40 })
   })
+
+  // Defaut n3 (« comment mettre l'image ? »), tests requis par le brief :
+  // le tracé d'un nœud Image ouvre le sélecteur de fichier natif, et
+  // n'en crée aucun si l'utilisateur annule.
+  it('le trace d un noeud image appelle le selecteur de fichier et n en cree aucun si l utilisateur annule', async () => {
+    const chooseImage = vi.fn(async () => null)
+    render(<Canvas api={{ ...apiFactice, chooseImage }} />)
+    useEditorStore.getState().setTool('image')
+
+    const background = screen.getByTestId('canvas-background')
+    fireEvent.pointerDown(background, { clientX: 10, clientY: 10 })
+    fireEvent.pointerMove(window, { clientX: 60, clientY: 50 })
+    fireEvent.pointerUp(window, { clientX: 60, clientY: 50 })
+
+    expect(chooseImage).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(useEditorStore.getState().tool).toBe('select'))
+
+    // documentDeTest() ne porte que rect1/rect2 : aucun troisieme noeud
+    // n'a ete ajoute, et aucune commande n'a alimente l'historique.
+    expect(useEditorStore.getState().document.pages[0]!.nodes).toHaveLength(2)
+    expect(useEditorStore.getState().history.canUndo).toBe(false)
+  })
+
+  it('cree un noeud image avec le chemin choisi une fois le fichier selectionne', async () => {
+    const chooseImage = vi.fn(async () => '/Users/lilou/Images/photo.png')
+    render(<Canvas api={{ ...apiFactice, chooseImage }} />)
+    useEditorStore.getState().setTool('image')
+
+    const background = screen.getByTestId('canvas-background')
+    fireEvent.pointerDown(background, { clientX: 10, clientY: 10 })
+    fireEvent.pointerMove(window, { clientX: 60, clientY: 50 })
+    fireEvent.pointerUp(window, { clientX: 60, clientY: 50 })
+
+    await waitFor(() => expect(useEditorStore.getState().tool).toBe('select'))
+
+    const state = useEditorStore.getState()
+    expect(state.selection).toHaveLength(1)
+    const created = state.document.pages[0]!.nodes.find((n) => n.id === state.selection[0])
+    expect(created?.type).toBe('image')
+    expect(created && 'src' in created ? created.src : undefined).toBe('/Users/lilou/Images/photo.png')
+  })
+
+  // Defaut n3 : le canevas doit reellement afficher l'image, pas un cadre
+  // vide -- verifie ici a partir du document (plutot que du tracé complet,
+  // deja couvert au-dessus) pour tester precisement le rendu de NodeView.
+  it('affiche une <img> pour un noeud image dont le src est renseigne', () => {
+    const doc = documentDeTest()
+    const rect2 = doc.pages[0]!.nodes[1]!
+    const image = {
+      id: 'rect1',
+      name: 'rect1',
+      type: 'image' as const,
+      frame: { x: 0, y: 0, w: 50, h: 50 },
+      visible: true,
+      locked: false,
+      opacity: 1,
+      rotation: 0,
+      src: '/Users/lilou/Images/photo.png',
+      fit: 'cover' as const,
+    }
+    useEditorStore.getState().load({ ...doc, pages: [{ ...doc.pages[0]!, nodes: [image, rect2] }] })
+
+    render(<Canvas api={apiFactice} />)
+    const img = screen.getByTestId('node-rect1').querySelector('img')
+    expect(img).not.toBeNull()
+    expect(img?.getAttribute('src')).toBe('file:///Users/lilou/Images/photo.png')
+  })
+
+  it('affiche un espace reserve (pas d image cassee) pour un noeud image dont le src est vide', () => {
+    const doc = documentDeTest()
+    const rect2 = doc.pages[0]!.nodes[1]!
+    const image = {
+      id: 'rect1',
+      name: 'rect1',
+      type: 'image' as const,
+      frame: { x: 0, y: 0, w: 50, h: 50 },
+      visible: true,
+      locked: false,
+      opacity: 1,
+      rotation: 0,
+      src: '',
+      fit: 'cover' as const,
+    }
+    useEditorStore.getState().load({ ...doc, pages: [{ ...doc.pages[0]!, nodes: [image, rect2] }] })
+
+    render(<Canvas api={apiFactice} />)
+    expect(screen.getByTestId('node-rect1').querySelector('img')).toBeNull()
+  })
 })
 
 describe('Canvas - nettoyage au demontage (Critical, round de correction 1)', () => {
@@ -202,7 +291,7 @@ describe('Canvas - nettoyage au demontage (Critical, round de correction 1)', ()
     const addSpy = vi.spyOn(window, 'addEventListener')
     const removeSpy = vi.spyOn(window, 'removeEventListener')
 
-    const { unmount } = render(<Canvas />)
+    const { unmount } = render(<Canvas api={apiFactice} />)
     fireEvent.pointerDown(screen.getByTestId('node-rect1'), { clientX: 0, clientY: 0 })
     fireEvent.pointerMove(window, { clientX: 10, clientY: 10 })
     // Pas de pointerup : le geste est abandonne en plein vol par le demontage.
@@ -220,7 +309,7 @@ describe('Canvas - nettoyage au demontage (Critical, round de correction 1)', ()
   })
 
   it('un pointerup tardif apres demontage et chargement d un autre document n execute aucune commande fantome', () => {
-    const { unmount } = render(<Canvas />)
+    const { unmount } = render(<Canvas api={apiFactice} />)
     fireEvent.pointerDown(screen.getByTestId('node-rect1'), { clientX: 0, clientY: 0 })
     fireEvent.pointerMove(window, { clientX: 10, clientY: 10 })
 
@@ -246,7 +335,7 @@ describe('Canvas - suppression multiple (points a traiter, round de correction 1
     const rect3 = { ...rect1!, id: 'rect3', name: 'rect3', frame: { x: 200, y: 200, w: 50, h: 50 } }
     useEditorStore.getState().load({ ...doc, pages: [{ ...doc.pages[0]!, nodes: [rect1!, rect2!, rect3] }] })
 
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     fireEvent.pointerDown(screen.getByTestId('node-rect1'))
     fireEvent.pointerDown(screen.getByTestId('node-rect2'), { shiftKey: true })
     fireEvent.pointerDown(screen.getByTestId('node-rect3'), { shiftKey: true })
@@ -269,7 +358,7 @@ describe('Canvas - suppression multiple (points a traiter, round de correction 1
 
 describe('Canvas - zone sombre (refonte visuelle, correction du defaut fonctionnel principal)', () => {
   it('le clic direct sur la zone sombre desselectionne', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     fireEvent.pointerDown(screen.getByTestId('node-rect1'))
     expect(useEditorStore.getState().selection).toEqual(['rect1'])
 
@@ -282,7 +371,7 @@ describe('Canvas - zone sombre (refonte visuelle, correction du defaut fonctionn
   })
 
   it('le plan de travail garde son propre data-testid et sa propre gestion du clic', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     expect(screen.getByTestId('canvas-background')).toBeTruthy()
     expect(screen.getByTestId('canvas-scene')).toBeTruthy()
   })
@@ -291,12 +380,12 @@ describe('Canvas - zone sombre (refonte visuelle, correction du defaut fonctionn
 describe('Canvas - etat vide (refonte visuelle)', () => {
   it("affiche le message d etat vide quand la page n a aucun noeud", () => {
     useEditorStore.getState().load(createDocument('Document vide'))
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     expect(screen.getByText('Le plan de travail est vide')).toBeTruthy()
   })
 
   it('ne montre plus le message d etat vide des qu un noeud existe', () => {
-    render(<Canvas />) // documentDeTest() (charge par beforeEach) contient deja rect1/rect2
+    render(<Canvas api={apiFactice} />) // documentDeTest() (charge par beforeEach) contient deja rect1/rect2
     expect(screen.queryByText('Le plan de travail est vide')).toBeNull()
   })
 })
@@ -310,7 +399,7 @@ describe('Canvas - raccourcis d outils (refonte visuelle : V/F/R/E/T/I)', () => 
     ['t', 'text'],
     ['i', 'image'],
   ] as const)('la touche %s active l outil %s', (touche, outilAttendu) => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     useEditorStore.getState().setTool('select')
     fireEvent.keyDown(window, { key: touche })
     expect(useEditorStore.getState().tool).toBe(outilAttendu)
@@ -320,7 +409,7 @@ describe('Canvas - raccourcis d outils (refonte visuelle : V/F/R/E/T/I)', () => 
     render(
       <>
         <input data-testid="champ-externe" />
-        <Canvas />
+        <Canvas api={apiFactice} />
       </>,
     )
     useEditorStore.getState().setTool('select')
@@ -333,14 +422,14 @@ describe('Canvas - raccourcis d outils (refonte visuelle : V/F/R/E/T/I)', () => 
 
 describe('Canvas - zoom a la molette (refonte visuelle)', () => {
   it('Ctrl + molette modifie le zoom', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     const zoomAvant = useEditorStore.getState().zoom
     fireEvent.wheel(screen.getByTestId('canvas-scene'), { ctrlKey: true, deltaY: -100 })
     expect(useEditorStore.getState().zoom).not.toBe(zoomAvant)
   })
 
   it('la molette sans Ctrl ne modifie pas le zoom (panoramique, pas defilement de page)', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     const zoomAvant = useEditorStore.getState().zoom
     fireEvent.wheel(screen.getByTestId('canvas-scene'), { deltaX: 20, deltaY: 30 })
     expect(useEditorStore.getState().zoom).toBe(zoomAvant)
@@ -354,7 +443,7 @@ describe('Canvas - zoom a la molette (refonte visuelle)', () => {
 // (ex. X 81.4489051094 constate a l'usage a zoom 0.64).
 describe('Canvas - arrondi de la geometrie a un zoom non entier (finition v1)', () => {
   it('un trace produit des coordonnees et des dimensions entieres', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     act(() => {
       useEditorStore.getState().setZoom(0.64)
       useEditorStore.getState().setTool('rect')
@@ -376,7 +465,7 @@ describe('Canvas - arrondi de la geometrie a un zoom non entier (finition v1)', 
   })
 
   it('un deplacement produit un delta entier', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     act(() => {
       useEditorStore.getState().setZoom(0.64)
     })
@@ -392,7 +481,7 @@ describe('Canvas - arrondi de la geometrie a un zoom non entier (finition v1)', 
   })
 
   it('un redimensionnement produit une largeur et une hauteur entieres', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
     act(() => {
       useEditorStore.getState().setZoom(0.64)
     })
@@ -442,7 +531,7 @@ describe('Canvas - ajustement au redimensionnement (finition v1)', () => {
   })
 
   it('le redimensionnement de la fenetre ne change pas le zoom ni le panoramique courants', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
 
     act(() => {
       useEditorStore.getState().setZoom(2.5)
@@ -456,7 +545,7 @@ describe('Canvas - ajustement au redimensionnement (finition v1)', () => {
   })
 
   it('le bouton "Ajuster a la fenetre" (requestFitToWindow) recalcule le zoom d ajustement', () => {
-    render(<Canvas />)
+    render(<Canvas api={apiFactice} />)
 
     act(() => {
       useEditorStore.getState().setZoom(2.5)

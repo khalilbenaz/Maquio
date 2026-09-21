@@ -28,6 +28,7 @@ import type {
   EllipseNode,
   Fill,
   FrameNode,
+  ImageNode,
   LayoutMode,
   Node as CalqueNode,
   NodePatch,
@@ -37,6 +38,7 @@ import type {
 } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import { pageNodesOf } from '../canvas/useDragInteraction'
+import type { CalqueApi } from '../../shared/api'
 import './InspectorPanel.css'
 
 // --- Utilitaires generiques (valeur commune, execution groupee) ---
@@ -85,6 +87,10 @@ function isTextNode(n: CalqueNode): n is TextNode {
 
 function isFrameNode(n: CalqueNode): n is FrameNode {
   return n.type === 'frame'
+}
+
+function isImageNode(n: CalqueNode): n is ImageNode {
+  return n.type === 'image'
 }
 
 // --- Champ numerique : draft local, commit au blur/Entree, invalide/borne ---
@@ -652,9 +658,63 @@ function LayoutSection({
   )
 }
 
+const IMAGE_FIT_OPTIONS = [
+  { value: 'cover', label: 'Couvrir' },
+  { value: 'contain', label: 'Contenir' },
+  { value: 'fill', label: 'Étirer' },
+] as const
+
+// Defaut n3 (« comment mettre l'image ? ») : l'inspecteur d'un noeud
+// image n'exposait jusqu'ici RIEN pour renseigner ou remplacer `src` --
+// seul le tracé initial (useDragInteraction.ts) en avait la charge, sans
+// aucun moyen de revenir dessus ensuite. `choisirImage` reutilise le meme
+// canal (api.chooseImage()) que le tracé ; sur une selection de plusieurs
+// images, le nouveau fichier s'applique aux noeuds dont le src differe
+// deja (meme regle de commit groupe que les autres sections).
+function ImageSection({
+  nodes,
+  pageId,
+  execute,
+  api,
+}: {
+  nodes: ImageNode[]
+  pageId: string
+  execute: (c: Command) => void
+  api: CalqueApi
+}) {
+  async function choisirImage() {
+    const chosenPath = await api.chooseImage()
+    if (chosenPath === null) return
+    const commands = nodes
+      .filter((n) => n.src !== chosenPath)
+      .map((n) => updateNodeCommand(pageId, n.id, { src: chosenPath }))
+    if (commands.length === 0) return
+    execute(commands.length === 1 ? commands[0]! : compositeCommand("Changer l'image", commands))
+  }
+
+  return (
+    <section className="inspector-section">
+      <h2>Image</h2>
+      <button type="button" className="inspector-image-choose" onClick={() => void choisirImage()}>
+        Choisir une image…
+      </button>
+      <SelectField
+        label="Mode d'ajustement"
+        value={commonOf(nodes, (n) => n.fit)}
+        options={IMAGE_FIT_OPTIONS}
+        onCommit={(v) => {
+          const commands = nodes.filter((n) => n.fit !== v).map((n) => updateNodeCommand(pageId, n.id, { fit: v }))
+          if (commands.length === 0) return
+          execute(commands.length === 1 ? commands[0]! : compositeCommand("Modifier l'ajustement de l'image", commands))
+        }}
+      />
+    </section>
+  )
+}
+
 // --- Composant principal ---
 
-export function InspectorPanel() {
+export function InspectorPanel({ api }: { api: CalqueApi }) {
   const document_ = useEditorStore((s) => s.document)
   const pageId = useEditorStore((s) => s.pageId)
   const selection = useEditorStore((s) => s.selection)
@@ -684,6 +744,9 @@ export function InspectorPanel() {
 
   const frameNodes = selectedNodes.filter(isFrameNode)
   const showLayout = frameNodes.length === selectedNodes.length
+
+  const imageNodes = selectedNodes.filter(isImageNode)
+  const showImage = imageNodes.length === selectedNodes.length
 
   return (
     <aside className="inspector-panel" aria-label="Inspecteur">
@@ -813,6 +876,7 @@ export function InspectorPanel() {
       {showFillAndStroke ? <StrokeSection nodes={fillableNodes} pageId={pageId} execute={execute} /> : null}
       {showText ? <TextSection nodes={textNodes} pageId={pageId} execute={execute} /> : null}
       {showLayout ? <LayoutSection nodes={frameNodes} pageId={pageId} execute={execute} /> : null}
+      {showImage ? <ImageSection nodes={imageNodes} pageId={pageId} execute={execute} api={api} /> : null}
     </aside>
   )
 }

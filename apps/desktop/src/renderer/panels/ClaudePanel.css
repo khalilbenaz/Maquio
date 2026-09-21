@@ -119,6 +119,30 @@
   cursor: not-allowed;
 }
 
+/* Defaut n1 : renvoi vers les Reglages, vrai bouton (voir ClaudePanel.tsx)
+   -- style secondaire, distinct du bouton primaire "Demander a Claude",
+   pour ne jamais laisser croire que cette action envoie la demande.
+   Selecteur a deux classes (specificite 0,2,0) : la regle generique
+   `.claude-panel button` juste en dessous (0,1,1) l'emporterait sinon
+   silencieusement sur `align-self`/`background`/`height`/`padding`. */
+.claude-panel .claude-panel-settings-link {
+  align-self: flex-start;
+  height: auto;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid var(--calque-border);
+  color: var(--calque-text);
+  border-radius: 7px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.claude-panel .claude-panel-settings-link:hover {
+  border-color: var(--calque-border-strong);
+}
+
 .claude-panel-alert {
   margin: 0;
   padding: 9px 11px;

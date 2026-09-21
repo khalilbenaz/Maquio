@@ -102,6 +102,32 @@ describe('reactNativeExporter', () => {
     expect(file.contents).toContain("source={require('./assets/logo.png')}")
   })
 
+  // Ecart connu ferme (README, « Écarts connus ») : un src vide (espace
+  // reserve `image`, tant qu'aucun fichier n'a ete choisi) n'emet plus
+  // `require('')` en silence -- avertit, et n'emet aucune reference a la
+  // ressource vide.
+  it('avertit pour un noeud image de src vide au lieu d emettre require(\'\')', () => {
+    const doc = docWithNodes([
+      {
+        id: 'image-vide',
+        name: 'Image',
+        type: 'image',
+        frame: { x: 0, y: 0, w: 80, h: 80 },
+        visible: true,
+        locked: false,
+        opacity: 1,
+        rotation: 0,
+        src: '',
+        fit: 'cover',
+      },
+    ])
+    const out = reactNativeExporter.export(doc, { projectName: 'demo' })
+    const file = out.files.find((f) => f.path.endsWith('.tsx'))!
+    expect(file.contents).not.toContain('require(')
+    expect(file.contents).not.toContain('<Image')
+    expect(out.warnings.some((w) => w.includes('image-vide'))).toBe(true)
+  })
+
   it('rend une ligne comme une View d un pixel', () => {
     const doc = docWithNodes([
       {

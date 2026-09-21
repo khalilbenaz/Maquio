@@ -9,7 +9,7 @@
 // vraies dependances (node:fs/promises, dialog, safeStorage, fetch,
 // child_process), toutes elles-memes enveloppees dans de petits
 // adaptateurs sous src/main/adapters/*.ts.
-import { access, constants, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { access, constants, copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { app, BrowserWindow, ipcMain, Menu, safeStorage } from 'electron'
 import { AiService, ProcessClaudeRunner } from '@calque/ai'
@@ -25,6 +25,7 @@ import type { ClaudePathFs } from './adapters/claudeDetection'
 import {
   chooseDirectory,
   chooseFigmaJsonFile,
+  chooseImageFile,
   chooseOpenDocumentPath,
   chooseSaveDocumentPath,
   confirmOverwrite,
@@ -141,8 +142,14 @@ function enregistrerLesGestionnaires(): void {
       writeFile: (p, contents) => writeFile(p, contents, 'utf8'),
       chooseOpenPath: chooseOpenDocumentPath(win),
       chooseSavePath: chooseSaveDocumentPath(win),
+      copyImageFile: (source, dest) => copyFile(source, dest),
+      ensureDir: async (dirPath) => {
+        await mkdir(dirPath, { recursive: true })
+      },
     }).saveDocument(input)
   })
+
+  ipcMain.handle('chooseImage', (event) => chooseImageFile(fenetreDepuisEvenement(event))())
 
   ipcMain.handle('importFigma', async (event, input) => {
     const win = fenetreDepuisEvenement(event)
