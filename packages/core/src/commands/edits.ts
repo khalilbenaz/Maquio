@@ -14,13 +14,25 @@ import {
   findNode,
   findParent,
   insertNode,
+  isScreenNode,
   moveNode,
   NodeNotFoundError,
   NotAFrameError,
   removeNode,
   replaceNode,
+  screenContaining,
+  walk,
 } from '../tree/tree'
-import { EmptySelectionError, InvalidPatchError, MixedParentsError, requirePage, updateNodeIn, updatePageNodes } from './command'
+import {
+  EmptySelectionError,
+  InvalidPatchError,
+  LinkTargetNotFoundError,
+  LinkToContainingScreenError,
+  MixedParentsError,
+  requirePage,
+  updateNodeIn,
+  updatePageNodes,
+} from './command'
 import type { Command } from './command'
 
 // --- Helpers internes de manipulation de fratrie (partages par group/ungroup) ---
@@ -79,7 +91,12 @@ export function createNodeCommand(pageId: string, parentId: string | null, node:
   }
 }
 
-export function deleteNodeCommand(pageId: string, nodeId: string): Command {
+// Fabrique brute de suppression (ex-`deleteNodeCommand`, avant l'addendum
+// navigation) : retire le noeud et sait s'inverser en le recreant a sa
+// position exacte de fratrie (point 11 du cahier des charges v1). Ne sait
+// RIEN des ecrans ni des liens -- c'est `deleteNodeCommand`, plus bas, qui
+// decide s'il faut l'envelopper d'une cascade de `clearLinkCommand`.
+function removeNodeCommand(pageId: string, nodeId: string): Command {
   return {
     label: 'Supprimer',
     apply(doc: CalqueDocument): CalqueDocument {
@@ -96,6 +113,60 @@ export function deleteNodeCommand(pageId: string, nodeId: string): Command {
       const siblings = getSiblings(nodes, parentId)
       const index = siblings.findIndex((n) => n.id === nodeId)
       return createNodeCommand(pageId, parentId, node, index)
+    },
+  }
+}
+
+// Identifiants de tous les ecrans de premier niveau de `nodes` (page.nodes).
+function screenIdsOf(nodes: Node[]): Set<string> {
+  const ids = new Set<string>()
+  for (const n of nodes) if (isScreenNode(n)) ids.add(n.id)
+  return ids
+}
+
+// Tous les identifiants de noeud (n'importe quelle profondeur) dont le
+// `link.target` vise `screenId` -- utilise par `deleteNodeCommand` pour
+// retirer, dans la MEME commande annulable, tous les liens qu'une
+// suppression d'ecran rend orphelins (§3.2 de l'addendum navigation).
+function findNodesLinkingTo(nodes: Node[], screenId: string): string[] {
+  const result: string[] = []
+  walk(nodes, (n) => {
+    if (n.link?.target === screenId) result.push(n.id)
+  })
+  return result
+}
+
+// v2 (addendum navigation §3.2) : « supprimer un écran retire les liens qui
+// le visaient, dans la même commande annulable ». Pour un noeud QUI N'EST
+// PAS un ecran, comportement inchange depuis la v1 (simple suppression,
+// aucune cascade a chercher : seul un ecran peut jamais etre la cible d'un
+// lien, voir setLinkCommand). Le calcul de la cascade est refait a chaque
+// apply()/invert() a partir du document RECU en parametre (jamais capture a
+// la construction) : c'est ce qui rend cette fabrique correcte a l'interieur
+// d'un compositeCommand plus large, ou d'un redo, ou l'ensemble des noeuds
+// qui pointent vers l'ecran peut differer d'un appel a l'autre.
+export function deleteNodeCommand(pageId: string, nodeId: string): Command {
+  function resolvedCommand(nodes: Node[]): Command {
+    const node = findNode(nodes, nodeId)
+    if (node === null) throw new NodeNotFoundError(nodeId)
+    if (!isScreenNode(node)) return removeNodeCommand(pageId, nodeId)
+
+    const linkedIds = findNodesLinkingTo(nodes, nodeId)
+    if (linkedIds.length === 0) return removeNodeCommand(pageId, nodeId)
+
+    return compositeCommand('Supprimer', [
+      ...linkedIds.map((id) => clearLinkCommand(pageId, id)),
+      removeNodeCommand(pageId, nodeId),
+    ])
+  }
+
+  return {
+    label: 'Supprimer',
+    apply(doc: CalqueDocument): CalqueDocument {
+      return resolvedCommand(requirePage(doc, pageId).nodes).apply(doc)
+    },
+    invert(doc: CalqueDocument): Command {
+      return resolvedCommand(requirePage(doc, pageId).nodes).invert(doc)
     },
   }
 }
@@ -372,6 +443,67 @@ export function setTokensCommand(tokens: Partial<DesignTokens>): Command {
     },
     invert(doc: CalqueDocument): Command {
       return setTokensCommand(doc.tokens)
+    },
+  }
+}
+
+// --- Ecrans et liens (v2, addendum navigation) ---
+
+// Insere un ecran (frame de premier niveau + `device`, deja construit --
+// voir createScreenNode dans '../model/screen', partagee avec la migration
+// v1 -> v2 de document.ts) au premier niveau de la page. L'appelant (plan de
+// travail, bouton "Nouvel ecran") decide du nom, du gabarit et de la
+// position ; cette fabrique ne fait qu'inserer, exactement comme
+// createNodeCommand -- dont elle herite d'ailleurs l'inversion (une
+// suppression simple : un ecran fraichement cree n'a par construction aucun
+// lien entrant a nettoyer).
+export function createScreenCommand(pageId: string, screen: FrameNode): Command {
+  return { ...createNodeCommand(pageId, null, screen), label: 'Créer un écran' }
+}
+
+// v2 (addendum navigation §3.2, §5) : pose ou remplace le lien d'un noeud.
+// Les deux chemins de l'interface (inspecteur « Au clic → », poignee de
+// lien tiree sur le cadre de selection) passent tous les deux par cette
+// meme commande -- aucune autre facon de poser un lien n'existe.
+export function setLinkCommand(pageId: string, nodeId: string, target: string): Command {
+  return {
+    label: 'Lier',
+    apply(doc: CalqueDocument): CalqueDocument {
+      const nodes = requirePage(doc, pageId).nodes
+      if (findNode(nodes, nodeId) === null) throw new NodeNotFoundError(nodeId)
+      if (!screenIdsOf(nodes).has(target)) throw new LinkTargetNotFoundError(target)
+      if (screenContaining(nodes, nodeId) === target) throw new LinkToContainingScreenError(target)
+      return updateNodeIn(doc, pageId, nodeId, (node) => ({ ...node, link: { target } }))
+    },
+    invert(doc: CalqueDocument): Command {
+      const nodes = requirePage(doc, pageId).nodes
+      const node = findNode(nodes, nodeId)
+      if (node === null) throw new NodeNotFoundError(nodeId)
+      return node.link === undefined ? clearLinkCommand(pageId, nodeId) : setLinkCommand(pageId, nodeId, node.link.target)
+    },
+  }
+}
+
+// Retire le lien d'un noeud (s'il en a un ; un noeud sans lien reste
+// inchange). Distincte de `updateNodeCommand({ link: undefined })` : un
+// patch fusionne (`{ ...node, ...patch }`) laisserait la cle `link` presente
+// avec la valeur `undefined` plutot que de la retirer -- cette fabrique
+// retire vraiment la cle, pour qu'un noeud sans lien serialise exactement
+// comme un noeud qui n'en a jamais eu.
+export function clearLinkCommand(pageId: string, nodeId: string): Command {
+  return {
+    label: 'Retirer le lien',
+    apply(doc: CalqueDocument): CalqueDocument {
+      return updateNodeIn(doc, pageId, nodeId, (node) => {
+        const { link: _link, ...rest } = node
+        return rest as Node
+      })
+    },
+    invert(doc: CalqueDocument): Command {
+      const nodes = requirePage(doc, pageId).nodes
+      const node = findNode(nodes, nodeId)
+      if (node === null) throw new NodeNotFoundError(nodeId)
+      return node.link === undefined ? clearLinkCommand(pageId, nodeId) : setLinkCommand(pageId, nodeId, node.link.target)
     },
   }
 }

@@ -30,7 +30,7 @@ import type {
   TextNode,
 } from '@calque/core'
 import { layoutPage } from '@calque/core'
-import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
+import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl, selectActiveScreen } from '../shared/node-helpers'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
 import { type Arg, type Block, attach, call, collapseShortCalls, lit, list } from './dart-writer'
 import {
@@ -392,12 +392,18 @@ function renderPage(page: Page, ctx: RenderContext): ExportedFile {
   return { path: `lib/screens/${fileName}.dart`, contents: collapseShortCalls(lines).join('\n') }
 }
 
-function exportFlutter(doc: CalqueDocument, _opts: ExportOptions): ExportResult {
+function exportFlutter(doc: CalqueDocument, opts: ExportOptions): ExportResult {
   const warnings: string[] = []
   const files: ExportedFile[] = []
 
   for (const page of doc.pages) {
-    const laidOutPage = layoutPage(page)
+    // v2 (addendum navigation §7) : n'exporte que l'ecran actif d'une page
+    // a plusieurs ecrans, avec un avertissement nomme pour chacun des
+    // autres -- voir selectActiveScreen. Sans effet sur une page sans ecran.
+    const { page: activePage, warnings: screenWarnings } = selectActiveScreen(page, opts.activeScreenId, 'flutter')
+    warnings.push(...screenWarnings)
+
+    const laidOutPage = layoutPage(activePage)
     const ctx: RenderContext = { tokens: doc.tokens, warnings, usesTheme: false }
     files.push(renderPage(laidOutPage, ctx))
   }

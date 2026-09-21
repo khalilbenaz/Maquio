@@ -22,13 +22,16 @@ import {
   createNodeCommand,
   findNode,
   hitTest,
+  isScreenNode,
   moveNodeCommand,
   resizeNodeCommand,
   resizeRect,
+  screenContaining,
+  setLinkCommand,
   snapValue,
   translateRect,
 } from '@calque/core'
-import type { CalqueDocument, HandleId, Node, Rect } from '@calque/core'
+import type { CalqueDocument, FrameNode, HandleId, Node, Rect } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import type { DragPreview, Tool } from '../state/editorStore'
 import type { CalqueApi } from '../../shared/api'
@@ -409,6 +412,92 @@ export function useResizeInteraction(nodeId: string, handle: HandleId) {
       window.addEventListener('pointerup', handleUp)
     },
     [nodeId, handle, cleanupRef],
+  )
+}
+
+// v2 (addendum navigation §4/§5) : l'ecran (frame de premier niveau +
+// `device`) dont le cadre absolu contient `point` (coordonnees de page),
+// ou `null` si aucun. Les ecrans etant de premier niveau, leur cadre
+// absolu est directement `frame` (aucun cumul d'ancetre) -- pas besoin
+// d'absoluteFrame ici. Sert a la poignee de lien (useLinkInteraction) pour
+// determiner sur quel ecran le geste a ete relache.
+function screenAt(nodes: Node[], point: { x: number; y: number }): FrameNode | null {
+  for (const n of nodes) {
+    if (!isScreenNode(n)) continue
+    const { x, y, w, h } = n.frame
+    if (point.x >= x && point.x <= x + w && point.y >= y && point.y <= y + h) return n
+  }
+  return null
+}
+
+// Poignee de lien sur le cadre de selection (§5, chemin 2 : « une poignee
+// de lien sur le cadre de sélection, que l'on tire jusqu'à l'écran cible »).
+// Meme discipline que les autres gestes du canevas (decision 4) : AUCUNE
+// commande pendant le glissement, seul un dragPreview 'link' ephemere
+// (consomme par SelectionOverlay pour dessiner la ligne en cours) ; une
+// SEULE commande (setLinkCommand) au relachement, et seulement si le point
+// de relachement retombe sur un ecran DIFFERENT de celui qui contient deja
+// le noeud -- sinon le geste est simplement abandonne (aucune commande,
+// exactement comme un tracé d'outil Image annule).
+export function useLinkInteraction(nodeId: string, canvasRef: RefObject<HTMLElement | null>) {
+  const cleanupRef = useGestureCleanupRef()
+
+  return useCallback(
+    (e: ReactPointerEvent) => {
+      e.stopPropagation()
+      const state = useEditorStore.getState()
+      if (state.tool !== 'select') return
+
+      const originOf = () => {
+        const r = canvasRef.current?.getBoundingClientRect()
+        return r ? { x: r.left, y: r.top } : { x: 0, y: 0 }
+      }
+
+      const updatePreview = (ev: { clientX: number; clientY: number }) => {
+        const current = useEditorStore.getState()
+        const point = screenToPage({ x: ev.clientX, y: ev.clientY }, originOf(), current.zoom, current.pan)
+        current.setDragPreview({ kind: 'link', nodeId, point })
+        return point
+      }
+
+      let lastPoint = updatePreview(e)
+
+      const handleMove = (ev: PointerEvent) => {
+        lastPoint = updatePreview(ev)
+      }
+
+      const cleanup = () => {
+        window.removeEventListener('pointermove', handleMove)
+        window.removeEventListener('pointerup', handleUp)
+        endGesture(cleanup)
+        cleanupRef.current = () => {}
+      }
+
+      const handleUp = () => {
+        cleanup()
+        const current = useEditorStore.getState()
+        current.setDragPreview(null)
+
+        const nodes = pageNodesOf(current.document, current.pageId)
+        const target = screenAt(nodes, lastPoint)
+        if (target === null) return
+        if (screenContaining(nodes, nodeId) === target.id) return
+
+        try {
+          current.execute(setLinkCommand(current.pageId, nodeId, target.id))
+        } catch {
+          // Cible refusee par la commande (cas deja filtre ci-dessus en
+          // temps normal, garde-fou de dernier recours) : le geste est
+          // abandonne comme un relachement hors cible, aucune commande.
+        }
+      }
+
+      cleanupRef.current = cleanup
+      beginGesture(cleanup)
+      window.addEventListener('pointermove', handleMove)
+      window.addEventListener('pointerup', handleUp)
+    },
+    [nodeId, canvasRef, cleanupRef],
   )
 }
 

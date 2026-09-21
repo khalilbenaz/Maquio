@@ -2,10 +2,21 @@
 // poignees, et l'aperçu de creation en cours. N'affiche les poignees que
 // pour une selection d'UN SEUL noeud (decision 8) ; sur plusieurs noeuds,
 // seul le cadre englobant (union des cadres absolus) est affiche.
+//
+// v2 (addendum navigation §5, chemin 2) : porte aussi la POIGNEE DE LIEN --
+// un petit cercle au coin superieur droit du cadre de selection (visible
+// dans les memes conditions que les huit poignees de redimensionnement,
+// une selection d'un seul noeud), que l'on tire jusqu'a un ecran pour
+// poser un lien (voir useLinkInteraction, useDragInteraction.ts). Pendant
+// ce geste precis, une ligne en pointilles suit le curseur depuis le
+// centre du noeud source -- distincte du calque de connecteurs PERSISTES
+// (LinksLayer.tsx, plan de travail), jamais affiche pendant un glissement
+// quel qu'il soit (§4 de l'addendum).
 import { findNode, handleRects, unionRects } from '@calque/core'
 import type { HandleId, Rect } from '@calque/core'
+import type { RefObject } from 'react'
 import { useEditorStore } from '../state/editorStore'
-import { pageNodesOf, resolvePreviewAbsoluteFrame, useResizeInteraction } from './useDragInteraction'
+import { pageNodesOf, resolvePreviewAbsoluteFrame, useLinkInteraction, useResizeInteraction } from './useDragInteraction'
 import './SelectionOverlay.css'
 
 const HANDLE_SIZE = 8
@@ -53,7 +64,44 @@ function DimensionLabel({ frame, zoom, pan }: { frame: Rect; zoom: number; pan: 
   )
 }
 
-export function SelectionOverlay() {
+// Poignee de lien (v2, addendum navigation §5) : un cercle au coin
+// superieur droit du cadre de selection. `LINK_OFFSET` la place legerement
+// a l'exterieur du cadre (comme les poignees de redimensionnement, qui
+// debordent deja du cadre de la moitie de leur taille), pour qu'elle ne
+// recouvre jamais le contenu du noeud selectionne.
+const LINK_HANDLE_RADIUS = 6
+
+function LinkHandle({
+  nodeId,
+  bounding,
+  zoom,
+  canvasRef,
+}: {
+  nodeId: string
+  bounding: Rect
+  zoom: number
+  canvasRef: RefObject<HTMLElement | null>
+}) {
+  const onPointerDown = useLinkInteraction(nodeId, canvasRef)
+  const cx = bounding.x + bounding.w
+  const cy = bounding.y
+  return (
+    <circle
+      data-testid="link-handle"
+      cx={cx}
+      cy={cy}
+      r={LINK_HANDLE_RADIUS / zoom}
+      className="calque-link-handle"
+      fill={ACCENT}
+      stroke="#ffffff"
+      strokeWidth={1.5 / zoom}
+      style={{ pointerEvents: 'auto', cursor: 'crosshair' }}
+      onPointerDown={onPointerDown}
+    />
+  )
+}
+
+export function SelectionOverlay({ canvasRef }: { canvasRef: RefObject<HTMLElement | null> }) {
   const selection = useEditorStore((s) => s.selection)
   const document = useEditorStore((s) => s.document)
   const pageId = useEditorStore((s) => s.pageId)
@@ -100,6 +148,28 @@ export function SelectionOverlay() {
                 <Handle key={id} id={id as HandleId} rect={rect} nodeId={selection[0]!} zoom={zoom} />
               ))
             : null}
+
+          {bounding !== null && selection.length === 1 ? (
+            <LinkHandle nodeId={selection[0]!} bounding={bounding} zoom={zoom} canvasRef={canvasRef} />
+          ) : null}
+
+          {/* v2 (addendum navigation §5) : ligne ephemere du geste de
+              poignee de lien EN COURS -- du centre du noeud source
+              jusqu'au curseur (en coordonnees de page, deja converties par
+              useLinkInteraction). Distincte du calque de connecteurs
+              PERSISTES (LinksLayer.tsx), jamais affiche pendant un
+              glissement (§4). */}
+          {dragPreview !== null && dragPreview.kind === 'link' && bounding !== null ? (
+            <line
+              x1={bounding.x + bounding.w / 2}
+              y1={bounding.y + bounding.h / 2}
+              x2={dragPreview.point.x}
+              y2={dragPreview.point.y}
+              stroke={ACCENT}
+              strokeDasharray="4 3"
+              strokeWidth={1.5 / zoom}
+            />
+          ) : null}
 
           {dragPreview !== null && dragPreview.kind === 'move'
             ? dragPreview.guides.x.map((gx) => (

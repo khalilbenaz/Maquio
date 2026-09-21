@@ -5,7 +5,7 @@
 // fonction pure qui calcule ce cadrage (voir canvas/viewport.ts), sans
 // dependre d'une vraie mise en page (jsdom n'en fait pas).
 import { describe, expect, it } from 'vitest'
-import { computeFitTransform, computeWheelZoom } from '../src/renderer/canvas/viewport'
+import { computeFitTransform, computeFitTransformToBounds, computeWheelZoom } from '../src/renderer/canvas/viewport'
 
 describe('computeFitTransform (refonte visuelle)', () => {
   it('centre et retrecit un appareil plus grand que le conteneur pour qu il tienne entierement dedans', () => {
@@ -53,6 +53,42 @@ describe('computeFitTransform (refonte visuelle)', () => {
     const { zoom, pan } = computeFitTransform({ width: 0, height: 0 }, { width: 393, height: 852 })
     expect(zoom).toBe(1)
     expect(pan).toEqual({ x: 0, y: 0 })
+  })
+})
+
+// v2 (addendum navigation §4 : « l'ajustement à la fenêtre cadre tous les
+// écrans »). computeFitTransform delegue desormais a cette fonction plus
+// generale ; ces tests la verifient directement sur un cadre englobant qui
+// n'est PAS a l'origine du monde (l'union de plusieurs ecrans poses cote a
+// cote sur le plan de travail).
+describe('computeFitTransformToBounds (v2, addendum navigation)', () => {
+  it('cadre un ensemble d ecrans qui ne commence pas en (0,0)', () => {
+    const container = { width: 2000, height: 1000 }
+    // Deux ecrans iPhone 15 (393x852) cote a cote avec une gouttière,
+    // l'union commence a x=500 (pas 0).
+    const bounds = { x: 500, y: 0, w: 393 * 2 + 120, h: 852 }
+
+    const { zoom, pan } = computeFitTransformToBounds(container, bounds)
+
+    const left = pan.x + bounds.x * zoom
+    const right = pan.x + (bounds.x + bounds.w) * zoom
+    const top = pan.y + bounds.y * zoom
+    const bottom = pan.y + (bounds.y + bounds.h) * zoom
+
+    expect(left).toBeGreaterThanOrEqual(-0.01)
+    expect(top).toBeGreaterThanOrEqual(-0.01)
+    expect(right).toBeLessThanOrEqual(container.width + 0.01)
+    expect(bottom).toBeLessThanOrEqual(container.height + 0.01)
+  })
+
+  it('equivaut a computeFitTransform pour un cadre a l origine (0,0)', () => {
+    const container = { width: 900, height: 600 }
+    const device = { width: 393, height: 852 }
+
+    const viaDevice = computeFitTransform(container, device)
+    const viaBounds = computeFitTransformToBounds(container, { x: 0, y: 0, w: device.width, h: device.height })
+
+    expect(viaBounds).toEqual(viaDevice)
   })
 })
 

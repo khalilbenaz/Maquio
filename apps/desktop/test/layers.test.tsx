@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createDocument, createNodeCommand } from '@calque/core'
-import type { CalqueDocument, FrameNode, Node as CalqueNode, RectNode } from '@calque/core'
+import { createDocument, createNodeCommand, createScreenNode } from '@calque/core'
+import type { CalqueDocument, DevicePreset, FrameNode, Node as CalqueNode, RectNode } from '@calque/core'
 import { Canvas } from '../src/renderer/canvas/Canvas'
 import { LayersPanel } from '../src/renderer/panels/LayersPanel'
 import { useEditorStore } from '../src/renderer/state/editorStore'
@@ -168,5 +168,45 @@ describe('LayersPanel', () => {
 
     expect(screen.queryByText("Aucun calque pour l'instant.")).toBeNull()
     expect(screen.getByTestId('layer-r1')).toBeTruthy()
+  })
+})
+
+// v2 (addendum navigation §4 : « la duplication d'un écran existant est
+// disponible depuis le panneau des calques »).
+describe('LayersPanel - duplication d un ecran (v2, addendum navigation)', () => {
+  const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
+
+  function documentAvecUnEcran(): CalqueDocument {
+    const doc = createDocument('Document de test')
+    const bouton = rectNode('bouton', 10, 10)
+    const ecran1 = createScreenNode('Écran 1', device, { x: 0, y: 0, w: device.width, h: device.height }, [bouton])
+    return { ...doc, pages: [{ ...doc.pages[0]!, device, nodes: [ecran1] }] }
+  }
+
+  it('le bouton de duplication n apparait que sur un ecran de premier niveau', () => {
+    useEditorStore.getState().load(documentAvecUnEcran())
+    render(<LayersPanel />)
+    expect(screen.getByTestId(/layer-duplicate-/)).toBeTruthy()
+    expect(screen.queryByTestId('layer-duplicate-bouton')).toBeNull()
+  })
+
+  it('duplique l ecran (contenu compris) avec de nouveaux identifiants, sans chevaucher l original', () => {
+    const doc = documentAvecUnEcran()
+    const original = doc.pages[0]!.nodes[0] as FrameNode
+    useEditorStore.getState().load(doc)
+    render(<LayersPanel />)
+
+    act(() => {
+      fireEvent.click(screen.getByTestId(`layer-duplicate-${original.id}`))
+    })
+
+    const state = useEditorStore.getState()
+    expect(state.document.pages[0]!.nodes).toHaveLength(2)
+    const clone = state.document.pages[0]!.nodes[1] as FrameNode
+    expect(clone.id).not.toBe(original.id)
+    expect(clone.frame.x).toBeGreaterThan(original.frame.x + original.frame.w - 1)
+    expect(clone.children).toHaveLength(1)
+    expect(clone.children[0]!.id).not.toBe(original.children[0]!.id)
+    expect(clone.children[0]!.name).toBe(original.children[0]!.name)
   })
 })

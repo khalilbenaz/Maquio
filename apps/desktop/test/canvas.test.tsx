@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
-import { createDocument } from '@calque/core'
+import { createDocument, createScreenNode } from '@calque/core'
+import type { CalqueDocument, DevicePreset, RectNode } from '@calque/core'
 import { Canvas } from '../src/renderer/canvas/Canvas'
 import { computeFitTransform } from '../src/renderer/canvas/viewport'
 import { useEditorStore } from '../src/renderer/state/editorStore'
@@ -560,5 +561,119 @@ describe('Canvas - ajustement au redimensionnement (finition v1)', () => {
 
     expect(useEditorStore.getState().zoom).toBeCloseTo(zoomAttendu, 5)
     expect(useEditorStore.getState().zoom).not.toBe(2.5)
+  })
+})
+
+// v2 (addendum navigation §4, §5, §8). Document dedie : deux ecrans
+// ('ecranA' en x=0, 'ecranB' en x=500), 'ecranA' contient un noeud
+// ('bouton') sans lien. jsdom ne fait jamais de mise en page reelle
+// (getBoundingClientRect() du canevas rend des zeros ici, aucun mock) --
+// avec le zoom/pan par defaut apres load() (1 / {0,0}), les coordonnees
+// ecran des evenements de pointeur SONT directement des coordonnees de
+// page, comme dans le reste de cette suite (voir le trace de rectangle
+// plus haut, qui compare deja `created.frame` a `clientX`/`clientY` tels
+// quels).
+describe('Canvas - plusieurs ecrans (v2, addendum navigation §4)', () => {
+  const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
+
+  function documentDeuxEcrans(): CalqueDocument {
+    const doc = createDocument('Document de test')
+    const bouton: RectNode = {
+      id: 'bouton',
+      name: 'bouton',
+      type: 'rect',
+      frame: { x: 10, y: 10, w: 50, h: 50 },
+      visible: true,
+      locked: false,
+      opacity: 1,
+      rotation: 0,
+      fills: [],
+      strokes: [],
+      cornerRadius: 0,
+    }
+    const ecranA = createScreenNode('ecranA', device, { x: 0, y: 0, w: device.width, h: device.height }, [bouton])
+    const ecranB = createScreenNode('ecranB', device, { x: 500, y: 0, w: device.width, h: device.height })
+    return { ...doc, pages: [{ ...doc.pages[0]!, device, nodes: [ecranA, ecranB] }] }
+  }
+
+  it('affiche les deux ecrans, chacun avec sa propre etiquette', () => {
+    const doc = documentDeuxEcrans()
+    useEditorStore.getState().load(doc)
+    render(<Canvas api={apiFactice} />)
+
+    const ecranA = doc.pages[0]!.nodes[0]!
+    const ecranB = doc.pages[0]!.nodes[1]!
+    expect(screen.getByTestId(`screen-label-${ecranA.id}`).textContent).toContain('ecranA')
+    expect(screen.getByTestId(`screen-label-${ecranB.id}`).textContent).toContain('ecranB')
+    // Le noeud du premier ecran reste rendu et selectionnable normalement.
+    expect(screen.getByTestId('node-bouton')).toBeTruthy()
+  })
+
+  it("l etiquette de l ecran actif (celui de la selection) est en accent", () => {
+    const doc = documentDeuxEcrans()
+    useEditorStore.getState().load(doc)
+    render(<Canvas api={apiFactice} />)
+
+    const ecranA = doc.pages[0]!.nodes[0]!
+    fireEvent.pointerDown(screen.getByTestId('node-bouton'))
+    expect(useEditorStore.getState().activeScreenId).toBe(ecranA.id)
+    expect(screen.getByTestId(`screen-label-${ecranA.id}`).className).toContain('calque-canvas-label-active')
+  })
+
+  it("la poignee de lien produit une seule commande, et lie le noeud a l ecran cible", () => {
+    const doc = documentDeuxEcrans()
+    useEditorStore.getState().load(doc)
+    render(<Canvas api={apiFactice} />)
+
+    const ecranB = doc.pages[0]!.nodes[1]!
+
+    // Selectionne 'bouton' pour faire apparaitre la poignee de lien.
+    fireEvent.pointerDown(screen.getByTestId('node-bouton'))
+    const poignee = screen.getByTestId('link-handle')
+
+    fireEvent.pointerDown(poignee, { clientX: 60, clientY: 20 })
+    fireEvent.pointerMove(window, { clientX: 300, clientY: 100 })
+    // Relache a l'interieur d'ecranB (x:500..893, y:0..852) : le point de
+    // relachement suit celui du dernier pointermove (meme convention que
+    // les autres gestes de ce fichier, ex. deplacement/redimensionnement
+    // plus haut).
+    fireEvent.pointerMove(window, { clientX: 600, clientY: 100 })
+    fireEvent.pointerUp(window, { clientX: 600, clientY: 100 })
+
+    const state = useEditorStore.getState()
+    expect(state.history.undoLabels).toHaveLength(1)
+    const ecranA = state.document.pages[0]!.nodes[0] as { children: { id: string; link?: { target: string } }[] }
+    expect(ecranA.children[0]!.link).toEqual({ target: ecranB.id })
+  })
+
+  it('relacher la poignee de lien hors de tout ecran n execute aucune commande', () => {
+    const doc = documentDeuxEcrans()
+    useEditorStore.getState().load(doc)
+    render(<Canvas api={apiFactice} />)
+
+    fireEvent.pointerDown(screen.getByTestId('node-bouton'))
+    const poignee = screen.getByTestId('link-handle')
+
+    fireEvent.pointerDown(poignee, { clientX: 60, clientY: 20 })
+    fireEvent.pointerMove(window, { clientX: 2000, clientY: 2000 })
+    fireEvent.pointerUp(window, { clientX: 2000, clientY: 2000 })
+
+    expect(useEditorStore.getState().history.canUndo).toBe(false)
+  })
+
+  it('relacher la poignee de lien sur l ecran qui contient deja le noeud n execute aucune commande', () => {
+    const doc = documentDeuxEcrans()
+    useEditorStore.getState().load(doc)
+    render(<Canvas api={apiFactice} />)
+
+    fireEvent.pointerDown(screen.getByTestId('node-bouton'))
+    const poignee = screen.getByTestId('link-handle')
+
+    fireEvent.pointerDown(poignee, { clientX: 60, clientY: 20 })
+    fireEvent.pointerMove(window, { clientX: 100, clientY: 100 })
+    // Relache a l'interieur d'ecranA lui-meme (le noeud source y vit deja).
+    fireEvent.pointerUp(window, { clientX: 100, clientY: 100 })
+
+    expect(useEditorStore.getState().history.canUndo).toBe(false)
   })
 })

@@ -1,22 +1,33 @@
 import { describe, expect, it } from 'vitest'
 import { createDocument } from '../model/document'
+import { createScreenNode } from '../model/screen'
 import { findNode, findParent, absoluteFrame, NodeNotFoundError, NotAFrameError } from '../tree/tree'
-import { PageNotFoundError, InvalidPatchError, MixedParentsError, EmptySelectionError } from './command'
+import {
+  PageNotFoundError,
+  InvalidPatchError,
+  MixedParentsError,
+  EmptySelectionError,
+  LinkTargetNotFoundError,
+  LinkToContainingScreenError,
+} from './command'
 import {
   compositeCommand,
   createNodeCommand,
+  createScreenCommand,
   deleteNodeCommand,
   moveNodeCommand,
   resizeNodeCommand,
   reparentNodeCommand,
   updateNodeCommand,
   setTextCommand,
+  setLinkCommand,
+  clearLinkCommand,
   groupCommand,
   ungroupCommand,
   setLayoutCommand,
   setTokensCommand,
 } from './edits'
-import type { CalqueDocument, FrameNode, Node, TextNode } from '../model/types'
+import type { CalqueDocument, DevicePreset, FrameNode, Node, TextNode } from '../model/types'
 
 function rect(id: string, x: number, y: number, w = 10, h = 10): Node {
   return {
@@ -407,5 +418,189 @@ describe('point 12 : erreurs nommees sur toutes les fabriques', () => {
     expect(() =>
       setLayoutCommand(pageId, 'x', { mode: 'absolute', gap: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 }, alignMain: 'start', alignCross: 'start' }).apply(doc),
     ).toThrow(NodeNotFoundError)
+  })
+})
+
+// v2 (addendum navigation, §3, §5, §8) : ecrans (createScreenCommand) et
+// liens (setLinkCommand / clearLinkCommand), plus la cascade de suppression
+// d'un ecran (deleteNodeCommand).
+describe('createScreenCommand (v2, addendum navigation)', () => {
+  const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
+
+  it('insere un ecran au premier niveau de la page', () => {
+    const { doc, pageId } = baseDoc()
+    const screen = createScreenNode('Écran 2', device, { x: 500, y: 0, w: device.width, h: device.height })
+
+    const created = createScreenCommand(pageId, screen).apply(doc)
+    const found = findNode(created.pages[0]!.nodes, screen.id) as FrameNode
+    expect(found).toBeDefined()
+    expect(found.device).toEqual(device)
+    expect(found.frame).toEqual({ x: 500, y: 0, w: device.width, h: device.height })
+  })
+
+  it('s annule par une simple suppression (aucun lien entrant a nettoyer sur un ecran fraichement cree)', () => {
+    const { doc, pageId } = baseDoc()
+    const screen = createScreenNode('Écran 2', device, { x: 0, y: 0, w: device.width, h: device.height })
+
+    const cmd = createScreenCommand(pageId, screen)
+    const created = cmd.apply(doc)
+    const back = cmd.invert(created).apply(created)
+    expect(findNode(back.pages[0]!.nodes, screen.id)).toBeNull()
+  })
+})
+
+describe('setLinkCommand / clearLinkCommand (v2, addendum navigation §3.2, §5)', () => {
+  const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
+
+  // Deux ecrans ('ecranA', 'ecranB' -- identifies par leur `id`, distinct de
+  // leur `name`) sur la meme page, plus un bouton ('bouton') enfant de
+  // 'ecranA' -- de quoi tester un lien pose depuis un noeud imbrique vers un
+  // AUTRE ecran de la page.
+  function docAvecDeuxEcrans(): { doc: CalqueDocument; pageId: string; ecranA: FrameNode; ecranB: FrameNode } {
+    const { doc, pageId } = baseDoc()
+    const bouton = rect('bouton', 10, 10)
+    const ecranA = createScreenNode('ecranA', device, { x: 0, y: 0, w: device.width, h: device.height }, [bouton])
+    const ecranB = createScreenNode('ecranB', device, { x: 500, y: 0, w: device.width, h: device.height })
+    const withScreens = createNodeCommand(pageId, null, ecranB).apply(createNodeCommand(pageId, null, ecranA).apply(doc))
+    return { doc: withScreens, pageId, ecranA, ecranB }
+  }
+
+  it('pose un lien valide vers un autre ecran de la page', () => {
+    const { doc, pageId, ecranB } = docAvecDeuxEcrans()
+    const linked = setLinkCommand(pageId, 'bouton', ecranB.id).apply(doc)
+    expect(findNode(linked.pages[0]!.nodes, 'bouton')?.link).toEqual({ target: ecranB.id })
+  })
+
+  it('un seul annuler retire le lien pose', () => {
+    const { doc, pageId, ecranB } = docAvecDeuxEcrans()
+    const cmd = setLinkCommand(pageId, 'bouton', ecranB.id)
+    const linked = cmd.apply(doc)
+    const back = cmd.invert(doc).apply(linked)
+    expect(findNode(back.pages[0]!.nodes, 'bouton')?.link).toBeUndefined()
+    expect(back).toEqual(doc)
+  })
+
+  it('remplacer un lien existant s annule en restaurant l ancienne cible (pas en effacant tout court)', () => {
+    const { doc, pageId, ecranB } = docAvecDeuxEcrans()
+    const first = setLinkCommand(pageId, 'bouton', ecranB.id).apply(doc)
+    // Un troisieme ecran, pour remplacer 'ecranB' par une cible differente
+    // ('ecranA' contient 'bouton' : cette cible-la serait refusee).
+    const ecranC = createScreenNode('ecranC', device, { x: 1000, y: 0, w: device.width, h: device.height })
+    const withC = createNodeCommand(pageId, null, ecranC).apply(first)
+    const replaceValide = setLinkCommand(pageId, 'bouton', ecranC.id)
+    const replaced = replaceValide.apply(withC)
+    expect(findNode(replaced.pages[0]!.nodes, 'bouton')?.link).toEqual({ target: ecranC.id })
+
+    const back = replaceValide.invert(withC).apply(replaced)
+    expect(findNode(back.pages[0]!.nodes, 'bouton')?.link).toEqual({ target: ecranB.id })
+  })
+
+  it('refuse une cible qui n existe pas dans la page (LinkTargetNotFoundError)', () => {
+    const { doc, pageId } = docAvecDeuxEcrans()
+    expect(() => setLinkCommand(pageId, 'bouton', 'introuvable').apply(doc)).toThrow(LinkTargetNotFoundError)
+  })
+
+  it("refuse un lien vers l'ecran qui contient le noeud (LinkToContainingScreenError)", () => {
+    const { doc, pageId, ecranA } = docAvecDeuxEcrans()
+    expect(() => setLinkCommand(pageId, 'bouton', ecranA.id).apply(doc)).toThrow(LinkToContainingScreenError)
+  })
+
+  it('refuse un ecran qui se lierait a lui-meme', () => {
+    const { doc, pageId, ecranA } = docAvecDeuxEcrans()
+    expect(() => setLinkCommand(pageId, ecranA.id, ecranA.id).apply(doc)).toThrow(LinkToContainingScreenError)
+  })
+
+  it('clearLinkCommand retire la cle link (pas seulement sa valeur) et s annule en la reposant', () => {
+    const { doc, pageId, ecranB } = docAvecDeuxEcrans()
+    const linked = setLinkCommand(pageId, 'bouton', ecranB.id).apply(doc)
+
+    const cleared = clearLinkCommand(pageId, 'bouton').apply(linked)
+    const node = findNode(cleared.pages[0]!.nodes, 'bouton')!
+    expect('link' in node).toBe(false)
+
+    const back = clearLinkCommand(pageId, 'bouton').invert(linked).apply(cleared)
+    expect(findNode(back.pages[0]!.nodes, 'bouton')?.link).toEqual({ target: ecranB.id })
+  })
+
+  it('clearLinkCommand ne fait rien de visible sur un noeud sans lien (idempotent)', () => {
+    const { doc, pageId } = docAvecDeuxEcrans()
+    const cleared = clearLinkCommand(pageId, 'bouton').apply(doc)
+    expect(cleared).toEqual(doc)
+  })
+})
+
+describe('deleteNodeCommand sur un ecran : cascade de liens (v2, addendum navigation §3.2, §8)', () => {
+  const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
+
+  // 'cible' est un ecran vise par TROIS liens : deux depuis des boutons
+  // imbriques dans 'source', un depuis un bouton imbrique dans 'autre' --
+  // de quoi verifier que la cascade retrouve les liens ou qu'ils vivent,
+  // pas seulement au premier niveau de la page.
+  function docAvecTroisLiens(): { doc: CalqueDocument; pageId: string } {
+    const { doc, pageId } = baseDoc()
+    const btn1 = rect('btn1', 0, 0)
+    const btn2 = rect('btn2', 60, 0)
+    const btn3 = rect('btn3', 0, 0)
+    const source = createScreenNode('source', device, { x: 0, y: 0, w: device.width, h: device.height }, [btn1, btn2])
+    const autre = createScreenNode('autre', device, { x: 500, y: 0, w: device.width, h: device.height }, [btn3])
+    const cible = createScreenNode('cible', device, { x: 1000, y: 0, w: device.width, h: device.height })
+
+    let d = doc
+    d = createNodeCommand(pageId, null, source).apply(d)
+    d = createNodeCommand(pageId, null, autre).apply(d)
+    d = createNodeCommand(pageId, null, cible).apply(d)
+    d = setLinkCommand(pageId, 'btn1', cible.id).apply(d)
+    d = setLinkCommand(pageId, 'btn2', cible.id).apply(d)
+    d = setLinkCommand(pageId, 'btn3', cible.id).apply(d)
+
+    return { doc: d, pageId }
+  }
+
+  it('supprimer l ecran vise par trois liens les retire tous, dans la meme commande', () => {
+    const { doc, pageId } = docAvecTroisLiens()
+    const cible = (doc.pages[0]!.nodes.find((n) => n.name === 'cible') as FrameNode).id
+
+    const apres = deleteNodeCommand(pageId, cible).apply(doc)
+
+    expect(findNode(apres.pages[0]!.nodes, cible)).toBeNull()
+    expect(findNode(apres.pages[0]!.nodes, 'btn1')?.link).toBeUndefined()
+    expect(findNode(apres.pages[0]!.nodes, 'btn2')?.link).toBeUndefined()
+    expect(findNode(apres.pages[0]!.nodes, 'btn3')?.link).toBeUndefined()
+  })
+
+  it('un seul annuler restaure l ecran ET ses trois liens', () => {
+    const { doc, pageId } = docAvecTroisLiens()
+    const cible = (doc.pages[0]!.nodes.find((n) => n.name === 'cible') as FrameNode).id
+
+    const cmd = deleteNodeCommand(pageId, cible)
+    const apres = cmd.apply(doc)
+    const inverse = cmd.invert(doc)
+    const restaure = inverse.apply(apres)
+
+    expect(findNode(restaure.pages[0]!.nodes, cible)).not.toBeNull()
+    expect(findNode(restaure.pages[0]!.nodes, 'btn1')?.link).toEqual({ target: cible })
+    expect(findNode(restaure.pages[0]!.nodes, 'btn2')?.link).toEqual({ target: cible })
+    expect(findNode(restaure.pages[0]!.nodes, 'btn3')?.link).toEqual({ target: cible })
+    expect(restaure).toEqual(doc)
+  })
+
+  it('supprimer un ecran sans lien entrant reste une simple suppression (comportement v1 inchange)', () => {
+    const { doc, pageId } = baseDoc()
+    const seul = createScreenNode('seul', device, { x: 0, y: 0, w: device.width, h: device.height })
+    const withScreen = createNodeCommand(pageId, null, seul).apply(doc)
+
+    const cmd = deleteNodeCommand(pageId, seul.id)
+    const apres = cmd.apply(withScreen)
+    expect(findNode(apres.pages[0]!.nodes, seul.id)).toBeNull()
+
+    const restaure = cmd.invert(withScreen).apply(apres)
+    expect(restaure).toEqual(withScreen)
+  })
+
+  it('supprimer un noeud qui n est pas un ecran reste inchange (aucune cascade cherchee)', () => {
+    const { doc, pageId } = baseDoc()
+    const withA = createNodeCommand(pageId, null, rect('a', 0, 0)).apply(doc)
+    const deleted = deleteNodeCommand(pageId, 'a').apply(withA)
+    expect(findNode(deleted.pages[0]!.nodes, 'a')).toBeNull()
   })
 })

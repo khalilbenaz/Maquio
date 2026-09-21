@@ -35,7 +35,12 @@ export function createExportHandler(deps: {
   // l'ecrasement (jamais d'ecrasement silencieux par defaut).
   confirmOverwrite?: (existingFiles: string[]) => Promise<boolean>
 }) {
-  return async (input: { exporterId: ExporterId; json: string; projectName: string }): Promise<ExportOutcome> => {
+  return async (input: {
+    exporterId: ExporterId
+    json: string
+    projectName: string
+    activeScreenId?: string
+  }): Promise<ExportOutcome> => {
     const exporter = getExporter(input.exporterId)
 
     let document: ReturnType<typeof parseDocument>
@@ -47,7 +52,10 @@ export function createExportHandler(deps: {
 
     let result: ExportResult
     try {
-      result = exporter.export(document, { projectName: input.projectName })
+      // v2 (addendum navigation §7) : transmet l'ecran actif au generateur
+      // (voir selectActiveScreen, @calque/codegen) -- sans effet sur un
+      // document sans ecran (v1 non migre).
+      result = exporter.export(document, { projectName: input.projectName, activeScreenId: input.activeScreenId })
     } catch (err) {
       throw translateExportError(err)
     }
