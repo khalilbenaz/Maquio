@@ -8,6 +8,7 @@
 // a un sous-processus ici : tout cela passe par le preload (window.calque).
 import { useEffect, useState } from 'react'
 import { parseDocument, serializeDocument } from '@calque/core'
+import type { CalqueApi } from '../shared/api'
 import { useEditorStore } from './state/editorStore'
 import { Canvas } from './canvas/Canvas'
 import { LayersPanel } from './panels/LayersPanel'
@@ -15,8 +16,45 @@ import { InspectorPanel } from './panels/InspectorPanel'
 import { Toolbar } from './panels/Toolbar'
 import { ClaudePanel } from './panels/ClaudePanel'
 
+// Point de passage unique pour l'absence de passerelle (correction du
+// defaut n2 du rapport packaged-app) : `window.calque` peut reellement
+// etre `undefined` a l'execution (preload en erreur de syntaxe, echec de
+// chargement, etc. -- voir global.d.ts). Sans ce garde, la premiere
+// lecture d'une propriete de `api` plus bas levait une TypeError non
+// rattrapee qui tuait tout le rendu React : fenetre blanche, aucun
+// message. `App` ne fait que ce test puis delegue a `Editeur`, qui recoit
+// `api` deja garanti non nul (type `CalqueApi`, jamais `| undefined`) --
+// ce qui evite aussi de disperser un `if (window.calque)` dans chaque
+// composant, et evite tout risque d'appel conditionnel de Hooks (`App`
+// lui-meme n'en a aucun ; `Editeur`, qui en a, n'est jamais monte que
+// lorsque `api` existe).
 export function App() {
   const api = window.calque
+  if (!api) {
+    return (
+      <main
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          padding: 24,
+          background: '#17181a',
+          color: '#e2e2e6',
+          fontFamily: 'sans-serif',
+        }}
+      >
+        <p style={{ maxWidth: 480, textAlign: 'center', lineHeight: 1.5 }}>
+          La passerelle avec le processus principal n'a pas pu être chargée : l'application ne
+          peut pas fonctionner. Consultez la console pour plus de détails.
+        </p>
+      </main>
+    )
+  }
+  return <Editeur api={api} />
+}
+
+function Editeur({ api }: { api: CalqueApi }) {
   const nomDuDocument = useEditorStore((s) => s.document.name)
   const documentCourant = useEditorStore((s) => s.document)
 

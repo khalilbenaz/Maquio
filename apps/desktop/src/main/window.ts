@@ -17,7 +17,7 @@ export function creerFenetrePrincipale(): BrowserWindow {
     width: 1280,
     height: 800,
     webPreferences: {
-      preload: path.join(__dirname, '../preload/preload.js'),
+      preload: path.join(__dirname, '../preload/preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
