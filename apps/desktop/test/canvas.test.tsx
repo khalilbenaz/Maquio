@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, beforeEach, vi } from 'vitest'
+import { createDocument } from '@calque/core'
 import { Canvas } from '../src/renderer/canvas/Canvas'
 import { useEditorStore } from '../src/renderer/state/editorStore'
 import { documentDeTest } from './helpers/documentDeTest'
@@ -260,5 +261,87 @@ describe('Canvas - suppression multiple (points a traiter, round de correction 1
     expect(state.history.canUndo).toBe(false)
     expect(state.document.pages[0]!.nodes.map((n) => n.id)).toEqual(['rect1', 'rect2', 'rect3'])
     expect(state.document.pages[0]!.nodes[2]!.frame).toMatchObject({ x: 200, y: 200 })
+  })
+})
+
+// --- Tests ajoutes par la refonte visuelle et ergonomique ---
+
+describe('Canvas - zone sombre (refonte visuelle, correction du defaut fonctionnel principal)', () => {
+  it('le clic direct sur la zone sombre desselectionne', () => {
+    render(<Canvas />)
+    fireEvent.pointerDown(screen.getByTestId('node-rect1'))
+    expect(useEditorStore.getState().selection).toEqual(['rect1'])
+
+    // La scene (data-testid="canvas-scene") est le conteneur racine du
+    // canevas : un clic qui la touche ELLE, directement (pas un
+    // descendant comme le plan de travail ou un noeud), doit
+    // desselectionner -- avant la refonte, cette zone etait inerte.
+    fireEvent.pointerDown(screen.getByTestId('canvas-scene'))
+    expect(useEditorStore.getState().selection).toEqual([])
+  })
+
+  it('le plan de travail garde son propre data-testid et sa propre gestion du clic', () => {
+    render(<Canvas />)
+    expect(screen.getByTestId('canvas-background')).toBeTruthy()
+    expect(screen.getByTestId('canvas-scene')).toBeTruthy()
+  })
+})
+
+describe('Canvas - etat vide (refonte visuelle)', () => {
+  it("affiche le message d etat vide quand la page n a aucun noeud", () => {
+    useEditorStore.getState().load(createDocument('Document vide'))
+    render(<Canvas />)
+    expect(screen.getByText('Le plan de travail est vide')).toBeTruthy()
+  })
+
+  it('ne montre plus le message d etat vide des qu un noeud existe', () => {
+    render(<Canvas />) // documentDeTest() (charge par beforeEach) contient deja rect1/rect2
+    expect(screen.queryByText('Le plan de travail est vide')).toBeNull()
+  })
+})
+
+describe('Canvas - raccourcis d outils (refonte visuelle : V/F/R/E/T/I)', () => {
+  it.each([
+    ['v', 'select'],
+    ['f', 'frame'],
+    ['r', 'rect'],
+    ['e', 'ellipse'],
+    ['t', 'text'],
+    ['i', 'image'],
+  ] as const)('la touche %s active l outil %s', (touche, outilAttendu) => {
+    render(<Canvas />)
+    useEditorStore.getState().setTool('select')
+    fireEvent.keyDown(window, { key: touche })
+    expect(useEditorStore.getState().tool).toBe(outilAttendu)
+  })
+
+  it('un raccourci d outil reste inactif quand le focus est dans un champ de saisie', () => {
+    render(
+      <>
+        <input data-testid="champ-externe" />
+        <Canvas />
+      </>,
+    )
+    useEditorStore.getState().setTool('select')
+    const input = screen.getByTestId('champ-externe')
+    input.focus()
+    fireEvent.keyDown(input, { key: 'r' })
+    expect(useEditorStore.getState().tool).toBe('select')
+  })
+})
+
+describe('Canvas - zoom a la molette (refonte visuelle)', () => {
+  it('Ctrl + molette modifie le zoom', () => {
+    render(<Canvas />)
+    const zoomAvant = useEditorStore.getState().zoom
+    fireEvent.wheel(screen.getByTestId('canvas-scene'), { ctrlKey: true, deltaY: -100 })
+    expect(useEditorStore.getState().zoom).not.toBe(zoomAvant)
+  })
+
+  it('la molette sans Ctrl ne modifie pas le zoom (panoramique, pas defilement de page)', () => {
+    render(<Canvas />)
+    const zoomAvant = useEditorStore.getState().zoom
+    fireEvent.wheel(screen.getByTestId('canvas-scene'), { deltaX: 20, deltaY: 30 })
+    expect(useEditorStore.getState().zoom).toBe(zoomAvant)
   })
 })

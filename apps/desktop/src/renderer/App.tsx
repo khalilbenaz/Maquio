@@ -1,7 +1,8 @@
-// Renderer (Tache 15, mise en page Tache 16, branchement Tache 17) :
-// barre d'outils en haut, calques a gauche, canevas au centre, inspecteur
-// et assistant Claude Code a droite (decision 1). Seul ce fichier, racine
-// de composition du renderer, lit `window.calque` : tous les autres
+// Renderer (Tache 15, mise en page Tache 16, branchement Tache 17 ;
+// refonte visuelle et ergonomique) : barre de titre, barre d'outils en
+// haut, calques a gauche, canevas au centre, inspecteur et assistant
+// Claude Code a droite (decision 1). Seul ce fichier, racine de
+// composition du renderer, lit `window.calque` : tous les autres
 // composants recoivent l'API en propriete (voir Toolbar, ClaudePanel,
 // FigmaImportDialog, ExportDialog), jamais par acces direct a `window`,
 // pour rester testables sans preload. Aucun acces au disque, au reseau ou
@@ -15,6 +16,7 @@ import { LayersPanel } from './panels/LayersPanel'
 import { InspectorPanel } from './panels/InspectorPanel'
 import { Toolbar } from './panels/Toolbar'
 import { ClaudePanel } from './panels/ClaudePanel'
+import './App.css'
 
 // Point de passage unique pour l'absence de passerelle (correction du
 // defaut n2 du rapport packaged-app) : `window.calque` peut reellement
@@ -32,19 +34,8 @@ export function App() {
   const api = window.calque
   if (!api) {
     return (
-      <main
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          padding: 24,
-          background: '#17181a',
-          color: '#e2e2e6',
-          fontFamily: 'sans-serif',
-        }}
-      >
-        <p style={{ maxWidth: 480, textAlign: 'center', lineHeight: 1.5 }}>
+      <main className="calque-gateway-error">
+        <p>
           La passerelle avec le processus principal n'a pas pu être chargée : l'application ne
           peut pas fonctionner. Consultez la console pour plus de détails.
         </p>
@@ -57,6 +48,8 @@ export function App() {
 function Editeur({ api }: { api: CalqueApi }) {
   const nomDuDocument = useEditorStore((s) => s.document.name)
   const documentCourant = useEditorStore((s) => s.document)
+  const pageId = useEditorStore((s) => s.pageId)
+  const page = documentCourant.pages.find((p) => p.id === pageId)
 
   // Decision 10 du brief : le titre de la fenetre porte le nom du
   // document et un indicateur de modification -- `savedJson` est
@@ -105,20 +98,30 @@ function Editeur({ api }: { api: CalqueApi }) {
   }, [nomDuDocument, dirty])
 
   return (
-    <main style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <h1 style={{ margin: 0, padding: '4px 10px', fontSize: 12, fontWeight: 400, color: '#9a9aa2', background: '#17181a' }}>
-        {nomDuDocument}
-        {dirty ? ' •' : ''}
-      </h1>
+    <main className="calque-app">
+      <div className="calque-titlebar">
+        <span className="calque-wordmark">Calque</span>
+        <span className="calque-titlebar-separator" aria-hidden="true" />
+        <h1 className="calque-titlebar-document">
+          {nomDuDocument}
+          {dirty ? <span className="calque-titlebar-dirty" title="Modifications non enregistrées">•</span> : null}
+        </h1>
+        <span className="calque-titlebar-spacer" />
+        {page ? (
+          <span className="calque-titlebar-device">
+            {page.device.label} · {page.device.width} × {page.device.height}
+          </span>
+        ) : null}
+      </div>
       <Toolbar api={api} />
-      <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-        <div style={{ width: 220, flexShrink: 0 }}>
+      <div className="calque-body">
+        <div className="calque-column-layers">
           <LayersPanel />
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="calque-column-canvas">
           <Canvas />
         </div>
-        <div style={{ width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+        <div className="calque-column-right">
           <InspectorPanel />
           <ClaudePanel api={api} />
         </div>

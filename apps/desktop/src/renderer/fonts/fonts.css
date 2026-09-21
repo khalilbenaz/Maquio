@@ -1,0 +1,33 @@
+/* Polices embarquees localement (refonte visuelle) : une application de
+   bureau ne doit pas dependre du reseau pour s'afficher, donc aucun
+   `@import` vers Google Fonts. Les trois fichiers .woff2 a cote de ce
+   fichier sont le sous-ensemble "latin" (Unicode U+0000-00FF, qui couvre
+   tous les caracteres accentues francais) telecharge une seule fois puis
+   commite dans le depot -- voir le rapport de refonte pour la procedure.
+
+   Instrument Sans est une police variable (axe wght, 400 a 700) : une
+   seule regle avec un intervalle de graisse suffit a couvrir les 400/500/600
+   utilises par l'interface, au lieu de trois fichiers statiques. */
+@font-face {
+  font-family: 'Instrument Sans';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('./InstrumentSans-Variable.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Instrument Serif';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./InstrumentSerif-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Instrument Serif';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./InstrumentSerif-Italic.woff2') format('woff2');
+}

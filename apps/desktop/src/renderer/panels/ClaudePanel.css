@@ -1,11 +1,13 @@
-/* Panneau Claude Code (Tache 17). Partage la colonne de droite avec
-   InspectorPanel (voir App.tsx) : flex: 1 1 0 fait que les deux panneaux se
-   partagent la hauteur disponible a parts egales, et min-height: 0 permet a
-   ce panneau de rétrécir sous sa hauteur de contenu naturelle plutôt que de
-   déborder de la fenêtre -- c'est overflow-y: auto qui absorbe le surplus en
-   le rendant défilable, au lieu de tronquer le champ Instruction ou le
-   bouton "Demander à Claude" au bord bas de la fenêtre (défaut constaté a
-   1280x800, voir le rapport de correction d'interface). */
+/* Panneau Claude Code (Tache 17, refonte visuelle). Partage la colonne de
+   droite avec InspectorPanel (voir App.tsx) : flex: 1 1 0 fait que les deux
+   panneaux se partagent la hauteur disponible a parts egales, et
+   min-height: 0 permet a ce panneau de rétrécir sous sa hauteur de contenu
+   naturelle plutôt que de déborder de la fenêtre -- c'est overflow-y: auto
+   qui absorbe le surplus en le rendant défilable, au lieu de tronquer le
+   champ Instruction ou le bouton "Demander à Claude" au bord bas de la
+   fenêtre (défaut constaté a 1280x800, voir le rapport de correction
+   d'interface). Ce comportement de mise en page n'est pas touche par la
+   refonte visuelle : seul l'habillage change. */
 
 .claude-panel {
   display: flex;
@@ -13,47 +15,127 @@
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
-  gap: 6px;
-  background: #1e1f22;
-  color: #e4e4e7;
-  border-top: 1px solid #2f3033;
+  background: var(--calque-panel-raised);
+  color: var(--calque-text);
+  border-top: 1px solid var(--calque-border);
   font-size: 13px;
-  padding: 8px;
   box-sizing: border-box;
 }
 
+.claude-panel-header {
+  flex-shrink: 0;
+  height: 34px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.claude-panel-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.claude-panel-dot-on {
+  background: var(--calque-success);
+}
+
+.claude-panel-dot-off {
+  background: var(--calque-text-faint);
+}
+
+.claude-panel-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  color: var(--calque-text-faint);
+}
+
+.claude-panel-header-spacer {
+  flex-grow: 1;
+}
+
+.claude-panel-status {
+  font-size: 11px;
+  color: var(--calque-text-faint);
+}
+
+.claude-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 0 14px 14px;
+}
+
 .claude-panel label {
-  color: #b6b6bd;
+  color: var(--calque-text-muted);
   font-size: 12px;
 }
 
 .claude-panel textarea {
   min-height: 72px;
   resize: vertical;
-  background: #2a2b2f;
-  border: 1px solid #3a3b40;
-  color: #e4e4e7;
-  border-radius: 4px;
-  padding: 6px;
-  font: inherit;
   box-sizing: border-box;
+  width: 100%;
+  padding: 9px 10px;
+  background: var(--calque-surface);
+  border: 1px solid var(--calque-border);
+  color: var(--calque-text);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  outline: none;
+}
+
+.claude-panel textarea:focus {
+  border-color: var(--calque-accent);
 }
 
 .claude-panel button {
-  align-self: flex-start;
-  background: #2b3f6f;
-  border: 1px solid #2b6fff;
-  color: inherit;
-  border-radius: 4px;
-  padding: 6px 10px;
-  cursor: pointer;
+  align-self: stretch;
+  height: 34px;
+  background: var(--calque-accent);
+  border: none;
+  color: var(--calque-chrome-bg);
+  border-radius: 8px;
   font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
   flex-shrink: 0;
+}
+
+.claude-panel button:hover:not(:disabled) {
+  background: var(--calque-accent-hover);
 }
 
 .claude-panel button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.claude-panel-alert {
+  margin: 0;
+  padding: 9px 11px;
+  background: rgba(229, 120, 107, 0.1);
+  border: 1px solid rgba(229, 120, 107, 0.32);
+  border-radius: 8px;
+  color: var(--calque-text-soft);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.claude-panel-result {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--calque-text-muted);
+  word-break: break-word;
 }
 
 .claude-panel p {

@@ -1,0 +1,8 @@
+/* Calque de selection (refonte visuelle) : cadre et poignees en accent
+   orange, comme dans Main.dc.html, au lieu du bleu par defaut precedent.
+   Les couleurs sont fixees en JSX (SelectionOverlay.tsx) car SVG lit ses
+   attributs de presentation directement ; ce fichier ne fait que gerer
+   l'affordance au survol des poignees. */
+.calque-handle:hover {
+  filter: brightness(1.1);
+}

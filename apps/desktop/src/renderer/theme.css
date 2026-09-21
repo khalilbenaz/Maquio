@@ -1,0 +1,68 @@
+/* Jetons de design (refonte visuelle). Valeurs reprises telles quelles des
+   maquettes de reference (Main.dc.html, Empty.dc.html, Reglages.dc.html,
+   Export.dc.html) : c'est la source unique de couleurs, rayons et
+   dimensions de chrome pour tout le renderer -- les fichiers .css des
+   panneaux et dialogues lisent ces variables, ils ne redeclarent jamais
+   une couleur en dur. */
+@import './fonts/fonts.css';
+
+:root {
+  /* Couleurs */
+  --calque-canvas-bg: #0e0d0c;
+  --calque-canvas-dot: #221f1c;
+  --calque-chrome-bg: #1b1917;
+  --calque-panel-raised: #201d1b;
+  --calque-surface: #131211;
+  --calque-border: #322d29;
+  --calque-border-strong: #3a342f;
+  --calque-text: #f2eee8;
+  --calque-text-muted: #a69d93;
+  --calque-text-faint: #7d756c;
+  --calque-text-soft: #cfc7be;
+  --calque-accent: #e2714a;
+  --calque-accent-hover: #f08d69;
+  --calque-accent-wash: rgba(226, 113, 74, 0.14);
+  --calque-accent-wash-strong: rgba(226, 113, 74, 0.16);
+  --calque-success: #6fbf8b;
+  --calque-warning: #e5c07b;
+  --calque-danger: #e5786b;
+
+  /* Typographie */
+  --calque-font-ui: 'Instrument Sans', system-ui, -apple-system, sans-serif;
+  --calque-font-display: 'Instrument Serif', Georgia, serif;
+
+  /* Chrome */
+  --calque-titlebar-height: 40px;
+  --calque-toolbar-height: 52px;
+  --calque-layers-width: 248px;
+  --calque-right-width: 300px;
+
+  /* Rayons */
+  --calque-radius-sm: 6px;
+  --calque-radius-md: 8px;
+  --calque-radius-lg: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--calque-chrome-bg);
+  color: var(--calque-text);
+  font-family: var(--calque-font-ui);
+}
+
+#root {
+  height: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}

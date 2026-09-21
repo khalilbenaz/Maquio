@@ -1,0 +1,229 @@
+/* Habillage commun des trois dialogues (Reglages, Export, Import Figma) --
+   refonte visuelle, au style de Reglages.dc.html / Export.dc.html : fond
+   assombri, panneau centre avec en-tete (titre en Instrument Serif +
+   fermeture), sections separees par un filet. Chaque dialogue importe ce
+   fichier en plus, le cas echeant, d'un fichier de reglages plus
+   specifique (ex. ExportDialog.css pour la grille des cibles). */
+
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 7, 7, 0.55);
+  z-index: 100;
+}
+
+.dialog-panel {
+  width: 560px;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 48px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  background: var(--calque-chrome-bg);
+  color: var(--calque-text);
+  border: 1px solid var(--calque-border-strong);
+  border-radius: 14px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+}
+
+.dialog-panel-wide {
+  width: 620px;
+}
+
+.dialog-header {
+  box-sizing: border-box;
+  padding: 18px 22px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--calque-border);
+  flex-shrink: 0;
+}
+
+.dialog-title {
+  margin: 0;
+  font-family: var(--calque-font-display);
+  font-size: 23px;
+  font-weight: 400;
+  color: var(--calque-text);
+}
+
+.dialog-header-spacer {
+  flex-grow: 1;
+}
+
+.dialog-close {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--calque-text-muted);
+  background: transparent;
+  border: 1px solid var(--calque-border);
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.dialog-close:hover {
+  color: var(--calque-text);
+  border-color: var(--calque-border-strong);
+}
+
+.dialog-body {
+  box-sizing: border-box;
+  padding: 20px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.dialog-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dialog-section h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--calque-text);
+}
+
+.dialog-divider {
+  height: 1px;
+  background: var(--calque-border);
+  border: none;
+  margin: 0;
+}
+
+.dialog-field-label {
+  font-size: 12.5px;
+  color: var(--calque-text-muted);
+}
+
+.dialog-input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 36px;
+  padding: 0 11px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--calque-text);
+  background: var(--calque-surface);
+  border: 1px solid var(--calque-border);
+  border-radius: 8px;
+  outline: none;
+}
+
+.dialog-input:focus {
+  border-color: var(--calque-accent);
+}
+
+.dialog-input:disabled {
+  opacity: 0.6;
+}
+
+.dialog-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--calque-text-faint);
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.dialog-button {
+  height: 32px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: inherit;
+  font-size: 13px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.dialog-button-primary {
+  font-weight: 600;
+  color: var(--calque-chrome-bg);
+  background: var(--calque-accent);
+  border: none;
+}
+
+.dialog-button-primary:hover:not(:disabled) {
+  background: var(--calque-accent-hover);
+}
+
+.dialog-button-secondary {
+  color: var(--calque-text);
+  background: transparent;
+  border: 1px solid var(--calque-border);
+}
+
+.dialog-button-secondary:hover:not(:disabled) {
+  border-color: var(--calque-border-strong);
+}
+
+.dialog-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.dialog-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  font-size: 11.5px;
+  color: var(--calque-success);
+  background: rgba(111, 191, 139, 0.12);
+  border-radius: 999px;
+}
+
+.dialog-status-badge-off {
+  color: var(--calque-text-faint);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.dialog-status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.dialog-alert {
+  margin: 0;
+  padding: 9px 11px;
+  background: rgba(229, 120, 107, 0.1);
+  border: 1px solid rgba(229, 120, 107, 0.32);
+  border-radius: 8px;
+  color: var(--calque-text-soft);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.dialog-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--calque-text-faint);
+}
+
+.dialog-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--calque-text-soft);
+}

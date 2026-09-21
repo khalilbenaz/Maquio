@@ -1,0 +1,100 @@
+/* Canevas (refonte visuelle). La zone sombre (data-testid="canvas-scene",
+   ce fichier) porte le semis de points de la maquette et reagit desormais
+   au clic pour desselectionner -- voir le commentaire au sommet de
+   Canvas.tsx pour pourquoi c'etait la cause directe du signalement
+   "le drag and drop ne marche pas". Le plan de travail lui-meme
+   (data-testid="canvas-background") reste blanc, avec une ombre portee et
+   un filet, pour se distinguer nettement du fond. */
+
+.calque-canvas {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--calque-canvas-bg);
+  background-image: radial-gradient(var(--calque-canvas-dot) 1px, transparent 1px);
+  background-size: 16px 16px;
+  cursor: default;
+}
+
+.calque-canvas-artboard {
+  background: #ffffff;
+  border-radius: 4px;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.55),
+    0 0 0 1px #2a2623;
+}
+
+.calque-canvas-label {
+  position: absolute;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: var(--calque-text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calque-canvas-empty {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 28px;
+  text-align: center;
+  color: #b9b2a9;
+  box-sizing: border-box;
+}
+
+.calque-canvas-empty-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #141413;
+}
+
+.calque-canvas-empty-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #6b655e;
+}
+
+.calque-canvas-empty-shortcuts {
+  padding: 4px 9px;
+  font-size: 11px;
+  color: #6b655e;
+  background: #f2f2f5;
+  border: 1px solid #e3e1dc;
+  border-radius: 5px;
+}
+
+.calque-canvas-toolinfo {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 13px;
+  font-size: 12.5px;
+  color: var(--calque-text);
+  background: var(--calque-panel-raised);
+  border: 1px solid var(--calque-border-strong);
+  border-radius: 9px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.calque-canvas-toolinfo svg {
+  color: var(--calque-accent);
+  flex-shrink: 0;
+}
+
+.calque-canvas-toolinfo strong {
+  font-weight: 600;
+}

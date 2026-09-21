@@ -24,8 +24,17 @@
 import { useEffect, useState } from 'react'
 import type { CalqueApi } from '../../shared/api'
 import { useClaudeStatusStore } from '../state/claudeStatusStore'
+import './Dialog.css'
 
 type Statut = 'idle' | 'loading' | 'error'
+
+function CloseIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+      <path d="M4 4l8 8M12 4l-8 8" />
+    </svg>
+  )
+}
 
 export function SettingsDialog({ api, onClose }: { api: CalqueApi; onClose: () => void }) {
   const [jeton, setJeton] = useState('')
@@ -115,76 +124,123 @@ export function SettingsDialog({ api, onClose }: { api: CalqueApi; onClose: () =
   }
 
   return (
-    <section aria-label="Réglages" className="settings-dialog">
-      <p>{hasFigmaToken ? 'Un jeton Figma est enregistré' : 'Aucun jeton Figma enregistré'}</p>
+    <div className="dialog-overlay">
+      <section aria-label="Réglages" className="dialog-panel">
+        <div className="dialog-header">
+          <h2 className="dialog-title">Réglages</h2>
+          <span className="dialog-header-spacer" />
+          <button type="button" aria-label="Fermer les réglages" className="dialog-close" onClick={onClose}>
+            <CloseIcon />
+          </button>
+        </div>
 
-      <label htmlFor="figma-token-input">Jeton personnel Figma</label>
-      <input
-        id="figma-token-input"
-        aria-label="Jeton personnel Figma"
-        type="password"
-        value={jeton}
-        disabled={statut === 'loading'}
-        onChange={(e) => setJeton(e.target.value)}
-      />
-      <button
-        type="button"
-        aria-label="Enregistrer le jeton Figma"
-        disabled={statut === 'loading' || jeton.trim() === ''}
-        onClick={() => void enregistrer()}
-      >
-        Enregistrer
-      </button>
+        <div className="dialog-body">
+          <section className="dialog-section">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <h2>Figma</h2>
+              <span className="dialog-header-spacer" />
+              <span className={hasFigmaToken ? 'dialog-status-badge' : 'dialog-status-badge dialog-status-badge-off'}>
+                <span className="dialog-status-dot" />
+                {hasFigmaToken ? 'Un jeton Figma est enregistré' : 'Aucun jeton Figma enregistré'}
+              </span>
+            </div>
 
-      <p>Obtenir un jeton personnel Figma : https://www.figma.com/developers/api#access-tokens</p>
+            <label htmlFor="figma-token-input" className="dialog-field-label">
+              Jeton personnel Figma
+            </label>
+            <input
+              id="figma-token-input"
+              aria-label="Jeton personnel Figma"
+              type="password"
+              className="dialog-input"
+              value={jeton}
+              disabled={statut === 'loading'}
+              onChange={(e) => setJeton(e.target.value)}
+            />
 
-      {statut === 'error' ? <p role="alert">{erreur}</p> : null}
+            <p className="dialog-hint">Obtenir un jeton personnel Figma : https://www.figma.com/developers/api#access-tokens</p>
 
-      <div role="group" aria-label="Claude Code">
-        <h2>Claude Code</h2>
+            {statut === 'error' ? (
+              <p role="alert" className="dialog-alert">
+                {erreur}
+              </p>
+            ) : null}
 
-        <p>
-          {claudeAvailable
-            ? `Claude Code trouvé : ${claudePath ?? ''}`
-            : 'Claude Code introuvable'}
-        </p>
-        <p>
-          Calque lance le binaire 'claude' déjà installé sur cette machine et n'utilise aucune clé d'API.
-        </p>
+            <div className="dialog-actions">
+              <button
+                type="button"
+                aria-label="Enregistrer le jeton Figma"
+                className="dialog-button dialog-button-primary"
+                disabled={statut === 'loading' || jeton.trim() === ''}
+                onClick={() => void enregistrer()}
+              >
+                Enregistrer
+              </button>
+            </div>
+          </section>
 
-        <label htmlFor="claude-custom-path-input">Chemin personnalisé vers le binaire claude</label>
-        <input
-          id="claude-custom-path-input"
-          aria-label="Chemin personnalisé vers le binaire claude"
-          type="text"
-          placeholder="/usr/local/bin/claude"
-          value={cheminSaisi}
-          disabled={claudeStatut === 'loading'}
-          onChange={(e) => setCheminSaisi(e.target.value)}
-        />
-        <button
-          type="button"
-          aria-label="Enregistrer le chemin de Claude Code"
-          disabled={claudeStatut === 'loading'}
-          onClick={() => void enregistrerCheminClaude()}
-        >
-          Enregistrer
-        </button>
-        <button
-          type="button"
-          aria-label="Vérifier la connexion Claude Code"
-          disabled={claudeStatut === 'loading'}
-          onClick={() => void verifierClaude()}
-        >
-          Vérifier
-        </button>
+          <hr className="dialog-divider" />
 
-        {claudeStatut === 'error' ? <p role="alert">{claudeErreur}</p> : null}
-      </div>
+          <div role="group" aria-label="Claude Code" className="dialog-section">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <h2>Claude Code</h2>
+              <span className="dialog-header-spacer" />
+              <span className={claudeAvailable ? 'dialog-status-badge' : 'dialog-status-badge dialog-status-badge-off'}>
+                <span className="dialog-status-dot" />
+                {claudeAvailable ? 'Connecté' : 'Non connecté'}
+              </span>
+            </div>
 
-      <button type="button" aria-label="Fermer les réglages" onClick={onClose}>
-        Fermer
-      </button>
-    </section>
+            <p className="dialog-hint">
+              {claudeAvailable ? `Claude Code trouvé : ${claudePath ?? ''}` : 'Claude Code introuvable'}
+            </p>
+            <p className="dialog-hint">
+              Calque lance le binaire 'claude' déjà installé sur cette machine et n'utilise aucune clé d'API.
+            </p>
+
+            <label htmlFor="claude-custom-path-input" className="dialog-field-label">
+              Chemin personnalisé vers le binaire claude
+            </label>
+            <input
+              id="claude-custom-path-input"
+              aria-label="Chemin personnalisé vers le binaire claude"
+              type="text"
+              className="dialog-input"
+              placeholder="/usr/local/bin/claude"
+              value={cheminSaisi}
+              disabled={claudeStatut === 'loading'}
+              onChange={(e) => setCheminSaisi(e.target.value)}
+            />
+
+            {claudeStatut === 'error' ? (
+              <p role="alert" className="dialog-alert">
+                {claudeErreur}
+              </p>
+            ) : null}
+
+            <div className="dialog-actions">
+              <button
+                type="button"
+                aria-label="Enregistrer le chemin de Claude Code"
+                className="dialog-button dialog-button-primary"
+                disabled={claudeStatut === 'loading'}
+                onClick={() => void enregistrerCheminClaude()}
+              >
+                Enregistrer
+              </button>
+              <button
+                type="button"
+                aria-label="Vérifier la connexion Claude Code"
+                className="dialog-button dialog-button-secondary"
+                disabled={claudeStatut === 'loading'}
+                onClick={() => void verifierClaude()}
+              >
+                Vérifier
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
   )
 }

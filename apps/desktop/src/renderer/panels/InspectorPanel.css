@@ -1,11 +1,11 @@
-/* Inspecteur (Tache 16). Style sobre, sombre par defaut ; les comportements
-   sont ce qui est teste, pas le style.
-   flex: 1 1 0 et min-height: 0 (correction defaut n2 du rapport packaged-app)
-   pour que ce panneau partage la hauteur de la colonne de droite a parts
-   egales avec ClaudePanel (voir App.tsx / ClaudePanel.css) et puisse
-   rétrécir sous sa hauteur de contenu naturelle -- overflow-y: auto rend
-   alors le surplus défilable au lieu de repousser ClaudePanel hors de la
-   fenêtre. */
+/* Inspecteur (Tache 16, refonte visuelle). Style des maquettes de
+   reference : panneau de chrome, champs sur fond de surface avec filet.
+   flex: 1 1 0 et min-height: 0 (correction defaut n2 du rapport
+   packaged-app) pour que ce panneau partage la hauteur de la colonne de
+   droite a parts egales avec ClaudePanel (voir App.tsx / ClaudePanel.css)
+   et puisse rétrécir sous sa hauteur de contenu naturelle -- overflow-y:
+   auto rend alors le surplus défilable au lieu de repousser ClaudePanel
+   hors de la fenêtre. */
 
 .inspector-panel {
   display: flex;
@@ -14,79 +14,103 @@
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
-  background: #1e1f22;
-  color: #e4e4e7;
-  border-left: 1px solid #2f3033;
+  background: var(--calque-chrome-bg);
+  color: var(--calque-text);
+  border-left: 1px solid var(--calque-border);
   font-size: 13px;
-  padding: 8px;
+  padding: 4px 14px 14px;
   box-sizing: border-box;
 }
 
 .inspector-empty {
-  color: #9a9aa2;
-  padding: 8px 4px;
+  color: var(--calque-text-muted);
+  padding: 18px 2px 8px;
 }
 
 .inspector-section {
-  border-bottom: 1px solid #2f3033;
-  padding-bottom: 8px;
+  border-bottom: 1px solid var(--calque-border);
+  padding-bottom: 14px;
   margin-bottom: 4px;
+}
+
+.inspector-section:last-child {
+  border-bottom: none;
 }
 
 .inspector-section h2 {
   font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #9a9aa2;
-  margin: 4px 0 6px;
+  letter-spacing: 0.6px;
+  color: var(--calque-text-faint);
+  margin: 10px 0 7px;
 }
 
 .inspector-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  gap: 7px;
 }
 
 .inspector-field {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 9px;
+  background: var(--calque-surface);
+  border: 1px solid var(--calque-border);
+  border-radius: 7px;
   font-size: 12px;
 }
 
 .inspector-field-checkbox {
-  flex-direction: row;
-  align-items: center;
-  gap: 6px;
+  background: transparent;
+  border-color: transparent;
+  padding: 0;
+  height: auto;
 }
 
 .inspector-field-label {
-  color: #b6b6bd;
+  color: var(--calque-text-faint);
+  flex-shrink: 0;
 }
 
 .inspector-input {
-  background: #2a2b2f;
-  border: 1px solid #3a3b40;
-  color: #e4e4e7;
-  border-radius: 4px;
-  padding: 3px 6px;
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  color: var(--calque-text);
   font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
 }
 
 .inspector-input:focus {
-  outline: 1px solid #2b6fff;
+  outline: none;
+}
+
+.inspector-field:focus-within {
+  border-color: var(--calque-accent);
 }
 
 .inspector-input-invalid {
-  border-color: #ff5b5b;
-  outline: 1px solid #ff5b5b;
+  color: var(--calque-danger);
+}
+
+.inspector-field:has(.inspector-input-invalid) {
+  border-color: var(--calque-danger);
 }
 
 .inspector-color {
-  width: 100%;
-  height: 24px;
+  width: 24px;
+  height: 20px;
+  flex-shrink: 0;
   background: transparent;
-  border: 1px solid #3a3b40;
+  border: 1px solid var(--calque-border-strong);
   border-radius: 4px;
   padding: 0;
 }

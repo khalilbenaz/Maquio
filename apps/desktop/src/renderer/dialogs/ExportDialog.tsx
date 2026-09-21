@@ -9,8 +9,24 @@ import { useState } from 'react'
 import { serializeDocument } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import type { CalqueApi, ExporterId } from '../../shared/api'
+import './Dialog.css'
 
 type Statut = 'idle' | 'loading' | 'error' | 'succes' | 'annule'
+
+const NOMS_CIBLES: Record<ExporterId, string> = {
+  flutter: 'Flutter',
+  'react-native': 'React Native',
+  swiftui: 'SwiftUI',
+  compose: 'Jetpack Compose',
+}
+
+function CloseIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+      <path d="M4 4l8 8M12 4l-8 8" />
+    </svg>
+  )
+}
 
 export function ExportDialog({
   api,
@@ -52,43 +68,63 @@ export function ExportDialog({
   }
 
   return (
-    <section aria-label="Exporter le projet" className="export-dialog">
-      <label htmlFor="export-project-name">Nom du projet</label>
-      <input
-        id="export-project-name"
-        aria-label="Nom du projet"
-        value={nomProjet}
-        disabled={statut === 'loading'}
-        onChange={(e) => setNomProjet(e.target.value)}
-      />
-      <button
-        type="button"
-        aria-label="Lancer l'export"
-        disabled={statut === 'loading' || nomProjet.trim() === ''}
-        onClick={() => void exporter()}
-      >
-        Exporter
-      </button>
-      <button type="button" aria-label="Fermer l'export" onClick={onClose}>
-        Fermer
-      </button>
-
-      {statut === 'annule' ? <p>Export annulé</p> : null}
-      {statut === 'error' ? <p role="alert">{erreur}</p> : null}
-      {statut === 'succes' ? (
-        <div>
-          <p>
-            {fichiers.length} fichier(s) exporté(s) dans {dossier}
-          </p>
-          {avertissements.length > 0 ? (
-            <ul aria-label="Avertissements d'export">
-              {avertissements.map((a) => (
-                <li key={a}>{a}</li>
-              ))}
-            </ul>
-          ) : null}
+    <div className="dialog-overlay">
+      <section aria-label="Exporter le projet" className="dialog-panel">
+        <div className="dialog-header">
+          <h2 className="dialog-title">Exporter en {NOMS_CIBLES[exporterId]}</h2>
+          <span className="dialog-header-spacer" />
+          <button type="button" aria-label="Fermer l'export" className="dialog-close" onClick={onClose}>
+            <CloseIcon />
+          </button>
         </div>
-      ) : null}
-    </section>
+
+        <div className="dialog-body">
+          <label htmlFor="export-project-name" className="dialog-field-label">
+            Nom du projet
+          </label>
+          <input
+            id="export-project-name"
+            aria-label="Nom du projet"
+            className="dialog-input"
+            value={nomProjet}
+            disabled={statut === 'loading'}
+            onChange={(e) => setNomProjet(e.target.value)}
+          />
+
+          {statut === 'annule' ? <p className="dialog-note">Export annulé</p> : null}
+          {statut === 'error' ? (
+            <p role="alert" className="dialog-alert">
+              {erreur}
+            </p>
+          ) : null}
+          {statut === 'succes' ? (
+            <div>
+              <p className="dialog-note">
+                {fichiers.length} fichier(s) exporté(s) dans {dossier}
+              </p>
+              {avertissements.length > 0 ? (
+                <ul aria-label="Avertissements d'export">
+                  {avertissements.map((a) => (
+                    <li key={a}>{a}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="dialog-actions">
+            <button
+              type="button"
+              aria-label="Lancer l'export"
+              className="dialog-button dialog-button-primary"
+              disabled={statut === 'loading' || nomProjet.trim() === ''}
+              onClick={() => void exporter()}
+            >
+              Exporter
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
   )
 }
