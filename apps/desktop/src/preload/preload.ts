@@ -16,6 +16,7 @@ const api: CalqueApi = {
   claudeAvailable: () => ipcRenderer.invoke('claudeAvailable'),
   getSettings: () => ipcRenderer.invoke('getSettings'),
   setFigmaToken: (token) => ipcRenderer.invoke('setFigmaToken', token),
+  setClaudeCustomPath: (path) => ipcRenderer.invoke('setClaudeCustomPath', path),
 }
 
 const clesExposees = Object.keys(api).sort()

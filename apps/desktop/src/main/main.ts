@@ -9,7 +9,7 @@
 // vraies dependances (node:fs/promises, dialog, safeStorage, fetch,
 // child_process), toutes elles-memes enveloppees dans de petits
 // adaptateurs sous src/main/adapters/*.ts.
-import { access, constants, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { access, constants, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { app, BrowserWindow, ipcMain, Menu, safeStorage } from 'electron'
 import { AiService, ProcessClaudeRunner } from '@calque/ai'
@@ -19,6 +19,9 @@ import { creerFenetrePrincipale } from './window'
 import { nodeSpawn } from './adapters/nodeSpawn'
 import { nodeFetch } from './adapters/nodeFetch'
 import { createSecretStore } from './adapters/secretStore'
+import { createClaudeSettingsStore } from './adapters/claudeSettingsStore'
+import { createClaudeWhich, validateClaudeBinaryPath } from './adapters/claudeDetection'
+import type { ClaudePathFs } from './adapters/claudeDetection'
 import {
   chooseDirectory,
   chooseFigmaJsonFile,
@@ -29,6 +32,7 @@ import {
 import { createDocumentHandler } from './handlers/documentHandlers'
 import { createExportHandler } from './handlers/exportHandlers'
 import { createFigmaHandler, createGetSettingsHandler, createSetFigmaTokenHandler } from './handlers/figmaHandlers'
+import { createGetClaudeSettingsHandler, createSetClaudeCustomPathHandler } from './handlers/claudeSettingsHandlers'
 import { createClaudeHandler } from './handlers/claudeHandlers'
 
 // Recherche reelle d'un executable dans le PATH courant, sans lancer de
@@ -52,7 +56,52 @@ async function chercherDansLePath(binaire: string): Promise<string | null> {
   return null
 }
 
-const lanceurClaude = new ProcessClaudeRunner({ spawn: nodeSpawn, which: chercherDansLePath })
+// Verification reelle qu'un chemin designe un executable (X_OK), utilisee
+// par validateClaudeBinaryPath pour distinguer "non executable" d'un
+// dossier (X_OK reussit sur un dossier POSIX -- traversable -- ce qui
+// justifie a lui seul le test isDirectory() prealable dans
+// validateClaudeBinaryPath).
+async function estExecutable(p: string): Promise<boolean> {
+  try {
+    await access(p, constants.X_OK)
+    return true
+  } catch {
+    return false
+  }
+}
+
+const claudePathFs: ClaudePathFs = { stat, isExecutable: estExecutable }
+
+// Reglages Claude Code (chemin personnalise, JSON ordinaire -- PAS un
+// secret, voir claudeSettingsStore.ts). Comme magasinSecrets : le chemin du
+// fichier depend du dossier de donnees utilisateur, connu seulement une
+// fois l'application prete, donc construit dans demarrer(). Les fonctions
+// ci-dessous le referencent en le lisant a CHAQUE appel (jamais capture par
+// valeur) : c'est ce qui fait qu'un reglage enregistre depuis le dialogue
+// des reglages est immediatement pris en compte, sans redemarrer
+// l'application ni reconstruire lanceurClaude.
+let magasinReglagesClaude: ReturnType<typeof createClaudeSettingsStore> | undefined
+
+// `which` reellement injecte dans ProcessClaudeRunner : donne la priorite
+// au chemin personnalise des reglages quand il pointe vers un executable
+// valide, retombe sur la recherche dans le PATH sinon (decision du brief :
+// @calque/ai ne connait jamais la notion de reglages, toute la composition
+// vit ici). resolveClaudeStatus() (utilise par les gestionnaires de
+// reglages ci-dessous) appelle ce MEME `which` : l'etat affiche dans les
+// reglages est donc exactement celui qui determine ce que `claude -p ...`
+// lancera reellement.
+const whichClaude = createClaudeWhich({
+  getCustomPath: async () => (magasinReglagesClaude ? magasinReglagesClaude.getCustomPath() : null),
+  fallback: chercherDansLePath,
+  validate: (p) => validateClaudeBinaryPath(p, claudePathFs),
+})
+
+async function resolveClaudeStatus(): Promise<{ available: boolean; path: string | null }> {
+  const p = await whichClaude('claude')
+  return { available: p !== null, path: p }
+}
+
+const lanceurClaude = new ProcessClaudeRunner({ spawn: nodeSpawn, which: whichClaude })
 const serviceClaude = new AiService(lanceurClaude)
 
 // Jeton Figma chiffre (decision 3 du brief) : jamais en clair sur disque.
@@ -126,13 +175,25 @@ function enregistrerLesGestionnaires(): void {
   ipcMain.handle('claudeAvailable', () => lanceurClaude.isAvailable())
 
   ipcMain.handle('getSettings', async () => {
-    if (!magasinSecrets) return { hasFigmaToken: false }
-    return createGetSettingsHandler({ secretStore: magasinSecrets })()
+    const figma = magasinSecrets ? await createGetSettingsHandler({ secretStore: magasinSecrets })() : { hasFigmaToken: false }
+    const claude = magasinReglagesClaude
+      ? await createGetClaudeSettingsHandler({ store: magasinReglagesClaude, resolveStatus: resolveClaudeStatus })()
+      : { claudeAvailable: false, claudePath: null, claudeCustomPath: null }
+    return { ...figma, ...claude }
   })
 
   ipcMain.handle('setFigmaToken', async (_event, token: string) => {
     if (!magasinSecrets) throw new Error("Le stockage des reglages n'est pas encore initialise")
     return createSetFigmaTokenHandler({ secretStore: magasinSecrets })(token)
+  })
+
+  ipcMain.handle('setClaudeCustomPath', async (_event, rawPath: string) => {
+    if (!magasinReglagesClaude) throw new Error("Le stockage des reglages n'est pas encore initialise")
+    return createSetClaudeCustomPathHandler({
+      store: magasinReglagesClaude,
+      validate: (p) => validateClaudeBinaryPath(p, claudePathFs),
+      resolveStatus: resolveClaudeStatus,
+    })(rawPath)
   })
 }
 
@@ -190,6 +251,17 @@ async function demarrer(): Promise<void> {
     fs: {
       readFile: (p) => readFile(p),
       writeFile: (p, data) => writeFile(p, data),
+      pathExists,
+    },
+  })
+
+  // JSON ordinaire, jamais chiffre (voir claudeSettingsStore.ts) : un
+  // chemin de binaire n'est pas un secret.
+  magasinReglagesClaude = createClaudeSettingsStore({
+    filePath: path.join(app.getPath('userData'), 'claude-settings.json'),
+    fs: {
+      readFile: (p) => readFile(p, 'utf8'),
+      writeFile: (p, data) => writeFile(p, data, 'utf8'),
       pathExists,
     },
   })
