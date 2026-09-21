@@ -64,6 +64,27 @@ export function screenContaining(nodes: Node[], nodeId: string): string | null {
   return top !== null && isScreenNode(top) ? top.id : null
 }
 
+// Correctif parentage (v2, addendum navigation) : l'ecran (au sens
+// screenContaining ci-dessus) le plus profond dont le sous-arbre contient
+// `point`, en reutilisant hitTest -- qui implemente deja la regle "le plus
+// profond, et a profondeur egale le dernier dessine l'emporte" -- plutot que
+// d'ecrire une seconde implementation de ce choix pour des ecrans qui se
+// chevauchent ou s'imbriquent visuellement sur le plan de travail. `null` si
+// aucun noeud de premier niveau ne contient le point (fond du plan de
+// travail) OU si le noeud touche n'appartient a aucun ecran (noeud de
+// premier niveau sans `device`, cas legitime, pas une erreur). Partagee par
+// useCreateInteraction (ou tracer determine le parent d'un nouveau noeud) et
+// useNodeInteraction (ou glisser determine l'ecran cible d'un reparentage),
+// toutes deux dans apps/desktop.
+export function screenAtPoint(nodes: Node[], point: { x: number; y: number }): FrameNode | null {
+  const hit = hitTest(nodes, point)
+  if (hit === null) return null
+  const screenId = screenContaining(nodes, hit.id)
+  if (screenId === null) return null
+  const screen = findNode(nodes, screenId)
+  return screen !== null && isScreenNode(screen) ? screen : null
+}
+
 export function findNode(nodes: Node[], id: string): Node | null {
   for (const n of nodes) {
     if (n.id === id) return n

@@ -210,3 +210,45 @@ describe('LayersPanel - duplication d un ecran (v2, addendum navigation)', () =>
     expect(clone.children[0]!.name).toBe(original.children[0]!.name)
   })
 })
+
+// Correctif parentage (v2, addendum navigation) : une fois un element trace
+// ou glisse a l'interieur d'un ecran REELLEMENT devenu son enfant (voir
+// canvas.test.tsx, useDragInteraction.ts), le panneau des calques doit le
+// montrer -- imbrique, indente, sous cet ecran -- et non plus comme un
+// simple frere de premier niveau qui se trouverait visuellement dessus.
+describe('LayersPanel - imbrication reelle des ecrans (correctif parentage)', () => {
+  const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
+
+  function documentEcranAvecContenu(): CalqueDocument {
+    const doc = createDocument('Document de test')
+    const bouton = rectNode('bouton', 10, 10)
+    const ecran1 = createScreenNode('Écran 1', device, { x: 0, y: 0, w: device.width, h: device.height }, [bouton])
+    return { ...doc, pages: [{ ...doc.pages[0]!, device, nodes: [ecran1] }] }
+  }
+
+  it("l'element trace dans l'ecran apparait indente SOUS lui dans l'arborescence, pas comme un frere de premier niveau", () => {
+    const doc = documentEcranAvecContenu()
+    const ecran1 = doc.pages[0]!.nodes[0] as FrameNode
+    useEditorStore.getState().load(doc)
+    render(<LayersPanel />)
+
+    // Racine de l'arborescence : uniquement l'ecran, pas le bouton.
+    const arbre = screen.getByRole('tree')
+    const racines = Array.from(arbre.children)
+    expect(racines).toHaveLength(1)
+
+    // Le bouton est bien rendu, mais a l'INTERIEUR du <li> racine de
+    // l'ecran (qui porte sa propre ligne ET son groupe <ul role="group">
+    // d'enfants), pas comme un <li> frere au meme niveau de l'arborescence.
+    const ligneEcran = screen.getByTestId(`layer-${ecran1.id}`)
+    const ligneBouton = screen.getByTestId('layer-bouton')
+    expect(racines[0]!.contains(ligneBouton)).toBe(true)
+
+    // Indentation reelle (paddingLeft croissant avec la profondeur, voir
+    // LayerRow) : le bouton (profondeur 1) est plus indente que l'ecran
+    // (profondeur 0).
+    const indentEcran = Number(ligneEcran.style.paddingLeft.replace('px', '')) || 0
+    const indentBouton = Number(ligneBouton.style.paddingLeft.replace('px', '')) || 0
+    expect(indentBouton).toBeGreaterThan(indentEcran)
+  })
+})

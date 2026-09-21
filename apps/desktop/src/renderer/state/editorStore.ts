@@ -28,7 +28,19 @@ export type Tool = 'select' | 'frame' | 'rect' | 'ellipse' | 'text' | 'image'
 // (ligne du noeud source jusqu'au curseur) sans avoir a refaire cette
 // conversion elle-meme.
 export type DragPreview =
-  | { kind: 'move'; nodeId: string; dx: number; dy: number; guides: { x: number[]; y: number[] } }
+  // Correctif parentage : `targetScreenId` est l'ecran a signaler par un
+  // liseré (§3) pendant CE deplacement -- non null uniquement quand le
+  // noeud deplace survole un ecran DIFFERENT de son ecran englobant actuel,
+  // null tout le reste du temps (y compris pour un deplacement a l'interieur
+  // du meme ecran, ou pour un ecran lui-meme, qui n'est jamais reparente).
+  | {
+      kind: 'move'
+      nodeId: string
+      dx: number
+      dy: number
+      guides: { x: number[]; y: number[] }
+      targetScreenId: string | null
+    }
   | { kind: 'resize'; nodeId: string; handle: HandleId; frame: Rect }
   | { kind: 'create'; tool: Tool; frame: Rect }
   | { kind: 'link'; nodeId: string; point: { x: number; y: number } }

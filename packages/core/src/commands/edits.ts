@@ -202,25 +202,43 @@ export function resizeNodeCommand(pageId: string, nodeId: string, frame: Rect): 
   }
 }
 
+// Correctif parentage (v2, addendum navigation) : `frame`, optionnel, permet
+// de reparenter ET de recalculer le cadre du noeud (relatif au NOUVEAU
+// parent) EN UNE SEULE commande -- c'est ce dont a besoin un glissement
+// d'ecran a ecran sur le canevas (useNodeInteraction) pour que le noeud ne
+// "saute" jamais visuellement au moment du depot : deplacement et
+// reparentage sont le meme geste pour l'utilisateur, donc la meme entree
+// d'historique, jamais une commande de deplacement suivie d'une commande de
+// reparentage. Omis (comportement inchange depuis la v1, ex. glisser-deposer
+// du panneau des calques) : seule la position dans l'arbre change, le cadre
+// du noeud reste tel quel.
 export function reparentNodeCommand(
   pageId: string,
   nodeId: string,
   newParentId: string | null,
   index: number,
+  frame?: Rect,
 ): Command {
   return {
     label: 'Changer de parent',
     apply(doc: CalqueDocument): CalqueDocument {
-      return updatePageNodes(doc, pageId, (nodes) => moveNode(nodes, nodeId, newParentId, index))
+      return updatePageNodes(doc, pageId, (nodes) => {
+        const moved = moveNode(nodes, nodeId, newParentId, index)
+        if (frame === undefined) return moved
+        const node = findNode(moved, nodeId)
+        if (node === null) throw new NodeNotFoundError(nodeId)
+        return replaceNode(moved, nodeId, { ...node, frame })
+      })
     },
     invert(doc: CalqueDocument): Command {
       const nodes = requirePage(doc, pageId).nodes
-      if (findNode(nodes, nodeId) === null) throw new NodeNotFoundError(nodeId)
+      const node = findNode(nodes, nodeId)
+      if (node === null) throw new NodeNotFoundError(nodeId)
       const parent = findParent(nodes, nodeId)
       const originalParentId = parent ? parent.id : null
       const siblings = getSiblings(nodes, originalParentId)
       const originalIndex = siblings.findIndex((n) => n.id === nodeId)
-      return reparentNodeCommand(pageId, nodeId, originalParentId, originalIndex)
+      return reparentNodeCommand(pageId, nodeId, originalParentId, originalIndex, node.frame)
     },
   }
 }

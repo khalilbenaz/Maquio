@@ -12,6 +12,7 @@ import {
   walk,
   isScreenNode,
   screenContaining,
+  screenAtPoint,
   cloneNodeWithNewIds,
   NodeNotFoundError,
   NotAFrameError,
@@ -206,6 +207,51 @@ describe('isScreenNode / screenContaining (v2, addendum navigation)', () => {
     expect(screenContaining(arbre, 'orphelin')).toBeNull()
     expect(screenContaining(arbre, 'ordinaire')).toBeNull()
     expect(screenContaining(arbre, 'introuvable')).toBeNull()
+  })
+})
+
+// Correctif parentage (v2, addendum navigation) : screenAtPoint, partagee
+// par useCreateInteraction (parent d'un noeud trace) et useNodeInteraction
+// (ecran cible d'un reparentage par glissement), toutes deux dans
+// apps/desktop. Reutilise hitTest (deja teste ci-dessus) plutot qu'une
+// seconde regle de tie-break pour les ecrans qui se chevauchent.
+describe('screenAtPoint (correctif parentage)', () => {
+  const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
+  const screenFrameAt = (id: string, x: number, y: number, children: Node[]): FrameNode => ({
+    ...frame(id, x, y, children),
+    device,
+  })
+
+  it("rend l'ecran d'un point sur son fond", () => {
+    const arbre: Node[] = [screenFrameAt('ecran', 0, 0, [])]
+    expect(screenAtPoint(arbre, { x: 50, y: 50 })?.id).toBe('ecran')
+  })
+
+  it("rend l'ecran ENGLOBANT d'un point qui touche un noeud imbrique, pas seulement l'ecran lui-meme", () => {
+    const bouton = leaf('bouton', 10, 10)
+    const arbre: Node[] = [screenFrameAt('ecran', 0, 0, [bouton])]
+    // bouton est a (10,10) relatif a l'ecran (lui-meme a l'origine) : (20,20)
+    // tombe a l'interieur de son cadre absolu (10..60, 10..60).
+    expect(screenAtPoint(arbre, { x: 20, y: 20 })?.id).toBe('ecran')
+  })
+
+  it('retient le plus profond/le dernier dessine quand deux ecrans se chevauchent (regle de hitTest)', () => {
+    // ecranA : (0,0)-(200,200). ecranB : (100,0)-(300,200), dessine APRES
+    // (donc visuellement au-dessus) : leur zone commune est (100,0)-(200,200).
+    const arbre: Node[] = [screenFrameAt('ecranA', 0, 0, []), screenFrameAt('ecranB', 100, 0, [])]
+    expect(screenAtPoint(arbre, { x: 150, y: 50 })?.id).toBe('ecranB')
+    // Hors de la zone commune, chacun repond pour sa propre zone.
+    expect(screenAtPoint(arbre, { x: 50, y: 50 })?.id).toBe('ecranA')
+  })
+
+  it('rend null pour un point hors de tout noeud de premier niveau (fond du plan de travail)', () => {
+    const arbre: Node[] = [screenFrameAt('ecran', 0, 0, [])]
+    expect(screenAtPoint(arbre, { x: 5000, y: 5000 })).toBeNull()
+  })
+
+  it("rend null quand le point touche un noeud de premier niveau qui n'est PAS un ecran", () => {
+    const arbre: Node[] = [frame('ordinaire', 0, 0, [])]
+    expect(screenAtPoint(arbre, { x: 50, y: 50 })).toBeNull()
   })
 })
 

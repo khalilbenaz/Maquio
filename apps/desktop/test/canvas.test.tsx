@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
-import { createDocument, createScreenNode } from '@calque/core'
-import type { CalqueDocument, DevicePreset, RectNode } from '@calque/core'
+import { createDocument, createScreenNode, setLinkCommand } from '@calque/core'
+import type { CalqueDocument, DevicePreset, FrameNode, RectNode } from '@calque/core'
 import { Canvas } from '../src/renderer/canvas/Canvas'
 import { computeFitTransform } from '../src/renderer/canvas/viewport'
 import { useEditorStore } from '../src/renderer/state/editorStore'
@@ -675,5 +675,189 @@ describe('Canvas - plusieurs ecrans (v2, addendum navigation §4)', () => {
     fireEvent.pointerUp(window, { clientX: 100, clientY: 100 })
 
     expect(useEditorStore.getState().history.canUndo).toBe(false)
+  })
+})
+
+// Correctif parentage (v2, addendum navigation) : un element trace ou
+// glisse a l'interieur d'un ecran en devient vraiment l'enfant -- avant ce
+// correctif, il restait un simple frere de premier niveau, pose par-dessus
+// visuellement seulement (voir le rapport v2-parentage-report.md). Meme
+// convention de coordonnees que la suite « plusieurs ecrans » plus haut :
+// zoom/pan par defaut apres load() (1 / {0,0}) et getBoundingClientRect()
+// a zero sous jsdom font que les coordonnees ecran des evenements SONT des
+// coordonnees de page.
+describe('Canvas - correctif parentage (tracer et glisser entre ecrans)', () => {
+  const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
+
+  function documentDeuxEcrans(): CalqueDocument {
+    const doc = createDocument('Document de test')
+    const bouton: RectNode = {
+      id: 'bouton',
+      name: 'bouton',
+      type: 'rect',
+      frame: { x: 10, y: 10, w: 50, h: 50 },
+      visible: true,
+      locked: false,
+      opacity: 1,
+      rotation: 0,
+      fills: [],
+      strokes: [],
+      cornerRadius: 0,
+    }
+    const ecranA = createScreenNode('ecranA', device, { x: 0, y: 0, w: device.width, h: device.height }, [bouton])
+    const ecranB = createScreenNode('ecranB', device, { x: 500, y: 0, w: device.width, h: device.height })
+    return { ...doc, pages: [{ ...doc.pages[0]!, device, nodes: [ecranA, ecranB] }] }
+  }
+
+  it('tracer a l interieur d un ecran en fait un enfant de CET ecran, aux bonnes coordonnees relatives', () => {
+    const doc = documentDeuxEcrans()
+    useEditorStore.getState().load(doc)
+    render(<Canvas api={apiFactice} />)
+    useEditorStore.getState().setTool('rect')
+
+    const background = screen.getByTestId('canvas-background')
+    // (550,50) est a l'interieur d'ecranB (500..893, 0..852).
+    fireEvent.pointerDown(background, { clientX: 550, clientY: 50 })
+    fireEvent.pointerMove(window, { clientX: 600, clientY: 150 })
+    fireEvent.pointerUp(window, { clientX: 600, clientY: 150 })
+
+    const state = useEditorStore.getState()
+    expect(state.document.pages[0]!.nodes).toHaveLength(2) // aucun 3e noeud de premier niveau
+    const ecranB = state.document.pages[0]!.nodes[1] as FrameNode
+    expect(ecranB.children).toHaveLength(1)
+    expect(ecranB.children[0]!.frame).toMatchObject({ x: 50, y: 50, w: 50, h: 100 })
+  })
+
+  it('tracer sur le fond, hors de tout ecran, cree un noeud de premier niveau (cas legitime)', () => {
+    const doc = documentDeuxEcrans()
+    useEditorStore.getState().load(doc)
+    render(<Canvas api={apiFactice} />)
+    useEditorStore.getState().setTool('rect')
+
+    const background = screen.getByTestId('canvas-background')
+    fireEvent.pointerDown(background, { clientX: 2000, clientY: 2000 })
+    fireEvent.pointerMove(window, { clientX: 2050, clientY: 2040 })
+    fireEvent.pointerUp(window, { clientX: 2050, clientY: 2040 })
+
+    const state = useEditorStore.getState()
+    expect(state.document.pages[0]!.nodes).toHaveLength(3)
+    const nouveau = state.document.pages[0]!.nodes[2]!
+    expect(nouveau.frame).toMatchObject({ x: 2000, y: 2000, w: 50, h: 40 })
+  })
+
+  it('glisser un element de l ecran 1 vers l ecran 2 le reparente sans qu il bouge visuellement, en une seule commande', () => {
+    const doc = documentDeuxEcrans()
+    useEditorStore.getState().load(doc)
+    render(<Canvas api={apiFactice} />)
+
+    const el = screen.getByTestId('node-bouton')
+    fireEvent.pointerDown(el, { clientX: 20, clientY: 20 })
+    fireEvent.pointerMove(window, { clientX: 300, clientY: 100 })
+
+    // Toujours au-dessus d'ecranA (son ecran d'origine) : aucun indice
+    // visuel de reparentage.
+    expect(useEditorStore.getState().dragPreview).toMatchObject({ targetScreenId: null })
+
+    // (700,100) fait passer le centre du bouton deplace a l'interieur
+    // d'ecranB (500..893, 0..852) : l'indice visuel s'allume dessus.
+    fireEvent.pointerMove(window, { clientX: 700, clientY: 100 })
+    const ecranBId = (doc.pages[0]!.nodes[1] as FrameNode).id
+    expect(useEditorStore.getState().dragPreview).toMatchObject({ targetScreenId: ecranBId })
+
+    fireEvent.pointerUp(window, { clientX: 700, clientY: 100 })
+
+    const state = useEditorStore.getState()
+    expect(state.history.undoLabels).toHaveLength(1)
+    const ecranAApres = state.document.pages[0]!.nodes[0] as FrameNode
+    const ecranBApres = state.document.pages[0]!.nodes[1] as FrameNode
+    expect(ecranAApres.children).toHaveLength(0)
+    expect(ecranBApres.children).toHaveLength(1)
+    // Absolu inchange : (10,10) + (680,80) = (690,90), relatif a ecranB
+    // (500,0) -> (190,90). Le noeud n'a pas "saute" visuellement.
+    expect(ecranBApres.children[0]!.frame).toEqual({ x: 190, y: 90, w: 50, h: 50 })
+
+    state.undo()
+    const apresAnnuler = useEditorStore.getState().document
+    const ecranAAnnule = apresAnnuler.pages[0]!.nodes[0] as FrameNode
+    const ecranBAnnule = apresAnnuler.pages[0]!.nodes[1] as FrameNode
+    expect(ecranAAnnule.children).toHaveLength(1)
+    expect(ecranAAnnule.children[0]!.frame).toEqual({ x: 10, y: 10, w: 50, h: 50 })
+    expect(ecranBAnnule.children).toHaveLength(0)
+  })
+
+  it('un element lie conserve son lien apres un reparentage par glissement', () => {
+    const doc = documentDeuxEcrans()
+    const ecranC = createScreenNode('ecranC', device, { x: 1000, y: 0, w: device.width, h: device.height })
+    const docAvecLien: CalqueDocument = { ...doc, pages: [{ ...doc.pages[0]!, nodes: [...doc.pages[0]!.nodes, ecranC] }] }
+    const avecLien = setLinkCommand(docAvecLien.pages[0]!.id, 'bouton', ecranC.id).apply(docAvecLien)
+    useEditorStore.getState().load(avecLien)
+    render(<Canvas api={apiFactice} />)
+
+    const el = screen.getByTestId('node-bouton')
+    fireEvent.pointerDown(el, { clientX: 20, clientY: 20 })
+    fireEvent.pointerMove(window, { clientX: 700, clientY: 100 })
+    fireEvent.pointerUp(window, { clientX: 700, clientY: 100 })
+
+    const state = useEditorStore.getState()
+    const ecranBApres = state.document.pages[0]!.nodes[1] as FrameNode
+    expect(ecranBApres.children).toHaveLength(1)
+    expect(ecranBApres.children[0]!.link).toEqual({ target: ecranC.id })
+  })
+
+  it('un ecran glisse sur un autre ecran n est jamais reparente', () => {
+    const doc = documentDeuxEcrans()
+    useEditorStore.getState().load(doc)
+    render(<Canvas api={apiFactice} />)
+
+    const ecranAId = (doc.pages[0]!.nodes[0] as FrameNode).id
+    const el = screen.getByTestId(`node-${ecranAId}`)
+    fireEvent.pointerDown(el, { clientX: 20, clientY: 20 })
+    fireEvent.pointerMove(window, { clientX: 520, clientY: 20 }) // ecranA glisse sur ecranB
+    expect(useEditorStore.getState().dragPreview).toMatchObject({ targetScreenId: null })
+    fireEvent.pointerUp(window, { clientX: 520, clientY: 20 })
+
+    const state = useEditorStore.getState()
+    expect(state.history.undoLabels).toHaveLength(1)
+    // Toujours deux noeuds de premier niveau, ni l'un ni l'autre imbrique.
+    expect(state.document.pages[0]!.nodes.map((n) => n.id)).toEqual(doc.pages[0]!.nodes.map((n) => n.id))
+    const ecranAApres = state.document.pages[0]!.nodes[0] as FrameNode
+    expect(ecranAApres.children).toHaveLength(1) // son contenu (bouton) l'a suivi, inchange
+    expect(ecranAApres.frame).toMatchObject({ x: 500, y: 0 }) // simple deplacement, pas de reparentage
+  })
+})
+
+// Correctif parentage (suite) : une fois au moins un ecran cree, ce dernier
+// est rendu par un NodeView qui recouvre EXACTEMENT l'ancien
+// "canvas-background" (memes bornes, page.device) -- sans capture dediee,
+// un clic reel avec un outil de creation actif atterrirait sur le NodeView
+// de l'ecran (useNodeInteraction, qui stoppe la propagation puis ne fait
+// rien tant que l'outil n'est pas 'select'), et le tracer resterait
+// inoperant des qu'un ecran existe. `canvas-create-overlay` capture le
+// geste par-dessus tout, uniquement quand un outil de creation est actif.
+describe('Canvas - capture du tracer par-dessus les ecrans (correctif parentage)', () => {
+  it("l'overlay de creation n'existe pas en mode select (n'interfere pas avec la selection normale)", () => {
+    render(<Canvas api={apiFactice} />)
+    expect(screen.queryByTestId('canvas-create-overlay')).toBeNull()
+  })
+
+  it("avec un ecran deja present, tracer via l'overlay (au-dessus de l'ecran) cree bien un enfant de CET ecran", () => {
+    const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
+    const doc = createDocument('Document de test')
+    const ecran1 = createScreenNode('Écran 1', device, { x: 0, y: 0, w: device.width, h: device.height })
+    useEditorStore.getState().load({ ...doc, pages: [{ ...doc.pages[0]!, device, nodes: [ecran1] }] })
+    render(<Canvas api={apiFactice} />)
+    act(() => {
+      useEditorStore.getState().setTool('rect')
+    })
+
+    const overlay = screen.getByTestId('canvas-create-overlay')
+    fireEvent.pointerDown(overlay, { clientX: 50, clientY: 50 })
+    fireEvent.pointerMove(window, { clientX: 100, clientY: 150 })
+    fireEvent.pointerUp(window, { clientX: 100, clientY: 150 })
+
+    const state = useEditorStore.getState()
+    const ecran1Apres = state.document.pages[0]!.nodes[0] as FrameNode
+    expect(ecran1Apres.children).toHaveLength(1)
+    expect(ecran1Apres.children[0]!.frame).toMatchObject({ x: 50, y: 50, w: 50, h: 100 })
   })
 })
