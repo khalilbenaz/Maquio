@@ -10,10 +10,19 @@
 // soit.
 import { useState } from 'react'
 import type { DragEvent, MouseEvent } from 'react'
-import { findParent, pathToNode, reparentNodeCommand, updateNodeCommand } from '@calque/core'
+import {
+  cloneNodeWithNewIds,
+  createScreenCommand,
+  findParent,
+  isScreenNode,
+  pathToNode,
+  reparentNodeCommand,
+  updateNodeCommand,
+} from '@calque/core'
 import type { FrameNode, Node as CalqueNode } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import { pageNodesOf } from '../canvas/useDragInteraction'
+import { nextScreenPosition } from '../canvas/screenLayout'
 import './LayersPanel.css'
 
 // Identifiant du calque actuellement glisse. Une simple variable de module
@@ -63,6 +72,27 @@ function LayerRow({ node, depth, nodes, pageId, collapsed, onToggleCollapse }: R
   function handleToggleCollapse(e: MouseEvent) {
     e.stopPropagation()
     onToggleCollapse(node.id)
+  }
+
+  // v2 (addendum navigation §4 : « la duplication d'un écran existant est
+  // disponible depuis le panneau des calques »). Reserve aux lignes de
+  // premier niveau qui SONT un ecran (frame + device) -- dupliquer un
+  // noeud ordinaire ou imbrique n'est pas ce que ce bouton propose (un
+  // simple copier-coller de noeud quelconque n'est pas dans le perimetre
+  // de cette tache). Place le clone comme un nouvel ecran (voir
+  // screenLayout.ts, meme regle de placement que "Nouvel écran" de la
+  // barre d'outils), jamais exactement sur l'original (qui se
+  // superposerait a l'identique, invisible pour l'utilisateur).
+  const estUnEcran = depth === 0 && node.type === 'frame' && node.device !== undefined
+
+  function handleDuplicate(e: MouseEvent) {
+    e.stopPropagation()
+    if (node.type !== 'frame') return
+    const screens = nodes.filter(isScreenNode)
+    const { x, y } = nextScreenPosition(screens)
+    const clone = cloneNodeWithNewIds(node) as FrameNode
+    const positioned: FrameNode = { ...clone, frame: { ...clone.frame, x, y } }
+    execute(createScreenCommand(pageId, positioned))
   }
 
   function handleDragStart(e: DragEvent) {
@@ -154,6 +184,17 @@ function LayerRow({ node, depth, nodes, pageId, collapsed, onToggleCollapse }: R
         >
           {node.locked ? '\u{1F512}' : '\u{1F513}'}
         </button>
+        {estUnEcran ? (
+          <button
+            type="button"
+            data-testid={`layer-duplicate-${node.id}`}
+            aria-label={`Dupliquer l'écran ${node.name}`}
+            className="layers-icon-button"
+            onClick={handleDuplicate}
+          >
+            {'\u{29C9}'}
+          </button>
+        ) : null}
       </span>
 
       {hasChildren && !isCollapsed ? (

@@ -34,6 +34,36 @@ function isFrame(node: Node): node is FrameNode {
   return node.type === 'frame'
 }
 
+// v2 (addendum navigation §3.1) : vrai <=> `node` est une frame de premier
+// niveau d'une page ET porte `device` -- c'est la definition meme d'un
+// ecran. Exportee (partagee par les commandes de commands/edits.ts et par
+// le renderer, qui filtre les ecrans du plan de travail sur ce meme
+// predicat) pour qu'il n'existe qu'une seule definition de "qu'est-ce qu'un
+// ecran" dans tout le projet. N'a de sens que sur un noeud DE PREMIER
+// NIVEAU d'une page -- un appelant qui la teste sur un noeud imbrique
+// obtiendra `true` si ce noeud imbrique porte lui-meme un `device` (rien ne
+// l'interdit structurellement), mais un tel noeud n'est PAS un ecran au
+// sens du modele (§3.1) : c'est aux appelants de ne l'invoquer que sur des
+// noeuds de premier niveau.
+export function isScreenNode(node: Node): node is FrameNode {
+  return node.type === 'frame' && node.device !== undefined
+}
+
+// v2 (addendum navigation §3.2) : l'ecran (frame de premier niveau +
+// `device`) qui contient `nodeId`, ou `nodeId` lui-meme s'il EST un ecran.
+// `null` si `nodeId` est un noeud de premier niveau qui n'est pas un ecran
+// (page de mise en page libre, aucun ecran englobant) ou introuvable.
+// Partagee par setLinkCommand (commands/edits.ts) ET par le renderer (pour
+// determiner l'ecran "actif" -- §4 de l'addendum -- a partir de la
+// selection courante).
+export function screenContaining(nodes: Node[], nodeId: string): string | null {
+  const path = pathToNode(nodes, nodeId)
+  const topId = path[0]
+  if (topId === undefined) return null
+  const top = findNode(nodes, topId)
+  return top !== null && isScreenNode(top) ? top.id : null
+}
+
 export function findNode(nodes: Node[], id: string): Node | null {
   for (const n of nodes) {
     if (n.id === id) return n
@@ -227,6 +257,25 @@ export function absoluteFrame(nodes: Node[], id: string): Rect {
   }
 
   return { x, y, w: target!.frame.w, h: target!.frame.h }
+}
+
+// v2 (addendum navigation §4 : « la duplication d'un écran existant est
+// disponible depuis le panneau des calques ») : clone structurel d'un
+// noeud, avec un NOUVEL identifiant genere pour lui ET pour chacun de ses
+// descendants (sinon deux noeuds distincts du document partageraient le
+// meme id, ce que toutes les fabriques de commandes -- findNode, replaceNode,
+// etc. -- supposent impossible). Tout le reste (frame, fills, link, device
+// pour un ecran...) est repris tel quel : un `link` copie continue de
+// pointer vers son ecran d'ORIGINE (toujours valide, ce n'est pas l'ecran
+// clone lui-meme) ; c'est a l'appelant de repositionner le clone (meme
+// frame.x/y qu'un noeud fraichement colle sur place serait deroutant pour
+// un ecran, qui se superposerait exactement sur l'original).
+export function cloneNodeWithNewIds(node: Node): Node {
+  const cloned: Node = { ...node, id: crypto.randomUUID() }
+  if (isFrame(cloned)) {
+    return { ...cloned, children: cloned.children.map(cloneNodeWithNewIds) }
+  }
+  return cloned
 }
 
 // hitTest travaille en coordonnees de page (absolues) et descend en

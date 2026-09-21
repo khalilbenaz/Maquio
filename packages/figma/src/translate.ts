@@ -106,7 +106,22 @@ function translatePage(canvas: FigmaNode, ctx: TranslateContext): Page {
   const rootBox = topLevelNodes[0]?.absoluteBoundingBox
   const device = pickClosestDevice(rootBox)
   const origin = { x: 0, y: 0 }
-  const nodes = topLevelNodes.map((n) => translateNode(n, origin, ctx))
+  // v2 (addendum navigation, §3.1 et §8 de l'addendum) : chaque frame de
+  // premier niveau devient naturellement un ECRAN Calque (FrameNode.device)
+  // -- une page Figma a plusieurs frames racines (un flux d'ecrans, usage
+  // Figma courant) donne donc plusieurs ecrans, sans code dedie a l'import :
+  // c'est directement une consequence du modele v2 (§3.1), pas un
+  // traitement special du traducteur. Chaque frame recoit le preset le plus
+  // proche de SA PROPRE boite englobante (pas necessairement celle de la
+  // premiere, qui reste `device` ci-dessus, gabarit par defaut de la page).
+  // Un noeud racine qui ne se traduit pas en 'frame' (rare) reste un noeud
+  // de premier niveau ordinaire, sans device : pas un ecran (§3.1, "aucun
+  // nouveau type de noeud").
+  const nodes = topLevelNodes.map((figmaNode) => {
+    const translated = translateNode(figmaNode, origin, ctx)
+    if (translated.type !== 'frame') return translated
+    return { ...translated, device: pickClosestDevice(figmaNode.absoluteBoundingBox) }
+  })
   return { id: canvas.id, name: canvas.name, device, nodes }
 }
 

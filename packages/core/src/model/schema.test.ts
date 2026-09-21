@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { documentSchema, nodeSchema } from './schema'
-import type { EllipseNode, FrameNode, ImageNode, LineNode, RectNode, TextNode } from './types'
+import type { CalqueDocument, DevicePreset, EllipseNode, FrameNode, ImageNode, LineNode, Page, RectNode, TextNode } from './types'
 
 describe('nodeSchema', () => {
   it('accepte une frame avec enfants imbriques', () => {
@@ -464,5 +464,90 @@ describe('textStyleSchema (via nodeSchema) : fontSize et lineHeight non negatifs
     const serre = baseText()
     serre.style = { ...serre.style, letterSpacing: -0.5 }
     expect(() => nodeSchema.parse(serre)).not.toThrow()
+  })
+})
+
+// v2 (addendum navigation, 2026-09-21) : FrameNode.device (§3.1) et
+// NodeBase.link (§3.2). Les regles de validite d'un lien sont imposees ICI,
+// par pageSchema (voir checkLinks dans schema.ts), en plus des commandes
+// (setLinkCommand, teste dans commands/edits.test.ts) -- un document
+// malforme (fichier .calque modifie a la main, patch de Claude Code) ne
+// doit jamais pouvoir etre charge avec un lien invalide.
+describe('FrameNode.device et NodeBase.link (v2, addendum navigation)', () => {
+  const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
+
+  function rect(id: string, link?: { target: string }): RectNode {
+    return {
+      id,
+      name: id,
+      type: 'rect',
+      frame: { x: 0, y: 0, w: 50, h: 50 },
+      visible: true,
+      locked: false,
+      opacity: 1,
+      rotation: 0,
+      fills: [],
+      strokes: [],
+      cornerRadius: 0,
+      ...(link ? { link } : {}),
+    }
+  }
+
+  function screen(id: string, children: RectNode[] = []): FrameNode {
+    return {
+      id,
+      name: id,
+      type: 'frame',
+      frame: { x: 0, y: 0, w: device.width, h: device.height },
+      visible: true,
+      locked: false,
+      opacity: 1,
+      rotation: 0,
+      layout: { mode: 'absolute', gap: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 }, alignMain: 'start', alignCross: 'start' },
+      fills: [],
+      strokes: [],
+      cornerRadius: 0,
+      clipsContent: false,
+      children,
+      device,
+    }
+  }
+
+  function documentWith(pageNodes: FrameNode[]): CalqueDocument {
+    const page: Page = { id: 'page1', name: 'Page 1', device, nodes: pageNodes }
+    return { version: 2, id: 'doc1', name: 'Doc', pages: [page], tokens: { colors: {}, typography: {}, spacing: {} } }
+  }
+
+  it('accepte une frame de premier niveau sans device (pas un ecran) comme avant cet addendum', () => {
+    expect(() => nodeSchema.parse(screen('f1'))).not.toThrow()
+    const { device: _d, ...sansDevice } = screen('f1')
+    expect(() => nodeSchema.parse(sansDevice)).not.toThrow()
+  })
+
+  it("accepte un lien vers un ecran valide d'une autre frame de la meme page", () => {
+    const doc = documentWith([screen('ecranA', [rect('bouton', { target: 'ecranB' })]), screen('ecranB')])
+    expect(() => documentSchema.parse(doc)).not.toThrow()
+  })
+
+  it("refuse un lien vers une cible qui n'existe pas dans la page", () => {
+    const doc = documentWith([screen('ecranA', [rect('bouton', { target: 'introuvable' })])])
+    expect(() => documentSchema.parse(doc)).toThrow()
+  })
+
+  it("refuse un lien vers l'ecran qui contient le noeud lui-meme", () => {
+    const doc = documentWith([screen('ecranA', [rect('bouton', { target: 'ecranA' })])])
+    expect(() => documentSchema.parse(doc)).toThrow()
+  })
+
+  it('refuse un ecran qui se lie a lui-meme directement (pas seulement un de ses descendants)', () => {
+    const auto = { ...screen('ecranA'), link: { target: 'ecranA' } }
+    const doc = documentWith([auto, screen('ecranB')])
+    expect(() => documentSchema.parse(doc)).toThrow()
+  })
+
+  it("refuse un lien vers une frame qui n'est pas un ecran (pas de device, meme si de premier niveau)", () => {
+    const { device: _d, ...pasUnEcran } = screen('ordinaire')
+    const doc = documentWith([screen('ecranA', [rect('bouton', { target: 'ordinaire' })]), pasUnEcran as FrameNode])
+    expect(() => documentSchema.parse(doc)).toThrow()
   })
 })

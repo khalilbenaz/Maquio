@@ -40,7 +40,7 @@ import { layoutPage } from '@calque/core'
 import { formatNumber } from '../shared/format-number'
 import { createUniqueIdentifierNamer } from '../shared/identifier'
 import { toPascalCase } from '../shared/naming'
-import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
+import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl, selectActiveScreen } from '../shared/node-helpers'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
 import { alignItemsExpr, colorExpr as colorExprBase, fontWeightExpr, jsString, justifyContentExpr } from './rn-utils'
 import { generateThemeFile } from './theme'
@@ -359,12 +359,18 @@ function renderPage(page: Page, tokens: DesignTokens, warnings: string[]): Expor
   return { path: `src/screens/${componentName}.tsx`, contents: lines.join('\n') }
 }
 
-function exportReactNative(doc: CalqueDocument, _opts: ExportOptions): ExportResult {
+function exportReactNative(doc: CalqueDocument, opts: ExportOptions): ExportResult {
   const warnings: string[] = []
   const files: ExportedFile[] = []
 
   for (const page of doc.pages) {
-    const laidOutPage = layoutPage(page)
+    // v2 (addendum navigation §7) : n'exporte que l'ecran actif d'une page
+    // a plusieurs ecrans (voir selectActiveScreen), avec un avertissement
+    // nomme pour chacun des autres. Sans effet sur une page sans ecran.
+    const { page: activePage, warnings: screenWarnings } = selectActiveScreen(page, opts.activeScreenId, 'react-native')
+    warnings.push(...screenWarnings)
+
+    const laidOutPage = layoutPage(activePage)
     files.push(renderPage(laidOutPage, doc.tokens, warnings))
   }
 

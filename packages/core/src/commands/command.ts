@@ -56,6 +56,29 @@ export class EmptySelectionError extends Error {
   }
 }
 
+// v2 (addendum navigation §3.2) : setLinkCommand refuse une cible qui n'est
+// pas l'identifiant d'une frame de premier niveau de la MEME page portant
+// `device` (donc un veritable ecran). Nommee et exportee pour que l'appelant
+// (inspecteur, poignee de lien) puisse distinguer ce cas d'une cible
+// techniquement introuvable ailleurs dans le document.
+export class LinkTargetNotFoundError extends Error {
+  constructor(target: string) {
+    super(`Écran cible introuvable dans cette page : ${target}`)
+    this.name = 'LinkTargetNotFoundError'
+  }
+}
+
+// v2 (addendum navigation §3.2) : « un lien vers l'écran qui contient le
+// nœud est refusé (il ne produirait rien de sensé) ». Distincte de
+// LinkTargetNotFoundError : la cible EXISTE bel et bien, elle est juste
+// invalide pour CE noeud precis.
+export class LinkToContainingScreenError extends Error {
+  constructor(target: string) {
+    super(`Un nœud ne peut pas être lié à l'écran qui le contient : ${target}`)
+    this.name = 'LinkToContainingScreenError'
+  }
+}
+
 // Rend la page ciblee ou leve PageNotFoundError : centralise la verification
 // que le cahier des charges exige de toutes les fabriques (point 12).
 export function requirePage(doc: CalqueDocument, pageId: string): Page {

@@ -45,11 +45,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { ReactNode, RefObject } from 'react'
+import { createScreenCommand, createScreenNode, isScreenNode } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import type { Tool } from '../state/editorStore'
 import type { CalqueApi, ExporterId, ExportTargetInfo } from '../../shared/api'
 import { FigmaImportDialog } from '../dialogs/FigmaImportDialog'
 import { ExportDialog } from '../dialogs/ExportDialog'
+import { pageNodesOf } from '../canvas/useDragInteraction'
+import { nextScreenPosition } from '../canvas/screenLayout'
 import { clampZoom } from '../canvas/viewport'
 import './Toolbar.css'
 
@@ -228,8 +231,36 @@ export function Toolbar({ api, onOpenSettings }: { api: CalqueApi; onOpenSetting
   // de reference et ne declenche aucun rendu. `document`, lui, est bien
   // remplace a chaque execute/undo/redo : le souscrire ici sert de signal
   // de rafraichissement pour lire `history.canUndo`/`canRedo`/`undoLabels`
-  // a jour, meme si sa valeur n'est pas utilisee directement plus bas.
-  useEditorStore((s) => s.document)
+  // a jour. Sa valeur sert desormais aussi (v2, addendum navigation) a
+  // "Nouvel ecran" ci-dessous, qui a besoin du document courant pour
+  // trouver la page et ses ecrans existants.
+  const document_ = useEditorStore((s) => s.document)
+
+  // v2 (addendum navigation §4) : bouton "Nouvel ecran" et bascule
+  // d'affichage du calque de connecteurs (linksVisible).
+  const pageId = useEditorStore((s) => s.pageId)
+  const execute = useEditorStore((s) => s.execute)
+  const select = useEditorStore((s) => s.select)
+  const linksVisible = useEditorStore((s) => s.linksVisible)
+  const toggleLinksVisible = useEditorStore((s) => s.toggleLinksVisible)
+
+  // Place le nouvel ecran a droite du dernier (le plus a droite parmi ceux
+  // qui existent deja), gouttiere fixe (voir screenLayout.ts), avec le
+  // gabarit par defaut de la page (Page.device -- §3.1 : « Page.device
+  // devient le gabarit par défaut des nouveaux écrans »). Le selectionne
+  // aussitot cree : select() derive alors activeScreenId de lui-meme (voir
+  // editorStore.ts), ce qui en fait naturellement l'ecran "actif" sans
+  // appel supplementaire.
+  function nouvelEcran() {
+    const page = document_.pages.find((p) => p.id === pageId)
+    if (!page) return
+    const screens = pageNodesOf(document_, pageId).filter(isScreenNode)
+    const { x, y } = nextScreenPosition(screens)
+    const device = page.device
+    const screen = createScreenNode(`Écran ${screens.length + 1}`, device, { x, y, w: device.width, h: device.height })
+    execute(createScreenCommand(pageId, screen))
+    select([screen.id])
+  }
 
   const [exportOpen, setExportOpen] = useState(false)
   const [exportTargets, setExportTargets] = useState<ExportTargetInfo[]>([])
@@ -347,6 +378,33 @@ export function Toolbar({ api, onOpenSettings }: { api: CalqueApi; onOpenSetting
           <Icon>
             <path d="M10 3.5L13.5 7 10 10.5" strokeLinecap="round" strokeLinejoin="round" />
             <path d="M13.5 7H6.7A3.7 3.7 0 0 0 3 10.7v0a3.7 3.7 0 0 0 3.7 3.7H10" strokeLinecap="round" strokeLinejoin="round" />
+          </Icon>
+        </button>
+      </div>
+
+      <span className="toolbar-separator" aria-hidden="true" />
+
+      {/* v2 (addendum navigation §4) : "Nouvel écran" (place a droite du
+          dernier, voir screenLayout.ts) et la bascule d'affichage du
+          calque de connecteurs persistes (LinksLayer.tsx, plan de
+          travail). */}
+      <div className="toolbar-group" role="group" aria-label="Écrans et liens">
+        <button type="button" aria-label="Nouvel écran" className="toolbar-button-text" onClick={nouvelEcran}>
+          <Icon>
+            <path d="M5 1.5v13M11 1.5v13M1.5 5h13M1.5 11h13" />
+          </Icon>
+          Nouvel écran
+        </button>
+        <button
+          type="button"
+          aria-label="Afficher les liens"
+          aria-pressed={linksVisible}
+          title={linksVisible ? 'Masquer les liens' : 'Afficher les liens'}
+          className={linksVisible ? 'toolbar-button toolbar-button-active' : 'toolbar-button'}
+          onClick={toggleLinksVisible}
+        >
+          <Icon>
+            <path d="M6.5 9.5l3-3M6 4.5H4A2.5 2.5 0 0 0 1.5 7v0A2.5 2.5 0 0 0 4 9.5h2M10 4.5h2A2.5 2.5 0 0 1 14.5 7v0A2.5 2.5 0 0 1 12 9.5h-2" strokeLinecap="round" />
           </Icon>
         </button>
       </div>

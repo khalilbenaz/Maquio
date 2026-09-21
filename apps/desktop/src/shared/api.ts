@@ -35,6 +35,12 @@ export type CalqueApi = {
     exporterId: ExporterId
     json: string
     projectName: string
+    // v2 (addendum navigation §7) : identifiant de l'ecran actif du
+    // renderer, pour qu'un document a plusieurs ecrans exporte celui-la
+    // plutot que le premier par defaut (voir selectActiveScreen,
+    // @calque/codegen/shared/node-helpers). Absent = comportement par
+    // defaut du generateur (premier ecran de chaque page).
+    activeScreenId?: string
   }): Promise<{ directory: string; files: string[]; warnings: string[] } | null>
   listExporters(): Promise<ExportTargetInfo[]>
   // Tache 17 : rend aussi documentJson (le document apres application de la

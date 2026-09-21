@@ -34,6 +34,14 @@ export type NodeBase = {
   // exportateurs (ex. @calque/codegen/flutter) convertissent en radians
   // quand leur cible l'exige.
   rotation: number
+  // v2 (addendum navigation) : identifiant d'un ecran (frame de premier
+  // niveau de la MEME page portant `device`) vers lequel un clic sur ce
+  // noeud navigue. Absent = aucun lien. Un seul declencheur (le clic) :
+  // pas de champ `trigger` separe, voir §3.2 de l'addendum. Les regles de
+  // validite (cible existante, de la meme page, differente de l'ecran qui
+  // contient ce noeud) sont imposees par le schema (documentSchema) ET par
+  // les commandes (setLinkCommand), pas seulement par l'interface.
+  link?: { target: string }
 }
 
 export type FrameNode = NodeBase & {
@@ -44,6 +52,12 @@ export type FrameNode = NodeBase & {
   cornerRadius: number
   clipsContent: boolean
   children: Node[]
+  // v2 (addendum navigation, §3.1) : present <=> cette frame DE PREMIER
+  // NIVEAU D'UNE PAGE est un ecran. Aucun nouveau type de noeud : une frame
+  // imbriquee peut techniquement porter ce champ sans consequence (il n'est
+  // interprete comme "ecran" que pour les frames de premier niveau), mais
+  // seules les commandes/l'interface qui creent des ecrans en posent un.
+  device?: DevicePreset
 }
 
 export type TextStyle = {

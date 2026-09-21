@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ImageNode, RectNode } from '@calque/core'
+import { createDocument, createScreenNode, findNode } from '@calque/core'
+import type { CalqueDocument, DevicePreset, FrameNode, ImageNode, RectNode } from '@calque/core'
 import { InspectorPanel } from '../src/renderer/panels/InspectorPanel'
 import { useEditorStore } from '../src/renderer/state/editorStore'
 import { documentDeTest } from './helpers/documentDeTest'
@@ -314,5 +315,67 @@ describe('InspectorPanel', () => {
     const node = useEditorStore.getState().document.pages[0]!.nodes[0] as ImageNode
     expect(node.src).toBe('')
     expect(useEditorStore.getState().history.canUndo).toBe(false)
+  })
+})
+
+// v2 (addendum navigation §5, chemin 1 : « un nœud sélectionné expose « Au
+// clic → » avec la liste des écrans de la page »).
+describe('InspectorPanel - "Au clic →" (v2, addendum navigation)', () => {
+  const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
+
+  function documentAvecDeuxEcrans(): { doc: CalqueDocument; ecranA: FrameNode; ecranB: FrameNode } {
+    const doc = createDocument('Document de test')
+    const bouton: RectNode = {
+      id: 'bouton',
+      name: 'bouton',
+      type: 'rect',
+      frame: { x: 10, y: 10, w: 50, h: 50 },
+      visible: true,
+      locked: false,
+      opacity: 1,
+      rotation: 0,
+      fills: [],
+      strokes: [],
+      cornerRadius: 0,
+    }
+    const ecranA = createScreenNode('ecranA', device, { x: 0, y: 0, w: device.width, h: device.height }, [bouton])
+    const ecranB = createScreenNode('ecranB', device, { x: 500, y: 0, w: device.width, h: device.height })
+    return { doc: { ...doc, pages: [{ ...doc.pages[0]!, device, nodes: [ecranA, ecranB] }] }, ecranA, ecranB }
+  }
+
+  it('liste les ecrans de la page, hors l ecran qui contient deja le noeud selectionne', () => {
+    const { doc, ecranB } = documentAvecDeuxEcrans()
+    useEditorStore.getState().load(doc)
+    useEditorStore.getState().select(['bouton'])
+    render(<InspectorPanel api={apiFactice} />)
+
+    const champ = screen.getByLabelText('Au clic →') as HTMLSelectElement
+    const options = Array.from(champ.options)
+    const labels = options.map((o) => o.textContent)
+    expect(labels).toContain('ecranB')
+    expect(labels).not.toContain('ecranA')
+    // La valeur reelle de l'option (celle transmise a setLinkCommand) est
+    // l'identifiant de l'ecran, distinct de son libelle affiche.
+    expect(options.find((o) => o.textContent === 'ecranB')?.value).toBe(ecranB.id)
+    // Aucun lien pose encore : le champ n'a pas de selection (option
+    // "(aucun)").
+    expect(champ.value).toBe('')
+  })
+
+  it('choisir un ecran emet setLinkCommand, choisir "(aucun)" retire le lien', () => {
+    const { doc, ecranB } = documentAvecDeuxEcrans()
+    useEditorStore.getState().load(doc)
+    useEditorStore.getState().select(['bouton'])
+    render(<InspectorPanel api={apiFactice} />)
+
+    const champ = screen.getByLabelText('Au clic →')
+    fireEvent.change(champ, { target: { value: ecranB.id } })
+
+    let state = useEditorStore.getState()
+    expect(findNode(state.document.pages[0]!.nodes, 'bouton')?.link).toEqual({ target: ecranB.id })
+
+    fireEvent.change(champ, { target: { value: '' } })
+    state = useEditorStore.getState()
+    expect(findNode(state.document.pages[0]!.nodes, 'bouton')?.link).toBeUndefined()
   })
 })

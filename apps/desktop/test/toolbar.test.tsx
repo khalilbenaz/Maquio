@@ -1,7 +1,9 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { moveNodeCommand } from '@calque/core'
+import { createDocument, createScreenNode, moveNodeCommand } from '@calque/core'
+import type { CalqueDocument, DevicePreset } from '@calque/core'
 import { Toolbar } from '../src/renderer/panels/Toolbar'
+import { SCREEN_GUTTER } from '../src/renderer/canvas/screenLayout'
 import { useEditorStore } from '../src/renderer/state/editorStore'
 import { documentDeTest } from './helpers/documentDeTest'
 import { apiFactice } from './helpers/apiFactice'
@@ -129,5 +131,75 @@ describe('Toolbar', () => {
     const barreOutils = screen.getByLabelText("Barre d'outils")
     expect(barreOutils.contains(menu)).toBe(false)
     expect(document.body.contains(menu)).toBe(true)
+  })
+})
+
+// v2 (addendum navigation §4, §8 : « créer un écran le place bien à droite
+// du dernier »).
+describe('Toolbar - "Nouvel écran" (v2, addendum navigation)', () => {
+  const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
+
+  function documentAvecUnEcran(): CalqueDocument {
+    const doc = createDocument('Document de test')
+    const page = doc.pages[0]!
+    const ecran1 = createScreenNode('Écran 1', device, { x: 0, y: 0, w: device.width, h: device.height })
+    return { ...doc, pages: [{ ...page, device, nodes: [ecran1] }] }
+  }
+
+  it('cree un nouvel ecran a droite du dernier, avec la gouttiere fixe, et le selectionne', () => {
+    useEditorStore.getState().load(documentAvecUnEcran())
+    render(<Toolbar api={apiFactice} onOpenSettings={() => {}} />)
+
+    act(() => {
+      fireEvent.click(screen.getByLabelText('Nouvel écran'))
+    })
+
+    const state = useEditorStore.getState()
+    expect(state.document.pages[0]!.nodes).toHaveLength(2)
+    const nouveau = state.document.pages[0]!.nodes[1]!
+    expect(nouveau.type).toBe('frame')
+    expect(nouveau.frame).toMatchObject({ x: device.width + SCREEN_GUTTER, y: 0 })
+    expect(state.selection).toEqual([nouveau.id])
+    expect(state.activeScreenId).toBe(nouveau.id)
+  })
+
+  it('place le premier ecran a l origine quand la page n en a encore aucun', () => {
+    useEditorStore.getState().load(createDocument('Document vide'))
+    render(<Toolbar api={apiFactice} onOpenSettings={() => {}} />)
+
+    act(() => {
+      fireEvent.click(screen.getByLabelText('Nouvel écran'))
+    })
+
+    const nouveau = useEditorStore.getState().document.pages[0]!.nodes[0]!
+    expect(nouveau.frame).toMatchObject({ x: 0, y: 0 })
+  })
+
+  it('un seul "annuler" retire l ecran cree', () => {
+    useEditorStore.getState().load(documentAvecUnEcran())
+    render(<Toolbar api={apiFactice} onOpenSettings={() => {}} />)
+
+    act(() => {
+      fireEvent.click(screen.getByLabelText('Nouvel écran'))
+    })
+    expect(useEditorStore.getState().document.pages[0]!.nodes).toHaveLength(2)
+
+    act(() => {
+      useEditorStore.getState().undo()
+    })
+    expect(useEditorStore.getState().document.pages[0]!.nodes).toHaveLength(1)
+  })
+})
+
+describe('Toolbar - bascule d affichage des liens (v2, addendum navigation §4)', () => {
+  it('le bouton "Afficher les liens" bascule linksVisible', () => {
+    render(<Toolbar api={apiFactice} onOpenSettings={() => {}} />)
+    expect(useEditorStore.getState().linksVisible).toBe(false)
+
+    fireEvent.click(screen.getByLabelText('Afficher les liens'))
+    expect(useEditorStore.getState().linksVisible).toBe(true)
+
+    fireEvent.click(screen.getByLabelText('Afficher les liens'))
+    expect(useEditorStore.getState().linksVisible).toBe(false)
   })
 })

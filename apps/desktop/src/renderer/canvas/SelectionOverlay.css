@@ -7,6 +7,12 @@
   filter: brightness(1.1);
 }
 
+/* Poignee de lien (v2, addendum navigation §5) : meme affordance au survol
+   que les poignees de redimensionnement. */
+.calque-link-handle:hover {
+  filter: brightness(1.1);
+}
+
 /* Etiquette de dimensions pendant un geste (finition v1, maquette
    Main.dc.html) : fond accent, texte blanc, chiffres alignes en colonne
    (tabular-nums). Positionnee en JS (SelectionOverlay.tsx) en pixels

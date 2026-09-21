@@ -10,11 +10,14 @@ import {
   replaceNode,
   pathToNode,
   walk,
+  isScreenNode,
+  screenContaining,
+  cloneNodeWithNewIds,
   NodeNotFoundError,
   NotAFrameError,
   CycleError,
 } from './tree'
-import type { FrameNode, Node } from '../model/types'
+import type { DevicePreset, FrameNode, Node } from '../model/types'
 
 const leaf = (id: string, x: number, y: number): Node => ({
   id, name: id, type: 'rect', frame: { x, y, w: 50, h: 50 },
@@ -177,5 +180,66 @@ describe('walk (point 10)', () => {
       { id: 'inner', parentId: 'root' },
       { id: 'b', parentId: 'inner' },
     ])
+  })
+})
+
+// v2 (addendum navigation §3.1, §3.2) : isScreenNode et screenContaining,
+// partages par commands/edits.ts (setLinkCommand, deleteNodeCommand) et par
+// le renderer (calcul de l'ecran "actif").
+describe('isScreenNode / screenContaining (v2, addendum navigation)', () => {
+  const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
+  const screenFrame = (id: string, children: Node[]): FrameNode => ({ ...frame(id, 0, 0, children), device })
+
+  it("un noeud de premier niveau avec device est un ecran, un noeud ordinaire n'en est pas un", () => {
+    const bouton = leaf('bouton', 10, 10)
+    const arbre: Node[] = [screenFrame('ecran', [bouton]), frame('ordinaire', 500, 0, [])]
+    expect(isScreenNode(arbre[0]!)).toBe(true)
+    expect(isScreenNode(arbre[1]!)).toBe(false)
+  })
+
+  it("screenContaining rend l'ecran d'un noeud imbrique, l'ecran lui-meme pour un ecran, et null pour un noeud sans ecran englobant", () => {
+    const bouton = leaf('bouton', 10, 10)
+    const arbre: Node[] = [screenFrame('ecran', [bouton]), frame('ordinaire', 500, 0, [leaf('orphelin', 0, 0)])]
+
+    expect(screenContaining(arbre, 'bouton')).toBe('ecran')
+    expect(screenContaining(arbre, 'ecran')).toBe('ecran')
+    expect(screenContaining(arbre, 'orphelin')).toBeNull()
+    expect(screenContaining(arbre, 'ordinaire')).toBeNull()
+    expect(screenContaining(arbre, 'introuvable')).toBeNull()
+  })
+})
+
+// v2 (addendum navigation §4 : duplication d'un ecran depuis le panneau
+// des calques).
+describe('cloneNodeWithNewIds (v2, addendum navigation)', () => {
+  it('genere un nouvel id pour le noeud ET tous ses descendants, en gardant le reste identique', () => {
+    const original = frame('root', 10, 10, [leaf('a', 5, 5), frame('inner', 100, 100, [leaf('b', 1, 1)])])
+    const clone = cloneNodeWithNewIds(original) as FrameNode
+
+    expect(clone.id).not.toBe('root')
+    expect(clone.frame).toEqual(original.frame)
+    expect(clone.children).toHaveLength(2)
+    expect(clone.children[0]!.id).not.toBe('a')
+    const innerClone = clone.children[1] as FrameNode
+    expect(innerClone.id).not.toBe('inner')
+    expect(innerClone.children[0]!.id).not.toBe('b')
+
+    // Aucun id du clone ne recoupe un id de l'original.
+    const idsOriginal = new Set<string>()
+    walk([original], (n) => idsOriginal.add(n.id))
+    const idsClone: string[] = []
+    walk([clone], (n) => idsClone.push(n.id))
+    for (const id of idsClone) expect(idsOriginal.has(id)).toBe(false)
+  })
+
+  it('un ecran clone garde son device et son lien vers un noeud tiers, avec un nouvel id', () => {
+    const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
+    const bouton = { ...leaf('bouton', 10, 10), link: { target: 'autre-ecran' } }
+    const screen: FrameNode = { ...frame('ecran', 0, 0, [bouton]), device }
+
+    const clone = cloneNodeWithNewIds(screen) as FrameNode
+    expect(clone.device).toEqual(device)
+    expect(clone.id).not.toBe('ecran')
+    expect(clone.children[0]!.link).toEqual({ target: 'autre-ecran' })
   })
 })

@@ -36,15 +36,16 @@
 // document (window), pas sur un element focusable du canevas.
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import { compositeCommand, deleteNodeCommand, findNode } from '@calque/core'
-import type { Node as CalqueNode } from '@calque/core'
+import { compositeCommand, deleteNodeCommand, findNode, isScreenNode, unionRects } from '@calque/core'
+import type { FrameNode, Node as CalqueNode } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import type { Tool } from '../state/editorStore'
 import type { CalqueApi } from '../../shared/api'
 import { NodeView } from './NodeView'
 import { SelectionOverlay } from './SelectionOverlay'
+import { LinksLayer } from './LinksLayer'
 import { pageNodesOf, useCreateInteraction } from './useDragInteraction'
-import { computeFitTransform, computeWheelZoom } from './viewport'
+import { computeFitTransform, computeFitTransformToBounds, computeWheelZoom } from './viewport'
 import './Canvas.css'
 
 // Aplatit l'arbre en liste de dessin (du fond vers le dessus, profondeur
@@ -129,12 +130,24 @@ export function Canvas({ api }: { api: CalqueApi }) {
   const zoom = useEditorStore((s) => s.zoom)
   const pan = useEditorStore((s) => s.pan)
   const tool = useEditorStore((s) => s.tool)
+  const dragPreview = useEditorStore((s) => s.dragPreview)
   const fitToWindowToken = useEditorStore((s) => s.fitToWindowToken)
+
+  const linksVisible = useEditorStore((s) => s.linksVisible)
+  const activeScreenId = useEditorStore((s) => s.activeScreenId)
 
   const onBackgroundPointerDown = useCreateInteraction(canvasRef, api)
 
   const page = document_.pages.find((p) => p.id === pageId)
   const device = page?.device
+
+  // v2 (addendum navigation §4) : plusieurs ecrans visibles a la fois, cote
+  // a cote sur le plan de travail. `screens` filtre les noeuds de premier
+  // niveau qui EN SONT (frame + device) -- une page sans aucun ecran
+  // (document v1 non migre, ou construit a la main pour les tests de
+  // l'engin d'interaction generique) retombe exactement sur le
+  // comportement v1 (voir l'effet d'ajustement et le fond ci-dessous).
+  const screens = pageNodesOf(document_, pageId).filter(isScreenNode)
 
   // Ajustement et centrage du plan de travail (correction du defaut
   // fonctionnel principal de la refonte). Finition v1 (correction d'un
@@ -156,19 +169,38 @@ export function Canvas({ api }: { api: CalqueApi }) {
   // pan {0,0}) et cet effet n'a aucun effet observable, ce qui laisse les
   // tests existants (qui supposent ce zoom et ce pan par defaut apres un
   // load()) inchanges.
+  // v2 (addendum navigation §4 : « l'ajustement à la fenêtre cadre tous les
+  // écrans »). Une page avec au moins un ecran est cadree sur l'UNION de
+  // TOUS ses ecrans (computeFitTransformToBounds), pas seulement le
+  // premier -- avant cette correction, une page a plusieurs ecrans aurait
+  // ete cadree sur le seul `page.device`, coupant les ecrans suivants hors
+  // champ. Une page SANS aucun ecran retombe sur l'ancien comportement v1
+  // (cadrage sur `page.device` seul), inchange.
   useLayoutEffect(() => {
-    if (!device) return
     const el = canvasRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
     if (rect.width <= 0 || rect.height <= 0) return
+
+    if (screens.length > 0) {
+      const bounds = unionRects(screens.map((s) => s.frame))
+      const { zoom: zoomAjuste, pan: panAjuste } = computeFitTransformToBounds(
+        { width: rect.width, height: rect.height },
+        bounds,
+      )
+      useEditorStore.getState().setZoom(zoomAjuste)
+      useEditorStore.getState().setPan(panAjuste)
+      return
+    }
+
+    if (!device) return
     const { zoom: zoomAjuste, pan: panAjuste } = computeFitTransform(
       { width: rect.width, height: rect.height },
       { width: device.width, height: device.height },
     )
     useEditorStore.getState().setZoom(zoomAjuste)
     useEditorStore.getState().setPan(panAjuste)
-  }, [pageId, device?.width, device?.height, fitToWindowToken])
+  }, [pageId, device?.width, device?.height, fitToWindowToken, screens.length])
 
   // Zoom (Ctrl/Cmd + molette) et panoramique (molette seule) : les deux
   // actions setZoom/setPan existaient deja dans le magasin, mais rien ne
@@ -319,12 +351,31 @@ export function Canvas({ api }: { api: CalqueApi }) {
   }
 
   const pageNodes = pageNodesOf(document_, pageId)
-  const estVide = pageNodes.length === 0
   const outilActif = tool !== 'select' ? tool : null
+
+  // v2 (addendum navigation §4) : "le plan de travail est vide" ne peut
+  // plus se lire comme "la page n'a aucun noeud de premier niveau" des
+  // qu'elle porte des ecrans -- un ecran fraichement cree EST un noeud de
+  // premier niveau, vide de contenu. Une page avec au moins un ecran est
+  // vide quand TOUS ses ecrans le sont ; une page sans ecran retombe sur
+  // l'ancien critere v1 (aucun changement pour les tests/documents qui ne
+  // connaissent pas encore les ecrans).
+  const estVide = screens.length > 0 ? screens.every((s) => s.children.length === 0) : pageNodes.length === 0
 
   const artboardScreen = device
     ? { left: pan.x, top: pan.y, width: device.width * zoom, height: device.height * zoom }
     : null
+
+  // Cadre ecran (pixels ecran, pour positionner etiquette/etat vide) d'un
+  // ecran donne, converti depuis son cadre de PAGE (absolu, puisque de
+  // premier niveau) via le zoom/panoramique courants.
+  function screenScreenRect(s: FrameNode) {
+    return { left: pan.x + s.frame.x * zoom, top: pan.y + s.frame.y * zoom, width: s.frame.w * zoom, height: s.frame.h * zoom }
+  }
+
+  // L'ecran sur lequel afficher l'etat vide : l'ecran actif s'il en existe
+  // un et qu'il est bien de cette page, sinon le premier ecran de la page.
+  const ecranPourEtatVide = screens.find((s) => s.id === activeScreenId) ?? screens[0]
 
   return (
     <div
@@ -373,25 +424,57 @@ export function Canvas({ api }: { api: CalqueApi }) {
         ))}
       </div>
 
-      {device && artboardScreen ? (
-        <div
-          className="calque-canvas-label"
-          style={{ left: artboardScreen.left, top: artboardScreen.top - 26, width: artboardScreen.width, pointerEvents: 'none' }}
+      {/* v2 (addendum navigation §4) : une etiquette par ecran (nom +
+          gabarit), au-dessus de CHACUN d'eux -- l'etiquette de l'ecran actif
+          est en accent. Une page sans aucun ecran retombe sur l'ancienne
+          etiquette unique (v1, basee sur page.device). */}
+      {screens.length > 0
+        ? screens.map((s) => {
+            const rect = screenScreenRect(s)
+            return (
+              <div
+                key={s.id}
+                data-testid={`screen-label-${s.id}`}
+                className={s.id === activeScreenId ? 'calque-canvas-label calque-canvas-label-active' : 'calque-canvas-label'}
+                style={{ left: rect.left, top: rect.top - 26, width: rect.width, pointerEvents: 'none' }}
+              >
+                {s.name} — {s.device!.label}
+              </div>
+            )
+          })
+        : device && artboardScreen ? (
+            <div
+              className="calque-canvas-label"
+              style={{ left: artboardScreen.left, top: artboardScreen.top - 26, width: artboardScreen.width, pointerEvents: 'none' }}
+            >
+              {page?.name} — {device.label}
+            </div>
+          ) : null}
+
+      {/* v2 (addendum navigation §4) : calque de connecteurs persistes,
+          affiche/masque par le bouton "Liens" de la barre d'outils, et
+          jamais rendu pendant un glissement (dragPreview !== null) quel
+          qu'il soit -- pas seulement celui de la poignee de lien -- pour ne
+          jamais encombrer un geste de deplacement/redimensionnement/
+          creation en cours. */}
+      {linksVisible && dragPreview === null ? (
+        <svg
+          data-testid="links-layer-svg"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}
         >
-          {page?.name} — {device.label}
-        </div>
+          <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
+            <LinksLayer />
+          </g>
+        </svg>
       ) : null}
 
-      {estVide && artboardScreen ? (
+      {estVide && (ecranPourEtatVide ? screenScreenRect(ecranPourEtatVide) : artboardScreen) ? (
         <div
           className="calque-canvas-empty"
-          style={{
-            left: artboardScreen.left,
-            top: artboardScreen.top,
-            width: artboardScreen.width,
-            height: artboardScreen.height,
-            pointerEvents: 'none',
-          }}
+          style={(() => {
+            const rect = ecranPourEtatVide ? screenScreenRect(ecranPourEtatVide) : artboardScreen!
+            return { left: rect.left, top: rect.top, width: rect.width, height: rect.height, pointerEvents: 'none' as const }
+          })()}
         >
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
             <rect x="3.5" y="5.5" width="17" height="13" rx="2" strokeDasharray="3 3" />
@@ -407,7 +490,7 @@ export function Canvas({ api }: { api: CalqueApi }) {
         </div>
       ) : null}
 
-      <SelectionOverlay />
+      <SelectionOverlay canvasRef={canvasRef} />
 
       {outilActif ? (
         <div className="calque-canvas-toolinfo">

@@ -4,6 +4,7 @@ import { documentSchema } from '@calque/core'
 import { describe, expect, it } from 'vitest'
 import { figmaToDocument } from '../src/translate'
 import type { FigmaFileResponse, FigmaNode } from '../src/figma-types'
+import type { FrameNode } from '@calque/core'
 
 const fixture = (n: string): FigmaFileResponse =>
   JSON.parse(readFileSync(join(__dirname, 'fixtures', n), 'utf8'))
@@ -22,6 +23,25 @@ const wrapAsFile = (node: FigmaNode): FigmaFileResponse => ({
         name: 'Page',
         type: 'CANVAS',
         children: [node],
+      },
+    ],
+  },
+})
+
+// Meme chose que wrapAsFile, mais pour PLUSIEURS noeuds de premier niveau du
+// canvas (v2, addendum navigation §3.1/§8 : une page Figma a plusieurs
+// frames racines doit donner plusieurs ecrans Calque).
+const wrapAsFileMulti = (nodes: FigmaNode[]): FigmaFileResponse => ({
+  document: {
+    id: '0:0',
+    name: 'Doc',
+    type: 'DOCUMENT',
+    children: [
+      {
+        id: '0:1',
+        name: 'Page',
+        type: 'CANVAS',
+        children: nodes,
       },
     ],
   },
@@ -97,6 +117,54 @@ describe('figmaToDocument', () => {
   it('choisit le preset d appareil le plus proche de la frame racine', () => {
     const { document } = figmaToDocument(fixture('simple-file.json'))
     expect(document.pages[0]!.device.id).toBe('iphone15')
+  })
+
+  // v2 (addendum navigation, §3.1 et §8 de l'addendum : "un import Figma a
+  // plusieurs frames racines donne plusieurs ecrans"). Aucun traitement
+  // special n'est necessaire cote traducteur : c'est une consequence directe
+  // du modele v2 (une frame de premier niveau qui porte `device` EST un
+  // ecran) -- ce test verifie que ce gain "gratuit" fonctionne reellement.
+  it('une page a plusieurs frames racines donne plusieurs ecrans, chacun avec son propre device', () => {
+    const { document } = figmaToDocument(
+      wrapAsFileMulti([
+        {
+          id: 'ecran1',
+          name: 'Connexion',
+          type: 'FRAME',
+          absoluteBoundingBox: { x: 0, y: 0, width: 393, height: 852 }, // iPhone 15
+          children: [],
+        },
+        {
+          id: 'ecran2',
+          name: 'Accueil',
+          type: 'FRAME',
+          absoluteBoundingBox: { x: 500, y: 0, width: 412, height: 915 }, // Pixel 8
+          children: [],
+        },
+      ]),
+    )
+
+    expect(document.pages).toHaveLength(1)
+    const nodes = document.pages[0]!.nodes as FrameNode[]
+    expect(nodes).toHaveLength(2)
+
+    expect(nodes[0]!.id).toBe('ecran1')
+    expect(nodes[0]!.device).toBeDefined()
+    expect(nodes[0]!.device!.id).toBe('iphone15')
+    // Position absolue (Figma) reprise telle quelle en (x, y) sur le plan
+    // de travail (§3.1 : "frame.x et frame.y d'un ecran le positionnent sur
+    // le plan de travail infini, ce qui donne gratuitement la disposition
+    // cote a cote").
+    expect(nodes[0]!.frame).toMatchObject({ x: 0, y: 0 })
+
+    expect(nodes[1]!.id).toBe('ecran2')
+    expect(nodes[1]!.device).toBeDefined()
+    expect(nodes[1]!.device!.id).toBe('pixel8')
+    expect(nodes[1]!.frame).toMatchObject({ x: 500, y: 0 })
+
+    // Chaque ecran est individuellement valide au schema (device + frame
+    // coherents), et le document entier l'est aussi (point 4 du brief v1).
+    expect(() => documentSchema.parse(document)).not.toThrow()
   })
 })
 

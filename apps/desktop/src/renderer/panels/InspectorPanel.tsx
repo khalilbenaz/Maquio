@@ -21,7 +21,7 @@
 // (decision 4), pour qu'un seul "annuler" desfasse toute l'edition.
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
-import { compositeCommand, findNode, updateNodeCommand } from '@calque/core'
+import { clearLinkCommand, compositeCommand, findNode, isScreenNode, screenContaining, setLinkCommand, updateNodeCommand } from '@calque/core'
 import type {
   Color,
   Command,
@@ -712,6 +712,59 @@ function ImageSection({
   )
 }
 
+// v2 (addendum navigation §5, chemin 1 : « un nœud sélectionné expose « Au
+// clic → » avec la liste des écrans de la page »). Seul chemin qui marche
+// meme quand l'ecran cible est hors de vue (contrairement a la poignee de
+// lien du cadre de selection, qui suppose l'ecran cible visible pour y
+// glisser-deposer). Reserve a une selection d'UN SEUL noeud (comme les
+// poignees de redimensionnement, decision 8 de la v1) : la cible choisie
+// n'aurait pas necessairement de sens pour plusieurs noeuds a la fois
+// (chacun a son propre ecran englobant, donc sa propre regle de refus).
+function LinkSection({
+  node,
+  pageId,
+  execute,
+  screens,
+  containingScreenId,
+}: {
+  node: CalqueNode
+  pageId: string
+  execute: (c: Command) => void
+  screens: FrameNode[]
+  containingScreenId: string | null
+}) {
+  // L'ecran qui contient deja ce noeud est exclu de la liste : le proposer
+  // reviendrait a offrir un choix que setLinkCommand refuserait de toute
+  // facon (§3.2 : « un lien vers l'écran qui contient le nœud est refusé »).
+  const options = screens.filter((s) => s.id !== containingScreenId)
+  const value = node.link?.target ?? ''
+
+  return (
+    <section className="inspector-section">
+      <h2>Navigation</h2>
+      <label className="inspector-field">
+        <span className="inspector-field-label">Au clic →</span>
+        <select
+          aria-label="Au clic →"
+          className="inspector-input"
+          value={value}
+          onChange={(e) => {
+            const target = e.target.value
+            execute(target === '' ? clearLinkCommand(pageId, node.id) : setLinkCommand(pageId, node.id, target))
+          }}
+        >
+          <option value="">(aucun)</option>
+          {options.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+      </label>
+    </section>
+  )
+}
+
 // --- Composant principal ---
 
 export function InspectorPanel({ api }: { api: CalqueApi }) {
@@ -747,6 +800,12 @@ export function InspectorPanel({ api }: { api: CalqueApi }) {
 
   const imageNodes = selectedNodes.filter(isImageNode)
   const showImage = imageNodes.length === selectedNodes.length
+
+  // v2 (addendum navigation §5, chemin 1) : reserve a une selection d'UN
+  // SEUL noeud (voir la note de LinkSection ci-dessus).
+  const singleSelectedNode = selectedNodes.length === 1 ? selectedNodes[0]! : null
+  const screens = allNodes.filter(isScreenNode)
+  const containingScreenId = singleSelectedNode ? screenContaining(allNodes, singleSelectedNode.id) : null
 
   return (
     <aside className="inspector-panel" aria-label="Inspecteur">
@@ -877,6 +936,15 @@ export function InspectorPanel({ api }: { api: CalqueApi }) {
       {showText ? <TextSection nodes={textNodes} pageId={pageId} execute={execute} /> : null}
       {showLayout ? <LayoutSection nodes={frameNodes} pageId={pageId} execute={execute} /> : null}
       {showImage ? <ImageSection nodes={imageNodes} pageId={pageId} execute={execute} api={api} /> : null}
+      {singleSelectedNode ? (
+        <LinkSection
+          node={singleSelectedNode}
+          pageId={pageId}
+          execute={execute}
+          screens={screens}
+          containingScreenId={containingScreenId}
+        />
+      ) : null}
     </aside>
   )
 }

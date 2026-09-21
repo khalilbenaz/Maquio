@@ -25,4 +25,16 @@ export const FIGMA_FIXTURES: NamedFigmaFixture[] = [
     name: 'realistic-figma-file',
     file: loadFigmaFixture(join(__dirname, 'fixtures', 'realistic-figma-file.json')),
   },
+  // v2 (addendum navigation, §3.1 : une page a plusieurs frames racines
+  // donne plusieurs ecrans) : deux frames de premier niveau ('Connexion',
+  // 'Accueil'), sans lien entre elles. Preuve que les quatre generateurs
+  // restent corrects sur un document a plusieurs ecrans -- ils n'exportent
+  // que l'ecran actif (le premier par defaut ici, aucun `activeScreenId`
+  // fourni par ces harnais) et avertissent pour l'autre, plutot que de
+  // produire un Stack qui superpose les deux ecrans (ce qu'aurait fait le
+  // comportement v1, incorrect mais pas forcement invalide syntaxiquement).
+  {
+    name: 'multi-screen-figma-file',
+    file: loadFigmaFixture(join(__dirname, 'fixtures', 'multi-screen-figma-file.json')),
+  },
 ]

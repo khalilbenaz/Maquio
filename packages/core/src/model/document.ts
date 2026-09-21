@@ -1,6 +1,7 @@
 // Creation, (de)serialisation et validation de version d'un CalqueDocument.
 import { documentSchema } from './schema'
 import { DOCUMENT_VERSION } from './version'
+import { createScreenNode } from './screen'
 import type { CalqueDocument, DesignTokens, DevicePreset, Page } from './types'
 
 // Erreur levee quand la version du document lu n'est pas la version courante.
@@ -26,6 +27,20 @@ function emptyTokens(): DesignTokens {
   return { colors: {}, typography: {}, spacing: {} }
 }
 
+// v2 (addendum navigation §3.1) : un document neuf ne porte PAS encore
+// d'ecran -- `Page.device` reste le gabarit par defaut des ecrans a venir
+// (bouton "Nouvel ecran" du plan de travail), exactement comme avant cet
+// addendum pour tout le reste (page vide, aucun noeud). Volontairement
+// inchange (pas d'ecran seme d'office) : la tres large majorite des tests
+// du coeur (edits.test.ts, history.test.ts, packages/ai) construisent leurs
+// documents de test a partir de `createDocument()` puis inserent leurs
+// propres noeuds de premier niveau via createNodeCommand(pageId, null,
+// ...) -- semer un ecran ici deplacerait silencieusement leurs assertions
+// de position ('a' deviendrait le DEUXIEME noeud de la page, pas le
+// premier). Le seul endroit qui enveloppe un ecran d'office est la
+// migration v1 -> v2 (voir migrateV1ToV2 plus bas), parce que la §3.1 de
+// l'addendum l'exige explicitement pour un document EXISTANT, pas pour un
+// document neuf.
 export function createDocument(name: string, device: DevicePreset = DEVICE_PRESETS.iphone15): CalqueDocument {
   const page: Page = {
     id: crypto.randomUUID(),
@@ -59,6 +74,26 @@ function readRawVersion(raw: unknown): number | undefined {
   return typeof version === 'number' ? version : undefined
 }
 
+// v2 (addendum navigation §3.1) : enveloppe les noeuds de premier niveau
+// d'une page v1 (aucun n'a `device`, cette version ne connaissait pas les
+// ecrans) dans un ecran UNIQUE portant le `device` de la page. Les noeuds
+// eux-memes ne sont PAS transformes : leurs `frame.x`/`frame.y` restaient
+// deja relatifs a l'origine (0,0) de la page/du device, qui devient l'
+// origine du nouvel ecran englobant -- aucune coordonnee ne bouge.
+function wrapPageAsScreen(page: Page): Page {
+  const screen = createScreenNode(
+    'Écran 1',
+    page.device,
+    { x: 0, y: 0, w: page.device.width, h: page.device.height },
+    page.nodes,
+  )
+  return { ...page, nodes: [screen] }
+}
+
+function migrateV1ToV2(doc: CalqueDocument): CalqueDocument {
+  return { ...doc, version: DOCUMENT_VERSION, pages: doc.pages.map(wrapPageAsScreen) }
+}
+
 export function parseDocument(json: string): CalqueDocument {
   const raw: unknown = JSON.parse(json)
   const version = readRawVersion(raw)
@@ -68,11 +103,22 @@ export function parseDocument(json: string): CalqueDocument {
       `Document en version ${version}, plus récente que la version supportée ${DOCUMENT_VERSION}`,
     )
   }
-  if (version !== undefined && version < DOCUMENT_VERSION) {
+  // Seule la version 1 a un chemin de migration (voir migrateV1ToV2
+  // ci-dessus) : toute version anterieure (0, negative, ...) reste refusee
+  // exactement comme avant cet addendum.
+  if (version !== undefined && version < 1) {
     throw new DocumentVersionError(
       `Document en version ${version}, plus ancienne que la version courante ${DOCUMENT_VERSION} (aucune migration disponible)`,
     )
   }
 
-  return documentSchema.parse(raw)
+  // Un document v1 (noeuds de premier niveau sans `device`) est une forme
+  // STRUCTURELLEMENT VALIDE de documentSchema v2 -- `FrameNode.device` et
+  // `NodeBase.link` sont tous deux optionnels (voir schema.ts) -- donc
+  // documentSchema.parse() le valide deja correctement tel quel. La
+  // migration proprement dite (enveloppement dans un ecran) n'a donc besoin
+  // d'aucune manipulation de JSON brut non type : elle s'applique APRES
+  // validation, sur un CalqueDocument deja bien forme.
+  const parsed = documentSchema.parse(raw)
+  return version === 1 ? migrateV1ToV2(parsed) : parsed
 }

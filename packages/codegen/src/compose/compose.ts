@@ -39,7 +39,7 @@ import { formatNumber } from '../shared/format-number'
 import { pad } from '../shared/indent'
 import { toPascalCase } from '../shared/naming'
 import { unsupportedPropertyWarning } from '../shared/lost-property-warning'
-import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
+import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl, selectActiveScreen } from '../shared/node-helpers'
 import { PREVIEW_SUPPORTED_NODE_TYPES, unsupportedNodeWarning } from '../shared/preview-coverage'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
 import {
@@ -477,12 +477,18 @@ function renderPage(page: Page, tokens: DesignTokens, warnings: string[]): Expor
   return { path: `src/main/kotlin/screens/${functionName}.kt`, contents: lines.join('\n') }
 }
 
-function exportCompose(doc: CalqueDocument, _opts: ExportOptions): ExportResult {
+function exportCompose(doc: CalqueDocument, opts: ExportOptions): ExportResult {
   const warnings: string[] = []
   const files: ExportedFile[] = []
 
   for (const page of doc.pages) {
-    const laidOutPage = layoutPage(page)
+    // v2 (addendum navigation §7) : n'exporte que l'ecran actif d'une page
+    // a plusieurs ecrans (voir selectActiveScreen), avec un avertissement
+    // nomme pour chacun des autres. Sans effet sur une page sans ecran.
+    const { page: activePage, warnings: screenWarnings } = selectActiveScreen(page, opts.activeScreenId, 'compose')
+    warnings.push(...screenWarnings)
+
+    const laidOutPage = layoutPage(activePage)
     files.push(renderPage(laidOutPage, doc.tokens, warnings))
   }
 

@@ -7,7 +7,7 @@
 // action qui touche l'historique (load/execute/undo/redo) : il n'existe pas
 // de deuxieme source de verite a tenir synchronisee a la main.
 import { create } from 'zustand'
-import { createDocument, History } from '@calque/core'
+import { createDocument, History, screenContaining } from '@calque/core'
 import type { CalqueDocument, Command, HandleId, Rect } from '@calque/core'
 
 export type Tool = 'select' | 'frame' | 'rect' | 'ellipse' | 'text' | 'image'
@@ -19,10 +19,19 @@ export type Tool = 'select' | 'frame' | 'rect' | 'ellipse' | 'text' | 'image'
 // alternative a un etat local de composant -- choisi ici plutot qu'un etat
 // local pour que NodeView (le noeud deplace) ET SelectionOverlay (les
 // guides d'alignement) puissent tous les deux le lire pendant le geste.
+// v2 (addendum navigation §5) : 'link' est le geste de la poignee de lien
+// (SelectionOverlay) -- au meme titre que 'move'/'resize', il ne passe
+// JAMAIS par History pendant le geste (seul le relachement, s'il retombe
+// sur un ecran cible valide, emet une seule setLinkCommand). `point` est en
+// coordonnees de PAGE (pas ecran) : c'est ce que useLinkInteraction calcule
+// via screenToPage a chaque pointermove, et ce que SelectionOverlay affiche
+// (ligne du noeud source jusqu'au curseur) sans avoir a refaire cette
+// conversion elle-meme.
 export type DragPreview =
   | { kind: 'move'; nodeId: string; dx: number; dy: number; guides: { x: number[]; y: number[] } }
   | { kind: 'resize'; nodeId: string; handle: HandleId; frame: Rect }
   | { kind: 'create'; tool: Tool; frame: Rect }
+  | { kind: 'link'; nodeId: string; point: { x: number; y: number } }
   | null
 
 export type EditorState = {
@@ -58,6 +67,20 @@ export type EditorState = {
   // redimensionnement suivant. Le bouton "Ajuster a la fenetre" de la barre
   // d'outils reste le seul moyen de le redeclencher a la demande.
   fitToWindowToken: number
+  // v2 (addendum navigation §4) : « l'écran actif est celui de la
+  // sélection, ou le dernier touché ». Derive de la selection a chaque
+  // select() (voir plus bas) quand elle touche un ecran ou un de ses
+  // descendants ; une SELECTION VIDE (Echap, clic dans le vide) laisse
+  // cette valeur INCHANGEE -- c'est precisement ce qui fait du dernier
+  // ecran touche un souvenir qui survit a une deselection, pas seulement
+  // un synonyme de "l'ecran de la selection courante". null tant qu'aucun
+  // ecran n'a jamais ete touche (page sans ecran, document v1 non migre).
+  activeScreenId: string | null
+  // v2 (addendum navigation §4) : bascule d'affichage du calque de
+  // connecteurs (liens existants), commandee par un bouton de la barre
+  // d'outils. Ephemere comme zoom/pan (pas persiste dans le document ; une
+  // simple preference d'affichage courante).
+  linksVisible: boolean
 
   load(doc: CalqueDocument): void
   select(ids: string[]): void
@@ -70,6 +93,30 @@ export type EditorState = {
   setDragPreview(preview: DragPreview): void
   requestFitToWindow(): void
   setDocumentPath(path: string | null): void
+  setActiveScreenId(id: string | null): void
+  toggleLinksVisible(): void
+}
+
+// L'ecran (au sens screenContaining de @calque/core) du premier noeud d'une
+// selection, ou l'ecran de premier niveau lui-meme s'il n'a pas de parent
+// direct connu -- partage par select() et load() ci-dessous. Rend `null` si
+// la selection est vide ou si le premier noeud selectionne n'appartient a
+// aucun ecran (page sans ecran, ou noeud de premier niveau qui n'en est pas
+// un).
+function screenOfFirstSelected(doc: CalqueDocument, pageId: string, ids: string[]): string | null {
+  const firstId = ids[0]
+  if (firstId === undefined) return null
+  const nodes = doc.pages.find((p) => p.id === pageId)?.nodes ?? []
+  return screenContaining(nodes, firstId)
+}
+
+// Le premier ecran de la page, ou `null` si elle n'en contient aucun --
+// utilise par load() pour initialiser activeScreenId a l'ouverture d'un
+// document (avant toute selection ou tout geste).
+function firstScreenOf(doc: CalqueDocument, pageId: string): string | null {
+  const nodes = doc.pages.find((p) => p.id === pageId)?.nodes ?? []
+  const first = nodes.find((n) => n.type === 'frame' && n.device !== undefined)
+  return first ? first.id : null
 }
 
 function initialDocument(): CalqueDocument {
@@ -90,23 +137,34 @@ export const useEditorStore = create<EditorState>((set, get) => {
     dragPreview: null,
     documentPath: null,
     fitToWindowToken: 0,
+    activeScreenId: firstScreenOf(doc, doc.pages[0]!.id),
+    linksVisible: false,
 
     load(nextDoc) {
       const history = new History(nextDoc)
+      const pageId = nextDoc.pages[0]!.id
       set({
         history,
         document: history.document,
-        pageId: nextDoc.pages[0]!.id,
+        pageId,
         selection: [],
         tool: 'select',
         zoom: 1,
         pan: { x: 0, y: 0 },
         dragPreview: null,
+        activeScreenId: firstScreenOf(nextDoc, pageId),
       })
     },
 
     select(ids) {
-      set({ selection: ids })
+      set((s) => {
+        // v2 (addendum navigation §4) : une selection vide (Echap, clic
+        // dans le vide) NE TOUCHE PAS activeScreenId -- c'est ce qui rend
+        // "le dernier ecran touche" persistant a travers une deselection.
+        if (ids.length === 0) return { selection: ids }
+        const screenId = screenOfFirstSelected(s.document, s.pageId, ids)
+        return screenId === null ? { selection: ids } : { selection: ids, activeScreenId: screenId }
+      })
     },
 
     execute(cmd) {
@@ -149,6 +207,14 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
     setDocumentPath(path) {
       set({ documentPath: path })
+    },
+
+    setActiveScreenId(id) {
+      set({ activeScreenId: id })
+    },
+
+    toggleLinksVisible() {
+      set((s) => ({ linksVisible: !s.linksVisible }))
     },
   }
 })

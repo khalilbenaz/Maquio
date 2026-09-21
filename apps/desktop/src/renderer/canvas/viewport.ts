@@ -20,6 +20,43 @@ export function clampZoom(zoom: number): number {
   return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom))
 }
 
+// v2 (addendum navigation §4 : « l'ajustement à la fenêtre cadre tous les
+// écrans »). Generalisation de computeFitTransform (ci-dessous, qui delegue
+// desormais ici) a un cadre englobant QUELCONQUE (`bounds`, en coordonnees
+// de monde -- pas necessairement a l'origine, ce qui differe d'un simple
+// `device` toujours suppose en (0,0)) : le meme calcul zoom/centrage
+// s'applique, mais le panoramique doit en plus COMPENSER le decalage de
+// `bounds.x`/`bounds.y` par rapport a l'origine du monde, sans quoi un
+// cadre englobant qui ne commence pas en (0,0) (ex. l'union de plusieurs
+// ecrans poses cote a cote) serait cadre par rapport au mauvais point.
+//
+// Rend le zoom/pan INCHANGES (valeur neutre 1 / {0,0}) si le conteneur ou
+// le cadre n'a pas de taille exploitable -- meme raison que
+// computeFitTransform (jsdom, tests sans mise en page reelle).
+export function computeFitTransformToBounds(
+  container: { width: number; height: number },
+  bounds: { x: number; y: number; w: number; h: number },
+): { zoom: number; pan: { x: number; y: number } } {
+  if (container.width <= 0 || container.height <= 0 || bounds.w <= 0 || bounds.h <= 0) {
+    return { zoom: 1, pan: { x: 0, y: 0 } }
+  }
+
+  const availableWidth = Math.max(1, container.width - PADDING * 2)
+  const availableHeight = Math.max(1, container.height - PADDING * 2 - LABEL_RESERVE)
+
+  const zoom = clampZoom(Math.min(availableWidth / bounds.w, availableHeight / bounds.h, 1))
+
+  const boundsScreenWidth = bounds.w * zoom
+  const boundsScreenHeight = bounds.h * zoom
+
+  const pan = {
+    x: (container.width - boundsScreenWidth) / 2 - bounds.x * zoom,
+    y: (container.height - boundsScreenHeight) / 2 + LABEL_RESERVE / 2 - bounds.y * zoom,
+  }
+
+  return { zoom, pan }
+}
+
 // Calcule le zoom et le panoramique qui centrent un appareil de
 // `device.width` x `device.height` (coordonnees de monde, origine (0,0) en
 // haut-gauche de l'appareil) dans un conteneur de `container.width` x
@@ -29,33 +66,15 @@ export function clampZoom(zoom: number): number {
 // fenetre reste a sa taille naturelle plutot que d'etre demesurement
 // agrandi) : seul le retrecissement est automatique.
 //
-// Rend le zoom/pan INCHANGES (valeur neutre 1 / {0,0}) si le conteneur ou
-// l'appareil n'a pas de taille exploitable -- c'est le cas sous jsdom
-// (aucune mise en page reelle, getBoundingClientRect() rend toujours des
-// dimensions nulles), ce qui laisse les tests qui rendent <Canvas /> sans
-// dimensions reelles se comporter comme avant cette refonte.
+// Cas particulier de computeFitTransformToBounds ci-dessus (un appareil
+// suppose toujours en (0,0)) : conserve pour la compatibilite de l'appel
+// existant (page sans ecran, voir Canvas.tsx) et pour canvasViewport.test.ts,
+// qui le teste directement.
 export function computeFitTransform(
   container: { width: number; height: number },
   device: { width: number; height: number },
 ): { zoom: number; pan: { x: number; y: number } } {
-  if (container.width <= 0 || container.height <= 0 || device.width <= 0 || device.height <= 0) {
-    return { zoom: 1, pan: { x: 0, y: 0 } }
-  }
-
-  const availableWidth = Math.max(1, container.width - PADDING * 2)
-  const availableHeight = Math.max(1, container.height - PADDING * 2 - LABEL_RESERVE)
-
-  const zoom = clampZoom(Math.min(availableWidth / device.width, availableHeight / device.height, 1))
-
-  const deviceScreenWidth = device.width * zoom
-  const deviceScreenHeight = device.height * zoom
-
-  const pan = {
-    x: (container.width - deviceScreenWidth) / 2,
-    y: (container.height - deviceScreenHeight) / 2 + LABEL_RESERVE / 2,
-  }
-
-  return { zoom, pan }
+  return computeFitTransformToBounds(container, { x: 0, y: 0, w: device.width, h: device.height })
 }
 
 // Zoom a la molette (Ctrl/Cmd), centre sur le curseur : le point du monde

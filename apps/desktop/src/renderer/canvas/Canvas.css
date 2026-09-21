@@ -36,6 +36,13 @@
   text-overflow: ellipsis;
 }
 
+/* v2 (addendum navigation §4) : « l'étiquette de l'écran actif est en
+   accent » -- l'ecran de la selection courante, ou le dernier touche. */
+.calque-canvas-label-active {
+  color: var(--calque-accent);
+  font-weight: 600;
+}
+
 .calque-canvas-empty {
   position: absolute;
   display: flex;

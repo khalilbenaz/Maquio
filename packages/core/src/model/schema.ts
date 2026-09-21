@@ -120,6 +120,14 @@ export const textStyleSchema: z.ZodType<TextStyle> = z
   })
   .strict()
 
+// v2 (addendum navigation, §3.2) : cible d'un lien -- l'identifiant d'un
+// ecran de la MEME page. L'existence de la cible, son appartenance a la
+// page et le refus d'un lien vers l'ecran qui contient le noeud ne peuvent
+// PAS etre verifies ici (un schema de noeud n'a pas de vue sur le reste du
+// document) : c'est pageSchema, plus bas, qui l'impose via superRefine, et
+// setLinkCommand qui l'impose cote commandes.
+const linkSchema: z.ZodType<{ target: string }> = z.object({ target: z.string() }).strict()
+
 const nodeBaseShape = {
   id: z.string(),
   name: z.string(),
@@ -130,7 +138,21 @@ const nodeBaseShape = {
   // par les generateurs de code par plateforme).
   opacity: z.number().min(0).max(1),
   rotation: z.number(),
+  link: linkSchema.optional(),
 } satisfies Record<keyof NodeBase, z.ZodTypeAny>
+
+// Deplace ici (avant frameNodeSchema, qui en a desormais besoin pour son
+// champ `device` optionnel -- v2, addendum navigation §3.1) depuis sa
+// position d'origine plus bas dans ce fichier, aux cotes de pageSchema.
+const devicePresetSchema: z.ZodType<DevicePreset> = z
+  .object({
+    id: z.string(),
+    label: z.string(),
+    width: z.number(),
+    height: z.number(),
+    pixelRatio: z.number(),
+  })
+  .strict()
 
 // `children` reference nodeSchema, defini plus bas : on differe sa lecture
 // avec z.lazy pour permettre la recursion (frame.children peut contenir des
@@ -152,6 +174,11 @@ const frameNodeSchema = z
     cornerRadius: z.number().min(0),
     clipsContent: z.boolean(),
     children: z.lazy(() => z.array(nodeSchema)),
+    // v2 (addendum navigation, §3.1) : present <=> cette frame de premier
+    // niveau EST un ecran. Optionnel ici (nodeSchema est partage par toutes
+    // les profondeurs de l'arbre) : c'est pageSchema qui interprete sa
+    // presence/absence au premier niveau.
+    device: devicePresetSchema.optional(),
   })
   .strict() satisfies z.ZodType<FrameNode>
 
@@ -211,15 +238,45 @@ export const nodeSchema: z.ZodType<Node> = z.discriminatedUnion('type', [
   lineNodeSchema,
 ])
 
-const devicePresetSchema: z.ZodType<DevicePreset> = z
-  .object({
-    id: z.string(),
-    label: z.string(),
-    width: z.number(),
-    height: z.number(),
-    pixelRatio: z.number(),
+// v2 (addendum navigation, §3.2) : verifie tout lien porte par un noeud de
+// cette page -- cible existante, de la meme page, differente de l'ecran qui
+// contient le noeud. Parcours ecrit a la main (pas tree.ts : model/ ne doit
+// dependre d'aucune couche superieure) ; `containingScreenId` suit l'ecran
+// de premier niveau (frame + `device`) sous lequel la recursion se trouve,
+// null tant qu'on n'en a pas encore traverse un (noeud de premier niveau
+// sans `device`, ou l'un de ses descendants).
+function checkLinks(page: Page, ctx: z.RefinementCtx): void {
+  const screenIds = new Set(
+    page.nodes.filter((n): n is FrameNode => n.type === 'frame' && n.device !== undefined).map((n) => n.id),
+  )
+
+  function visit(node: Node, containingScreenId: string | null, path: (string | number)[]): void {
+    if (node.link !== undefined) {
+      const { target } = node.link
+      if (!screenIds.has(target)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [...path, 'link', 'target'],
+          message: `Cible de lien invalide : "${target}" n'est pas un écran de cette page`,
+        })
+      } else if (target === containingScreenId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [...path, 'link', 'target'],
+          message: "Cible de lien invalide : un nœud ne peut pas être lié à l'écran qui le contient",
+        })
+      }
+    }
+    if (node.type === 'frame') {
+      node.children.forEach((child, i) => visit(child, containingScreenId, [...path, 'children', i]))
+    }
+  }
+
+  page.nodes.forEach((top, i) => {
+    const screenId = top.type === 'frame' && top.device !== undefined ? top.id : null
+    visit(top, screenId, ['nodes', i])
   })
-  .strict()
+}
 
 const pageSchema: z.ZodType<Page> = z
   .object({
@@ -229,6 +286,7 @@ const pageSchema: z.ZodType<Page> = z
     nodes: z.array(nodeSchema),
   })
   .strict()
+  .superRefine(checkLinks)
 
 const designTokensSchema: z.ZodType<DesignTokens> = z
   .object({
