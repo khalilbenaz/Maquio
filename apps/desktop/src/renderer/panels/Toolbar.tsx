@@ -112,6 +112,7 @@ export function Toolbar({ api }: { api: CalqueApi }) {
   const setTool = useEditorStore((s) => s.setTool)
   const zoom = useEditorStore((s) => s.zoom)
   const setZoom = useEditorStore((s) => s.setZoom)
+  const requestFitToWindow = useEditorStore((s) => s.requestFitToWindow)
   const history = useEditorStore((s) => s.history)
   const undo = useEditorStore((s) => s.undo)
   const redo = useEditorStore((s) => s.redo)
@@ -199,6 +200,20 @@ export function Toolbar({ api }: { api: CalqueApi }) {
         >
           <Icon>
             <path d="M8 3.5v9M3.5 8h9" strokeLinecap="round" />
+          </Icon>
+        </button>
+        {/* Finition v1 : l'ajustement automatique ne reagit plus au
+            redimensionnement de la fenetre (voir Canvas.tsx) -- ce bouton
+            est desormais le seul moyen de le redeclencher a la demande. */}
+        <button
+          type="button"
+          aria-label="Ajuster à la fenêtre"
+          title="Ajuster à la fenêtre"
+          className="toolbar-button toolbar-button-outline"
+          onClick={requestFitToWindow}
+        >
+          <Icon>
+            <path d="M2 6V3.5a1.5 1.5 0 0 1 1.5-1.5H6M10 2h2.5A1.5 1.5 0 0 1 14 3.5V6M14 10v2.5a1.5 1.5 0 0 1-1.5 1.5H10M6 14H3.5A1.5 1.5 0 0 1 2 12.5V10" />
           </Icon>
         </button>
       </div>

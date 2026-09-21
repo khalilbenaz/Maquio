@@ -37,6 +37,18 @@ contextBridge.exposeInMainWorld('calque', api)
 // pas des canaux invoke/handle, et les meler aurait fait echouer la
 // verification de coherence ci-dessus.
 contextBridge.exposeInMainWorld('calqueMenu', {
+  // "Nouveau" (finition v1) : aucune logique metier cote main (contrairement
+  // a Ouvrir/Enregistrer, qui touchent le disque) -- un document vierge se
+  // construit entierement dans le renderer via createDocument() de
+  // @calque/core (deja importable la-bas). Ce canal reste donc un simple
+  // signal, du meme type que les trois suivants, plutot que d'elargir
+  // CalqueApi/API_CHANNELS avec un canal invoke qui n'aurait rien a faire
+  // cote main.
+  onNewRequested: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on('calque:menu-new', listener)
+    return () => ipcRenderer.removeListener('calque:menu-new', listener)
+  },
   onOpenRequested: (callback: () => void) => {
     const listener = () => callback()
     ipcRenderer.on('calque:menu-open', listener)

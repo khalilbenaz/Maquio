@@ -20,6 +20,7 @@ declare global {
     // du menu natif "Fichier" (Tache 17, decision 10 du brief). Distinct
     // de CalqueApi/API_CHANNELS -- voir preload.ts.
     calqueMenu?: {
+      onNewRequested: (callback: () => void) => () => void
       onOpenRequested: (callback: () => void) => () => void
       onSaveRequested: (callback: () => void) => () => void
       onSaveAsRequested: (callback: () => void) => () => void

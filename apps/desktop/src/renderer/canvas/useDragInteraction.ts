@@ -72,6 +72,21 @@ function rectFromPoints(a: { x: number; y: number }, b: { x: number; y: number }
   }
 }
 
+// Arrondi de la geometrie produite par un GESTE (creation, deplacement,
+// redimensionnement), a l'entier, en unites de page -- decision de
+// finition v1 : ces unites sont des points de maquette qui finissent en
+// `width: 233` dans du Flutter/React Native genere, et la conversion
+// ecran -> page (screenToPage, divise par le zoom) produit sinon des
+// flottants a dix decimales (ex. 233.2116...) des que le zoom n'est pas un
+// diviseur entier de 1. L'arrondi a lieu ICI, au moment ou la commande est
+// CONSTRUITE (pas dans les fabriques de commande partagees avec
+// l'inspecteur, ni dans le rendu ephemere du dragPreview pendant le
+// geste) : une valeur saisie au clavier dans l'inspecteur, elle, ne doit
+// JAMAIS etre arrondie (voir InspectorPanel.tsx).
+export function roundRect(r: Rect): Rect {
+  return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) }
+}
+
 // Cadre absolu d'un noeud, corrige de l'aperçu de glissement en cours s'il
 // le concerne. Partage par NodeView (rendu du noeud deplace/redimensionne)
 // et SelectionOverlay (cadre de selection, poignees).
@@ -320,8 +335,14 @@ export function useNodeInteraction(nodeId: string) {
         cleanup()
         const current = useEditorStore.getState()
         current.setDragPreview(null)
-        if (moved && (dx !== 0 || dy !== 0)) {
-          current.execute(moveNodeCommand(current.pageId, targetId, dx, dy))
+        // Arrondi a l'entier en unites de page (finition v1) : dx/dy bruts
+        // sont divises par le zoom (screenToPage) et donc potentiellement
+        // fractionnaires a un zoom non entier -- seul le delta arrondi est
+        // commis dans le document.
+        const roundedDx = Math.round(dx)
+        const roundedDy = Math.round(dy)
+        if (moved && (roundedDx !== 0 || roundedDy !== 0)) {
+          current.execute(moveNodeCommand(current.pageId, targetId, roundedDx, roundedDy))
         }
       }
 
@@ -375,7 +396,7 @@ export function useResizeInteraction(nodeId: string, handle: HandleId) {
         const current = useEditorStore.getState()
         current.setDragPreview(null)
         if (resized) {
-          current.execute(resizeNodeCommand(current.pageId, nodeId, currentFrame))
+          current.execute(resizeNodeCommand(current.pageId, nodeId, roundRect(currentFrame)))
         }
       }
 
@@ -434,10 +455,10 @@ export function useCreateInteraction(canvasRef: RefObject<HTMLElement | null>) {
         current.setDragPreview(null)
 
         const finalFrame: Rect = {
-          x: currentFrame.x,
-          y: currentFrame.y,
-          w: Math.max(1, currentFrame.w),
-          h: Math.max(1, currentFrame.h),
+          x: Math.round(currentFrame.x),
+          y: Math.round(currentFrame.y),
+          w: Math.max(1, Math.round(currentFrame.w)),
+          h: Math.max(1, Math.round(currentFrame.h)),
         }
         const node = createDefaultNode(tool, finalFrame)
         current.execute(createNodeCommand(current.pageId, null, node))

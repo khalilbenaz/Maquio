@@ -6,3 +6,19 @@
 .calque-handle:hover {
   filter: brightness(1.1);
 }
+
+/* Etiquette de dimensions pendant un geste (finition v1, maquette
+   Main.dc.html) : fond accent, texte blanc, chiffres alignes en colonne
+   (tabular-nums). Positionnee en JS (SelectionOverlay.tsx) en pixels
+   ecran, ce fichier ne fait que l'habiller. */
+.calque-dimension-label {
+  position: absolute;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: #ffffff;
+  background: var(--calque-accent);
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+}
