@@ -57,3 +57,19 @@ export function chooseFigmaJsonFile(win: BrowserWindow | null): () => Promise<st
     return result.filePaths[0] ?? null
   }
 }
+
+// Défaut n3 (« comment mettre l'image ? ») : sélecteur de fichier natif
+// pour choisir une image, au tracé d'un nœud Image et depuis l'inspecteur
+// (voir shared/api.ts, chooseImage). Même forme que chooseFigmaJsonFile
+// ci-dessus, filtree sur les formats d'image courants.
+export function chooseImageFile(win: BrowserWindow | null): () => Promise<string | null> {
+  return async () => {
+    const options = {
+      properties: ['openFile' as const],
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'] }],
+    }
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths[0] ?? null
+  }
+}

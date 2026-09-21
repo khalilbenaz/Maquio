@@ -72,6 +72,16 @@ export type CalqueApi = {
   // claudeSettingsHandlers.ts. Rend le nouvel etat de detection, deja a
   // jour avec le reglage applique.
   setClaudeCustomPath(path: string): Promise<{ claudeAvailable: boolean; claudePath: string | null }>
+  // Défaut n3 (« comment mettre l'image ? ») : sélecteur de fichier natif
+  // pour choisir une image, utilisé au tracé d'un nœud Image (voir
+  // useDragInteraction.ts) et depuis l'inspecteur (« Choisir une image… »,
+  // voir InspectorPanel.tsx). Rend le chemin ABSOLU choisi, ou null si
+  // l'utilisateur annule -- aucun nœud n'est créé/modifié dans ce cas.
+  // Le chemin absolu n'est relogé sous `<document>.ressources/` (et rendu
+  // relatif) qu'au moment de l'enregistrement du document (voir
+  // documentHandlers.ts) : tant que le document n'a jamais été enregistré,
+  // il n'y a nulle part où le copier.
+  chooseImage(): Promise<string | null>
 }
 
 export const API_CHANNELS = [
@@ -85,4 +95,5 @@ export const API_CHANNELS = [
   'getSettings',
   'setFigmaToken',
   'setClaudeCustomPath',
+  'chooseImage',
 ] as const

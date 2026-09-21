@@ -105,6 +105,26 @@
   border-color: var(--calque-danger);
 }
 
+/* Defaut n3 (« comment mettre l'image ? ») : bouton "Choisir une image…"
+   de l'inspecteur -- meme famille visuelle que les champs (fond de
+   surface, filet), mais pleine largeur et centre, pas un champ de saisie. */
+.inspector-image-choose {
+  height: 30px;
+  padding: 0 9px;
+  background: var(--calque-surface);
+  border: 1px solid var(--calque-border);
+  border-radius: 7px;
+  color: var(--calque-text);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  margin-bottom: 7px;
+}
+
+.inspector-image-choose:hover {
+  border-color: var(--calque-border-strong);
+}
+
 .inspector-color {
   width: 24px;
   height: 20px;

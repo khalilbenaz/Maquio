@@ -136,6 +136,30 @@ describe('swiftUIExporter', () => {
     expect(out.files[0]!.contents).toContain('Image("logo")')
   })
 
+  // Ecart connu ferme (README, « Écarts connus ») : un src vide n'emet
+  // plus `Image("")` en silence -- avertit, et n'emet aucune reference a
+  // la ressource vide.
+  it('avertit pour un noeud image de src vide au lieu d emettre Image("")', () => {
+    const doc = docWithNodes([
+      {
+        id: 'image-vide',
+        name: 'Image',
+        type: 'image',
+        frame: { x: 0, y: 0, w: 80, h: 80 },
+        visible: true,
+        locked: false,
+        opacity: 1,
+        rotation: 0,
+        src: '',
+        fit: 'cover',
+      },
+    ])
+    const out = swiftuiExporter.export(doc, { projectName: 'demo' })
+    expect(out.files[0]!.contents).not.toContain('Image(')
+    expect(out.files[0]!.contents).not.toContain('AsyncImage(')
+    expect(out.warnings.some((w) => w.includes('image-vide'))).toBe(true)
+  })
+
   it('positionne les enfants d une frame absolute avec ZStack et offset', () => {
     const doc = docWithNodes([
       {

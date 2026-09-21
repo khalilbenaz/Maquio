@@ -29,13 +29,13 @@ function verifieMessagePropre(message: string): void {
 
 describe('ClaudePanel', () => {
   it('desactive le panneau quand le binaire claude est absent, des l ouverture', async () => {
-    render(<ClaudePanel api={{ ...apiFactice, claudeAvailable: async () => false }} />)
+    render(<ClaudePanel api={{ ...apiFactice, claudeAvailable: async () => false }} onOpenSettings={() => {}} />)
     expect(await screen.findByText(/Claude Code introuvable/)).toBeTruthy()
     expect(screen.getByLabelText('Demander à Claude').hasAttribute('disabled')).toBe(true)
   })
 
   it('applique le patch renvoye comme une action annulable', async () => {
-    render(<ClaudePanel api={apiFactice} />)
+    render(<ClaudePanel api={apiFactice} onOpenSettings={() => {}} />)
     fireEvent.change(screen.getByLabelText('Instruction'), { target: { value: 'ajoute un bouton' } })
     fireEvent.click(screen.getByLabelText('Demander à Claude'))
     await screen.findByText(/ajoute/)
@@ -49,7 +49,7 @@ describe('ClaudePanel', () => {
         throw new Error('patch invalide: desole')
       },
     }
-    render(<ClaudePanel api={api} />)
+    render(<ClaudePanel api={api} onOpenSettings={() => {}} />)
     fireEvent.click(screen.getByLabelText('Demander à Claude'))
     await screen.findByText(/patch invalide/)
     expect(useEditorStore.getState().history.canUndo).toBe(false)
@@ -68,7 +68,7 @@ describe('ClaudePanel', () => {
           resoudre = resolve
         }),
     )
-    render(<ClaudePanel api={{ ...apiFactice, askClaude }} />)
+    render(<ClaudePanel api={{ ...apiFactice, askClaude }} onOpenSettings={() => {}} />)
 
     fireEvent.change(screen.getByLabelText('Instruction'), { target: { value: 'ajoute un bouton' } })
     fireEvent.click(screen.getByLabelText('Demander à Claude'))
@@ -105,7 +105,7 @@ describe('ClaudePanel', () => {
         documentJson: '{"version":1,"id":"d1","name":"X","pages":[',
       }),
     }
-    render(<ClaudePanel api={api} />)
+    render(<ClaudePanel api={api} onOpenSettings={() => {}} />)
     fireEvent.click(screen.getByLabelText('Demander à Claude'))
 
     const alerte = await screen.findByRole('alert')
@@ -121,7 +121,7 @@ describe('ClaudePanel', () => {
         documentJson: documentJsonDeFormeInvalide(),
       }),
     }
-    render(<ClaudePanel api={api} />)
+    render(<ClaudePanel api={api} onOpenSettings={() => {}} />)
     fireEvent.click(screen.getByLabelText('Demander à Claude'))
 
     const alerte = await screen.findByRole('alert')
@@ -134,9 +134,23 @@ describe('ClaudePanel', () => {
   // plus laisser l'utilisateur sans issue, il doit l'orienter vers l'ecran
   // ou il peut agir.
   it('le message de desactivation renvoie vers les reglages', async () => {
-    render(<ClaudePanel api={{ ...apiFactice, claudeAvailable: async () => false }} />)
+    render(<ClaudePanel api={{ ...apiFactice, claudeAvailable: async () => false }} onOpenSettings={() => {}} />)
     const message = await screen.findByText(/Claude Code introuvable/)
     expect(message.textContent).toMatch(/Réglages/)
+  })
+
+  // Defaut n1 (« les reglages ont disparu ») : ce renvoi doit etre un VRAI
+  // bouton cliquable qui ouvre le dialogue -- avant cette correction,
+  // c'etait une simple phrase, sans aucun moyen d'agir depuis ce panneau.
+  it('le renvoi vers les reglages est un bouton qui ouvre le dialogue', async () => {
+    const onOpenSettings = vi.fn()
+    render(<ClaudePanel api={{ ...apiFactice, claudeAvailable: async () => false }} onOpenSettings={onOpenSettings} />)
+    await screen.findByText(/Claude Code introuvable/)
+
+    const bouton = screen.getByRole('button', { name: /Réglages/ })
+    expect(onOpenSettings).not.toHaveBeenCalled()
+    fireEvent.click(bouton)
+    expect(onOpenSettings).toHaveBeenCalledTimes(1)
   })
 
   // SettingsDialog et ClaudePanel sont freres (tous deux sous Toolbar/App,
@@ -146,7 +160,7 @@ describe('ClaudePanel', () => {
   // verifie ce contrat directement (SettingsDialog ecrit dans ce meme
   // magasin, voir settingsDialog.test.tsx).
   it('redevient actif quand le magasin partage de statut Claude passe a disponible, sans redemarrer', async () => {
-    render(<ClaudePanel api={{ ...apiFactice, claudeAvailable: async () => false }} />)
+    render(<ClaudePanel api={{ ...apiFactice, claudeAvailable: async () => false }} onOpenSettings={() => {}} />)
     expect(await screen.findByText(/Claude Code introuvable/)).toBeTruthy()
     expect(screen.getByLabelText('Demander à Claude').hasAttribute('disabled')).toBe(true)
 

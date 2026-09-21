@@ -31,6 +31,7 @@ import {
 import type { CalqueDocument, HandleId, Node, Rect } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import type { DragPreview, Tool } from '../state/editorStore'
+import type { CalqueApi } from '../../shared/api'
 
 // --- Utilitaires purs (testes directement, sans rendu) ---
 
@@ -173,9 +174,11 @@ function defaultNameFor(tool: Exclude<Tool, 'select'>): string {
 }
 
 // Valeurs par defaut lisibles (decision 11) : gris clair pour les formes,
-// texte d'exemple pour le texte, pas de source pour l'image (a renseigner
-// ensuite via l'inspecteur de la Tache 16).
-function createDefaultNode(tool: Exclude<Tool, 'select'>, frame: Rect): Node {
+// texte d'exemple pour le texte. `imageSrc` (defaut n3, « comment mettre
+// l'image ? ») : le src choisi via le selecteur de fichier (voir
+// useCreateInteraction ci-dessous) -- vide par defaut pour les autres
+// outils, ou si aucun appelant ne le fournit.
+function createDefaultNode(tool: Exclude<Tool, 'select'>, frame: Rect, imageSrc = ''): Node {
   const base = {
     id: crypto.randomUUID(),
     name: defaultNameFor(tool),
@@ -225,7 +228,7 @@ function createDefaultNode(tool: Exclude<Tool, 'select'>, frame: Rect): Node {
         },
       }
     case 'image':
-      return { ...base, type: 'image', src: '', fit: 'cover' }
+      return { ...base, type: 'image', src: imageSrc, fit: 'cover' }
   }
 }
 
@@ -413,7 +416,18 @@ export function useResizeInteraction(nodeId: string, handle: HandleId) {
 // 'select', sinon pose un nouveau noeud du type de l'outil actif
 // (decision 11). Apres creation, l'outil revient a 'select' et le noeud
 // cree est selectionne.
-export function useCreateInteraction(canvasRef: RefObject<HTMLElement | null>) {
+//
+// Defaut n3 (« comment mettre l'image ? ») : pour l'outil 'image', le
+// relachement du geste n'execute plus createNodeCommand immediatement --
+// il ouvre d'abord le selecteur de fichier natif (api.chooseImage(),
+// process main, voir main.ts) et n'execute la commande de creation
+// qu'une fois un fichier reellement choisi. Si l'utilisateur annule
+// (chooseImage() rend null), AUCUN noeud n'est cree : le geste de trace
+// est abandonne comme s'il n'avait jamais eu lieu, seul l'outil actif
+// revient a 'select' (meme comportement de sortie que pour les autres
+// outils, pour ne jamais laisser l'outil Image actif sans que rien
+// n'indique pourquoi).
+export function useCreateInteraction(canvasRef: RefObject<HTMLElement | null>, api: CalqueApi) {
   const cleanupRef = useGestureCleanupRef()
 
   return useCallback(
@@ -460,6 +474,25 @@ export function useCreateInteraction(canvasRef: RefObject<HTMLElement | null>) {
           w: Math.max(1, Math.round(currentFrame.w)),
           h: Math.max(1, Math.round(currentFrame.h)),
         }
+
+        if (tool === 'image') {
+          // Asynchrone (dialogue natif cote main) : aucune commande n'est
+          // executee avant la resolution du choix -- si l'utilisateur
+          // annule, `createNodeCommand` n'est jamais appele.
+          void api.chooseImage().then((chosenPath) => {
+            const stateApresChoix = useEditorStore.getState()
+            if (chosenPath === null) {
+              stateApresChoix.setTool('select')
+              return
+            }
+            const node = createDefaultNode(tool, finalFrame, chosenPath)
+            stateApresChoix.execute(createNodeCommand(stateApresChoix.pageId, null, node))
+            stateApresChoix.select([node.id])
+            stateApresChoix.setTool('select')
+          })
+          return
+        }
+
         const node = createDefaultNode(tool, finalFrame)
         current.execute(createNodeCommand(current.pageId, null, node))
         current.select([node.id])

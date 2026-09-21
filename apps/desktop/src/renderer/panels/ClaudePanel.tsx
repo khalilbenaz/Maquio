@@ -41,7 +41,7 @@ function commandeRemplacementDocument(label: string, precedent: CalqueDocument, 
   }
 }
 
-export function ClaudePanel({ api }: { api: CalqueApi }) {
+export function ClaudePanel({ api, onOpenSettings }: { api: CalqueApi; onOpenSettings: () => void }) {
   const [instruction, setInstruction] = useState('')
   // La disponibilite vit dans un magasin partage avec SettingsDialog (voir
   // claudeStatusStore.ts), pas dans un etat local : c'est ce qui permet au
@@ -138,10 +138,23 @@ export function ClaudePanel({ api }: { api: CalqueApi }) {
 
       <div className="claude-panel-body">
         {!disponible ? (
-          <p role="alert" className="claude-panel-alert">
-            Claude Code introuvable : ouvrez les Réglages pour vérifier l'installation ou indiquer l'emplacement du
-            binaire 'claude'
-          </p>
+          <>
+            <p role="alert" className="claude-panel-alert">
+              Claude Code introuvable : ouvrez les Réglages pour vérifier l'installation ou indiquer l'emplacement du
+              binaire 'claude'
+            </p>
+            {/* Defaut n1 : le renvoi vers les Reglages doit etre un VRAI
+                bouton cliquable qui ouvre le dialogue, pas seulement une
+                phrase -- avant cette correction, rien dans ce panneau ne
+                pouvait effectivement l'ouvrir. Sibling du <p> ci-dessus
+                (pas imbrique dedans) : `role="alert"` reste porte par le
+                seul <p>, pour que `screen.getByText(/Claude Code
+                introuvable/)` continue a designer un unique element sans
+                ambiguite avec ce bouton. */}
+            <button type="button" className="claude-panel-settings-link" onClick={onOpenSettings}>
+              Ouvrir les Réglages
+            </button>
+          </>
         ) : null}
 
         <label htmlFor="claude-instruction">Instruction</label>

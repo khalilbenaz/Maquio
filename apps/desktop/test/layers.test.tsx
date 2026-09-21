@@ -6,6 +6,7 @@ import { Canvas } from '../src/renderer/canvas/Canvas'
 import { LayersPanel } from '../src/renderer/panels/LayersPanel'
 import { useEditorStore } from '../src/renderer/state/editorStore'
 import { documentDeTest } from './helpers/documentDeTest'
+import { apiFactice } from './helpers/apiFactice'
 
 // Document imbrique dedie a cette suite : une frame ('frame1') contenant un
 // seul enfant ('child1'), plus un noeud de premier niveau ('rect2'), pour
@@ -73,7 +74,7 @@ describe('LayersPanel', () => {
     render(
       <>
         <LayersPanel />
-        <Canvas />
+        <Canvas api={apiFactice} />
       </>,
     )
     fireEvent.click(screen.getByTestId('layer-rect2'))

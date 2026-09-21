@@ -34,6 +34,20 @@ export type EditorState = {
   zoom: number
   pan: { x: number; y: number }
   dragPreview: DragPreview
+  // Chemin du fichier .calque courant, null tant que le document n'a
+  // jamais ete enregistre (defaut n3, ruling sur le stockage des images) :
+  // NodeView (canvas) en a besoin pour resoudre le src RELATIF d'un noeud
+  // image (relatif a `<nom-du-document>.ressources/`, voir
+  // canvas/imageSource.ts) sans avoir a faire remonter cette information
+  // depuis App.tsx a travers Canvas -> NodeView. Auparavant un etat local
+  // de App.tsx (Editeur) : deplace ici pour que NodeView, qui n'a pas de
+  // lien de parente direct avec App.tsx, puisse le lire par simple
+  // souscription au magasin, comme il lit deja `dragPreview`. `load()` ne
+  // le touche PAS (contrairement a selection/tool/zoom/pan) : c'est
+  // Editeur qui l'ecrit explicitement (nouveau -> null, ouvrir ->
+  // chemin du fichier lu, enregistrer -> chemin ecrit), exactement comme
+  // le faisait son ancien useState local.
+  documentPath: string | null
   // Jeton incremente par requestFitToWindow (finition v1) : le seul signal
   // qui doit recalculer l'ajustement du plan de travail EN DEHORS de
   // l'ouverture d'un document (voir Canvas.tsx, qui observe deja pageId et
@@ -55,6 +69,7 @@ export type EditorState = {
   setPan(pan: { x: number; y: number }): void
   setDragPreview(preview: DragPreview): void
   requestFitToWindow(): void
+  setDocumentPath(path: string | null): void
 }
 
 function initialDocument(): CalqueDocument {
@@ -73,6 +88,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     zoom: 1,
     pan: { x: 0, y: 0 },
     dragPreview: null,
+    documentPath: null,
     fitToWindowToken: 0,
 
     load(nextDoc) {
@@ -129,6 +145,10 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
     requestFitToWindow() {
       set((s) => ({ fitToWindowToken: s.fitToWindowToken + 1 }))
+    },
+
+    setDocumentPath(path) {
+      set({ documentPath: path })
     },
   }
 })
