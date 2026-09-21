@@ -53,6 +53,53 @@ export const formatNumber = sharedFormatNumber
 // format hexadecimal de Compose (Tache 9) : voir ../shared/color-hex.ts.
 export const colorHex = colorHexARGB
 
+// Mots reserves Dart (D1 du rapport dart-correctness-report.md) : la liste
+// exacte des 33 mots que le compilateur Dart refuse TOUJOURS comme
+// identifiant, verifiee a la main avec le vrai SDK (`dart analyze` sur une
+// declaration `static const int <mot> = 1;` pour chaque mot candidat, y
+// compris les mots-cles "limites" async/await/yield/sync et les
+// identifiants integres static/get/set/late/required -- aucun de ces
+// derniers n'a produit d'erreur en position de nom de membre, seuls les
+// mots reserves inconditionnels ci-dessous en produisent). Un style Figma
+// nomme "Default", "Class", "New", "Switch" ou "Return" normalise en
+// camelCase vers exactement l'un de ces mots (`default`, `class`, `new`,
+// `switch`, `return`) -- tous plausibles dans un design system reel.
+export const DART_RESERVED_WORDS: ReadonlySet<string> = new Set([
+  'assert',
+  'break',
+  'case',
+  'catch',
+  'class',
+  'const',
+  'continue',
+  'default',
+  'do',
+  'else',
+  'enum',
+  'extends',
+  'false',
+  'final',
+  'finally',
+  'for',
+  'if',
+  'in',
+  'is',
+  'new',
+  'null',
+  'rethrow',
+  'return',
+  'super',
+  'switch',
+  'this',
+  'throw',
+  'true',
+  'try',
+  'var',
+  'void',
+  'while',
+  'with',
+])
+
 // Expression Dart pour une couleur : la constante de theme quand elle
 // correspond exactement a un token (decision 8 du brief Tache 7), sinon la
 // valeur litterale.
@@ -61,11 +108,37 @@ export const colorHex = colorHexARGB
 // pas forcement un identifiant Dart valide -- `static const Color brand-
 // primary-500` ne compile pas. `tokenIdentifier` le fait correspondre a la
 // meme cle que celle emise par theme.ts pour ce document (meme categorie
-// de noms `tokens.colors`), jamais recalculee independamment.
-export function colorExpr(color: Color, tokens: DesignTokens): string {
+// de noms `tokens.colors`, MEME ensemble de mots reserves --
+// DART_RESERVED_WORDS ci-dessus), jamais recalculee independamment.
+//
+// `onTokenUsed` (D4 du rapport dart-correctness) : appele uniquement
+// quand une reference `AppColors.*` est effectivement emise, pour que
+// l'appelant (flutter.ts) sache s'il doit importer '../theme.dart' dans
+// le fichier d'ecran -- jamais de maniere inconditionnelle, sous peine
+// d'un `unused_import` a l'analyse pour tout ecran qui ne reference aucun
+// token (verifie avec `flutter analyze`).
+//
+// `omitConstKeyword` (lint `unnecessary_const`, suite du rapport
+// dart-correctness) : l'appelant qui construit deja un litteral dans un
+// CONTEXTE constant (ex. `static const TextStyle x = TextStyle(color:
+// ...)` de theme.ts -- toute la declaration est `const`, Dart promeut
+// automatiquement le `Color(...)` imbrique en constante sans le mot-cle)
+// passe `true` pour ne pas emettre de `const` explicite et redondant.
+// Vide/absent par defaut : flutter.ts construit ses `Container`/`Text`
+// SANS `const` autour (le widget lui-meme n'est pas const), le `const`
+// sur la couleur y est donc utile, jamais redondant -- verifie avec
+// `flutter analyze` (0 remontee `unnecessary_const` sur les fichiers
+// d'ecran generes).
+export function colorExpr(
+  color: Color,
+  tokens: DesignTokens,
+  onTokenUsed?: () => void,
+  omitConstKeyword = false,
+): string {
   const token = findColorToken(color, tokens)
-  if (token === null) return `const Color(${colorHex(color)})`
-  return `AppColors.${tokenIdentifier(token, Object.keys(tokens.colors))}`
+  if (token === null) return `${omitConstKeyword ? '' : 'const '}Color(${colorHex(color)})`
+  onTokenUsed?.()
+  return `AppColors.${tokenIdentifier(token, Object.keys(tokens.colors), DART_RESERVED_WORDS)}`
 }
 
 // FontWeight.wNNN le plus proche (arrondi au multiple de 100, borne a

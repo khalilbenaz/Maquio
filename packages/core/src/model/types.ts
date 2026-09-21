@@ -50,6 +50,18 @@ export type TextStyle = {
   fontFamily: string
   fontSize: number
   fontWeight: number
+  // Pixels (pas un multiplicateur de fontSize), comme dans l'inspecteur
+  // Figma qui le remplit (packages/figma/src/translate.ts, depuis
+  // `style.lineHeightPx`) -- meme raisonnement que `rotation` ci-dessus :
+  // l'unite naturelle de l'outil source prime sur le confort d'un seul
+  // generateur de code. Le `height` de Flutter (TextStyle.height) est en
+  // revanche un MULTIPLICATEUR de fontSize ; l'exportateur Flutter
+  // (packages/codegen/src/flutter/flutter.ts, packages/codegen/src/
+  // flutter/theme.ts) convertit donc via `lineHeight / fontSize` avant
+  // emission. Ne pas y ecrire un multiplicateur directement (ex. `1.2`
+  // en croyant deja convertir) : la conversion produirait alors une
+  // valeur ecrasee (`height: 0.075` pour un fontSize de 16), verifie en
+  // reproduisant l'erreur.
   lineHeight: number
   letterSpacing: number
   color: Color

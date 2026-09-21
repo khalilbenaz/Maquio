@@ -47,13 +47,31 @@ export function toSafeIdentifier(input: string, fallback = 'value'): string {
 // (ex. deux ids Figma distincts, ou deux noms de token distincts, qui se
 // normalisent tous les deux en la meme chaine -- y compris une collision
 // avec une cle de repli fixe comme 'root').
-export function createUniqueIdentifierNamer(fallback = 'value'): (input: string) => string {
+//
+// `reservedWords` (D1 du rapport dart-correctness) traite un mot reserve
+// de la langue cible EXACTEMENT comme une collision : un token nomme
+// "Default" normalise en camelCase vers "default", identique au mot
+// reserve Dart `default` -- `static const Color default = ...;` ne
+// parse pas (verifie avec `dart analyze`, code de sortie 65 avant ce
+// correctif). Repli sur le meme compteur numerique que pour une
+// collision ordinaire ('default2'), jamais un prefixe special : un seul
+// mecanisme de reprise, plus simple a auditer que deux.
+//
+// Vide par defaut : un appelant qui ne cible aucune langue a mots
+// reserves genants en position de nom de membre (ex. React Native/JS, ou
+// `colors.class` est un acces de propriete parfaitement legal) ne change
+// jamais de sortie -- seuls les appelants Dart/Kotlin/Swift concernes
+// passent un ensemble non vide.
+export function createUniqueIdentifierNamer(
+  fallback = 'value',
+  reservedWords: ReadonlySet<string> = new Set(),
+): (input: string) => string {
   const used = new Set<string>()
   return (input: string): string => {
     const base = toSafeIdentifier(input, fallback)
     let candidate = base
     let suffix = 2
-    while (used.has(candidate)) {
+    while (used.has(candidate) || reservedWords.has(candidate)) {
       candidate = `${base}${suffix}`
       suffix += 1
     }

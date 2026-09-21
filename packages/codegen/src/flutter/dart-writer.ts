@@ -26,33 +26,40 @@ export function attach(prefix: string, block: Block, depth: number, suffix: stri
 
 export type Arg = { key?: string; block: Block }
 
-// Rend un appel `Nom(arg1: v1, arg2: v2, ...)`. Un appel a un seul
-// argument dont la valeur tient sur une ligne reste sur une seule ligne
-// (ex. `SizedBox(height: 16)`, `ColorScheme.fromSeed(seedColor: ...)`) ;
-// tout le reste (2 arguments ou plus, ou un argument multi-lignes) est
-// developpe avec une virgule finale par ligne, comme le ferait un
-// developpeur Flutter a la main.
+// Rend un appel `Nom(arg1: v1, arg2: v2, ...)`, TOUJOURS developpe (une
+// ligne par argument, virgule finale), comme le ferait un developpeur
+// Flutter a la main avant passage de `dart format`.
 //
-// Ce module ne tente PAS de deviner ici si un appel a plusieurs arguments
-// tiendrait sur une seule ligne une fois `dart format` applique : au
-// moment de construire un `Block`, sa colonne finale (indentation reelle +
-// prefixe `cle: ` que l'appelant ajoutera via `attach`) n'est pas encore
-// connue -- un meme Block peut d'ailleurs etre reattache a des
-// profondeurs differentes selon son appelant. Une regle qui devine sans
-// connaitre la colonne reelle ment au garde-fou `dart format
-// --set-exit-if-changed` (Important 3, corrige apres qu'une premiere
-// version de cette regle, basee sur un seuil de longueur arbitraire, s'est
-// revelee fausse dans les deux sens sur des documents autres que la
-// fixture temoin). Voir `collapseShortCalls` ci-dessous : le regroupement
-// sur une ligne se decide en POST-TRAITEMENT, une fois le texte final
-// entierement indente -- donc la colonne reelle enfin connue.
+// Ce module ne tente PAS de deviner ici si un appel tiendrait sur une
+// seule ligne une fois `dart format` applique : au moment de construire
+// un `Block`, sa colonne finale (indentation reelle + prefixe `cle: ` que
+// l'appelant ajoutera via `attach`) n'est pas encore connue -- un meme
+// Block peut d'ailleurs etre reattache a des profondeurs differentes
+// selon son appelant. Une regle qui devine sans connaitre la colonne
+// reelle ment au garde-fou `dart format --set-exit-if-changed`.
+//
+// Correction D3 (rapport dart-correctness-report.md) : une premiere
+// version de cette regle devinait sur un seuil de longueur arbitraire
+// (fausse dans les deux sens, Important 3 de la vague de correction
+// finale) ; la version suivante gardait encore un repli special pour
+// l'appel a UN SEUL argument tenant lui-meme sur une ligne (ex.
+// `BoxDecoration(color: ...)`), rendu immediatement sur une seule ligne
+// SANS jamais consulter la colonne reelle -- exactement la meme faute
+// que le seuil arbitraire, simplement deguisee en cas particulier. A
+// grande profondeur d'imbrication (`decoration: BoxDecoration(color:
+// const Color(0xFF000000)),` a la colonne 90 dans un cas mesure avec
+// `dart format --set-exit-if-changed` sur 120 documents), ce repli
+// produisait une ligne trop longue que rien ne venait plus jamais
+// re-decouper : `collapseShortCalls` ne fait QUE regrouper, jamais
+// l'inverse. Seule la suppression complete de ce repli garantit qu'AUCUNE
+// decision de mise en ligne n'est prise avant que la colonne reelle soit
+// connue : tout appel, quel que soit son nombre d'arguments, part
+// developpe, et seul `collapseShortCalls` (post-traitement, texte deja
+// indente a sa profondeur reelle) decide de le regrouper -- ou renonce si
+// la colonne resultante depasse `MAX_LINE_WIDTH`, laissant alors un Dart
+// plus verbeux mais jamais un garde-fou qui ment.
 export function call(name: string, args: Arg[]): Block {
   if (args.length === 0) return [`${name}()`]
-  if (args.length === 1 && args[0]!.block.length === 1) {
-    const arg = args[0]!
-    const prefix = arg.key ? `${arg.key}: ` : ''
-    return [`${name}(${prefix}${arg.block[0]!})`]
-  }
   const lines: Block = [`${name}(`]
   for (const arg of args) {
     lines.push(...attach(arg.key ? `${arg.key}: ` : '', arg.block, 1, ','))
@@ -89,17 +96,31 @@ function maskStringLiterals(line: string): string {
   return line.replace(/'(?:[^'\\]|\\.)*'/g, (match) => 'x'.repeat(match.length))
 }
 
-// Solde des parentheses d'une ligne (masquee) : +1 pour un `(` sans son
-// `)`, -1 pour un `)` sans son `(`, 0 pour une ligne dont les parentheses
-// s'equilibrent entre elles (ex. `color: const Color(0xFFFFFFFF),`). Ce
-// generateur n'utilise jamais `(` ailleurs que pour un appel (jamais pour
-// grouper une expression), donc ce solde suffit a suivre la profondeur
-// d'imbrication sans analyser la grammaire Dart.
+// Solde des delimiteurs d'une ligne (masquee) : +1 pour un `(` ou un `[`
+// sans sa fermeture, -1 pour un `)` ou un `]` sans son ouverture, 0 pour
+// une ligne dont les delimiteurs s'equilibrent entre eux (ex. `color:
+// const Color(0xFFFFFFFF),`). Ce generateur n'utilise jamais `(` ailleurs
+// que pour un appel (jamais pour grouper une expression) NI `[` ailleurs
+// que pour une liste litterale (`list()` ci-dessous), donc ce solde
+// suffit a suivre la profondeur d'imbrication sans analyser la grammaire
+// Dart.
+//
+// Correction D2 (rapport dart-correctness) : `[`/`]` etaient auparavant
+// ignores ici, donc invisibles a `flat` plus bas -- une ligne `children:
+// [` (parenthese-neutre : aucun `(`/`)`) se faisait compter comme une
+// ligne "plate" alors qu'elle ouvre une liste PAS refermee sur cette
+// meme ligne. Un groupe englobant (ex. `Row(...)`) pouvait alors
+// l'aspirer dans un regroupement sur une seule ligne, produisant `Row(
+// children: [, Foo(), ])` -- un `[,` qui ne parse pas (reproduit et
+// verifie avec `dart analyze` avant ce correctif). Compter `[`/`]`
+// exactement comme `(`/`)` fait remonter ce desequilibre jusqu'a `flat`,
+// qui disqualifie alors correctement le groupe (memes garanties que pour
+// un appel imbrique encore developpe).
 function parenBalance(maskedLine: string): number {
   let balance = 0
   for (const ch of maskedLine) {
-    if (ch === '(') balance += 1
-    else if (ch === ')') balance -= 1
+    if (ch === '(' || ch === '[') balance += 1
+    else if (ch === ')' || ch === ']') balance -= 1
   }
   return balance
 }
