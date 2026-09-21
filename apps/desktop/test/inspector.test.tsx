@@ -65,7 +65,7 @@ describe('InspectorPanel', () => {
     act(() => {
       useEditorStore.getState().select(['rect1'])
     })
-    const champ = screen.getByLabelText('Opacite') as HTMLInputElement
+    const champ = screen.getByLabelText('Opacité') as HTMLInputElement
     expect(champ.value).toBe('1')
 
     fireEvent.change(champ, { target: { value: '2' } })
@@ -142,7 +142,7 @@ describe('InspectorPanel', () => {
     useEditorStore.getState().select(['text1'])
     render(<InspectorPanel />)
 
-    expect(screen.queryByLabelText('Rayon d angle')).toBeNull()
+    expect(screen.queryByLabelText("Rayon d'angle")).toBeNull()
     expect(screen.getByLabelText('Famille de police')).toBeTruthy()
   })
 

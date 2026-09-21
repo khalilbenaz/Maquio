@@ -433,7 +433,7 @@ function StrokeSection({
             }
           />
           <NumberField
-            label="Epaisseur du contour"
+            label="Épaisseur du contour"
             value={width}
             min={0}
             onCommit={(v) =>
@@ -489,18 +489,18 @@ function TextSection({ nodes, pageId, execute }: { nodes: TextNode[]; pageId: st
         label="Interligne"
         value={commonOf(nodes, (n) => n.style.lineHeight)}
         min={0}
-        onCommit={(v) => commitStyle((n) => n.style.lineHeight, 'lineHeight', v, 'Modifier l interligne')}
+        onCommit={(v) => commitStyle((n) => n.style.lineHeight, 'lineHeight', v, "Modifier l'interligne")}
       />
       <NumberField
         label="Interlettrage"
         value={commonOf(nodes, (n) => n.style.letterSpacing)}
-        onCommit={(v) => commitStyle((n) => n.style.letterSpacing, 'letterSpacing', v, 'Modifier l interlettrage')}
+        onCommit={(v) => commitStyle((n) => n.style.letterSpacing, 'letterSpacing', v, "Modifier l'interlettrage")}
       />
       <SelectField
         label="Alignement du texte"
         value={commonOf(nodes, (n) => n.style.align)}
         options={TEXT_ALIGN_OPTIONS}
-        onCommit={(v) => commitStyle((n) => n.style.align, 'align', v, 'Modifier l alignement du texte')}
+        onCommit={(v) => commitStyle((n) => n.style.align, 'align', v, "Modifier l'alignement du texte")}
       />
     </section>
   )
@@ -513,17 +513,17 @@ const LAYOUT_MODE_OPTIONS = [
 ] as const
 
 const ALIGN_MAIN_OPTIONS = [
-  { value: 'start', label: 'Debut' },
+  { value: 'start', label: 'Début' },
   { value: 'center', label: 'Centre' },
   { value: 'end', label: 'Fin' },
   { value: 'space-between', label: 'Espace entre' },
 ] as const
 
 const ALIGN_CROSS_OPTIONS = [
-  { value: 'start', label: 'Debut' },
+  { value: 'start', label: 'Début' },
   { value: 'center', label: 'Centre' },
   { value: 'end', label: 'Fin' },
-  { value: 'stretch', label: 'Etirer' },
+  { value: 'stretch', label: 'Étirer' },
 ] as const
 
 function LayoutSection({
@@ -558,7 +558,7 @@ function LayoutSection({
         label="Espacement"
         value={commonOf(nodes, (n) => n.layout.gap)}
         min={0}
-        onCommit={(v) => commitLayout((n) => n.layout.gap, (n, val) => ({ ...n.layout, gap: val }), v, 'Modifier l espacement')}
+        onCommit={(v) => commitLayout((n) => n.layout.gap, (n, val) => ({ ...n.layout, gap: val }), v, "Modifier l'espacement")}
       />
       <NumberField
         label="Marge haut"
@@ -621,7 +621,7 @@ function LayoutSection({
             (n) => n.layout.alignMain,
             (n, val) => ({ ...n.layout, alignMain: val }),
             v,
-            'Modifier l alignement principal',
+            "Modifier l'alignement principal",
           )
         }
       />
@@ -634,7 +634,7 @@ function LayoutSection({
             (n) => n.layout.alignCross,
             (n, val) => ({ ...n.layout, alignCross: val }),
             v,
-            'Modifier l alignement secondaire',
+            "Modifier l'alignement secondaire",
           )
         }
       />
@@ -658,7 +658,7 @@ export function InspectorPanel() {
   if (selectedNodes.length === 0) {
     return (
       <aside className="inspector-panel" aria-label="Inspecteur">
-        <p className="inspector-empty">Aucune selection</p>
+        <p className="inspector-empty">Aucune sélection</p>
       </aside>
     )
   }
@@ -743,7 +743,7 @@ export function InspectorPanel() {
             }
           />
           <NumberField
-            label="Opacite"
+            label="Opacité"
             value={commonOf(selectedNodes, (n) => n.opacity)}
             min={0}
             max={1}
@@ -752,7 +752,7 @@ export function InspectorPanel() {
                 selectedNodes,
                 pageId,
                 execute,
-                'Modifier l opacite',
+                "Modifier l'opacité",
                 (n) => n.opacity,
                 () => ({ opacity: v }),
                 v,
@@ -781,7 +781,7 @@ export function InspectorPanel() {
         <section className="inspector-section">
           <h2>Angles</h2>
           <NumberField
-            label="Rayon d angle"
+            label="Rayon d'angle"
             value={commonOf(cornerRadiusNodes, (n) => (n as FrameNode | RectNode).cornerRadius)}
             min={0}
             onCommit={(v) =>
@@ -789,7 +789,7 @@ export function InspectorPanel() {
                 cornerRadiusNodes,
                 pageId,
                 execute,
-                'Modifier le rayon d angle',
+                "Modifier le rayon d'angle",
                 (n) => (n as FrameNode | RectNode).cornerRadius,
                 () => ({ cornerRadius: v }),
                 v,

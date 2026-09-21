@@ -45,21 +45,21 @@ export function FigmaImportDialog({ api, onClose }: { api: CalqueApi; onClose: (
 
   return (
     <section aria-label="Importer depuis Figma" className="figma-import-dialog">
-      <label htmlFor="figma-file-key">Cle ou lien du fichier Figma</label>
+      <label htmlFor="figma-file-key">Clé ou lien du fichier Figma</label>
       <input
         id="figma-file-key"
-        aria-label="Cle ou lien du fichier Figma"
+        aria-label="Clé ou lien du fichier Figma"
         value={cleOuLien}
         disabled={statut === 'loading'}
         onChange={(e) => setCleOuLien(e.target.value)}
       />
       <button
         type="button"
-        aria-label="Importer depuis l API Figma"
+        aria-label="Importer depuis l'API Figma"
         disabled={statut === 'loading' || cleOuLien.trim() === ''}
         onClick={() => void importerDepuis({ source: 'api', fileKey: cleOuLien })}
       >
-        Importer depuis l API
+        Importer depuis l'API
       </button>
       <button
         type="button"
@@ -69,16 +69,16 @@ export function FigmaImportDialog({ api, onClose }: { api: CalqueApi; onClose: (
       >
         Importer un fichier .json
       </button>
-      <button type="button" aria-label="Fermer l import Figma" onClick={onClose}>
+      <button type="button" aria-label="Fermer l'import Figma" onClick={onClose}>
         Fermer
       </button>
 
       {statut === 'error' ? <p role="alert">{erreur}</p> : null}
       {statut === 'succes' ? (
         <div>
-          <p>{nodesImportes} noeud(s) importe(s)</p>
+          <p>{nodesImportes} nœud(s) importé(s)</p>
           {avertissements.length > 0 ? (
-            <ul aria-label="Avertissements d import">
+            <ul aria-label="Avertissements d'import">
               {avertissements.map((a) => (
                 <li key={a}>{a}</li>
               ))}

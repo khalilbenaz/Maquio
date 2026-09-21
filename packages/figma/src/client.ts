@@ -34,7 +34,7 @@ export class FigmaAuthError extends Error {
   readonly status: number
 
   constructor(status: number) {
-    super('Jeton refuse par Figma, verifiez-le dans les reglages')
+    super('Jeton refusé par Figma, vérifiez-le dans les réglages')
     this.name = 'FigmaAuthError'
     this.status = status
   }
@@ -44,7 +44,7 @@ export class FigmaNotFoundError extends Error {
   readonly status: number
 
   constructor(status: number) {
-    super("Fichier Figma introuvable, verifiez le lien ou la cle du fichier")
+    super("Fichier Figma introuvable, vérifiez le lien ou la clé du fichier")
     this.name = 'FigmaNotFoundError'
     this.status = status
   }
@@ -57,7 +57,7 @@ export class FigmaHttpError extends Error {
   readonly status: number
 
   constructor(status: number) {
-    super(`Figma a renvoye une erreur (statut ${status}), reessayez plus tard`)
+    super(`Figma a renvoyé une erreur (statut ${status}), réessayez plus tard`)
     this.name = 'FigmaHttpError'
     this.status = status
   }
@@ -74,7 +74,7 @@ export class FigmaResponseError extends Error {
   readonly status: number
 
   constructor(status: number) {
-    super('Reponse Figma inattendue : le fichier recu est incomplet ou malforme')
+    super('Réponse Figma inattendue : le fichier reçu est incomplet ou malformé')
     this.name = 'FigmaResponseError'
     this.status = status
   }
@@ -89,7 +89,7 @@ export class FigmaResponseError extends Error {
 // recue, il n'y a donc rien a porter (choix delibere, pas un oubli).
 export class FigmaNetworkError extends Error {
   constructor() {
-    super('Impossible de contacter Figma, verifiez votre connexion reseau')
+    super('Impossible de contacter Figma, vérifiez votre connexion réseau')
     this.name = 'FigmaNetworkError'
   }
 }

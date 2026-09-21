@@ -41,7 +41,7 @@ describe('import Figma', () => {
     const client = new FigmaClient({ token: 'mauvais-jeton', fetch: async () => reponse(401, {}) })
     const handler = createFigmaHandler({ client, chooseFile: async () => null, readFile: async () => '' })
 
-    await expect(handler({ source: 'api', fileKey: 'abc' })).rejects.toThrow(/jeton refuse par figma/i)
+    await expect(handler({ source: 'api', fileKey: 'abc' })).rejects.toThrow(/jeton refusé par figma/i)
   })
 
   it('import reussi depuis l API : JSON de document et rapport transmis', async () => {
@@ -132,6 +132,6 @@ describe('reglages Figma (jeton)', () => {
     }
     const handler = createSetFigmaTokenHandler({ secretStore })
 
-    await expect(handler('un-jeton')).rejects.toThrow(/stockage securise/i)
+    await expect(handler('un-jeton')).rejects.toThrow(/stockage sécurisé/i)
   })
 })

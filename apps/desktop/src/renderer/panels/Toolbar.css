@@ -10,12 +10,20 @@
   color: #e4e4e7;
   border-bottom: 1px solid #2f3033;
   font-size: 13px;
+  flex-shrink: 0;
+  /* En dessous de 1024px environ, tous les groupes ne tiennent plus sur
+     une seule ligne : un defilement horizontal remplace alors la troncature
+     silencieuse des derniers boutons (Reglages, cibles d'export) hors de la
+     fenêtre. */
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .toolbar-group {
   display: flex;
   align-items: center;
   gap: 2px;
+  flex-shrink: 0;
 }
 
 .toolbar-button {

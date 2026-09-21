@@ -63,7 +63,7 @@ export function Canvas() {
         // un geste unique, pas comme N suppressions independantes.
         if (idsToDelete.length > 0) {
           const commands = idsToDelete.map((id) => deleteNodeCommand(state.pageId, id))
-          state.execute(compositeCommand('Supprimer la selection', commands))
+          state.execute(compositeCommand('Supprimer la sélection', commands))
         }
         state.select([])
         return

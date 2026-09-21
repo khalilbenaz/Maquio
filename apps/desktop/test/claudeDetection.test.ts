@@ -32,7 +32,7 @@ describe('validateClaudeBinaryPath', () => {
     const resultat = await validateClaudeBinaryPath('/bin/pas-executable', fs)
     expect(resultat.ok).toBe(false)
     if (resultat.ok) throw new Error('devrait etre refuse')
-    expect(resultat.reason).toContain('executable')
+    expect(resultat.reason).toContain('exécutable')
   })
 
   it('accepte un fichier executable', async () => {

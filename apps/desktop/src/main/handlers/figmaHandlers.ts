@@ -29,7 +29,7 @@ export type FigmaImportResult = { json: string; report: ImportReport } | null
 // import partiel, aucune requete envoyee).
 export class FigmaTokenMissingError extends Error {
   constructor() {
-    super("Aucun jeton Figma enregistre : ajoutez-en un dans les reglages avant d'importer depuis l'API")
+    super("Aucun jeton Figma enregistré : ajoutez-en un dans les réglages avant d'importer depuis l'API")
     this.name = 'FigmaTokenMissingError'
   }
 }

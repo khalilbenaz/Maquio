@@ -29,12 +29,12 @@ export async function validateClaudeBinaryPath(path: string, fs: ClaudePathFs): 
   }
 
   if (stats.isDirectory()) {
-    return { ok: false, reason: `${path} est un dossier, pas un executable` }
+    return { ok: false, reason: `${path} est un dossier, pas un exécutable` }
   }
 
   const executable = await fs.isExecutable(path)
   if (!executable) {
-    return { ok: false, reason: `${path} n'est pas executable` }
+    return { ok: false, reason: `${path} n'est pas exécutable` }
   }
 
   return { ok: true }

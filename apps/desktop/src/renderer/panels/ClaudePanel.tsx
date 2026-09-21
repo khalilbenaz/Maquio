@@ -19,6 +19,7 @@ import { useEditorStore } from '../state/editorStore'
 import { useClaudeStatusStore } from '../state/claudeStatusStore'
 import type { CalqueApi } from '../../shared/api'
 import { translateUnknownError } from '../../shared/errors'
+import './ClaudePanel.css'
 
 type Statut = 'idle' | 'loading' | 'done' | 'error' | 'perime'
 
@@ -118,7 +119,7 @@ export function ClaudePanel({ api }: { api: CalqueApi }) {
       setStatut('done')
     } catch (err) {
       const erreurTraduite =
-        err instanceof DocumentVersionError ? new Error(err.message) : translateUnknownError(err, 'Reponse de Claude Code invalide')
+        err instanceof DocumentVersionError ? new Error(err.message) : translateUnknownError(err, 'Réponse de Claude Code invalide')
       setErreur(erreurTraduite.message)
       setStatut('error')
     }
@@ -130,7 +131,7 @@ export function ClaudePanel({ api }: { api: CalqueApi }) {
     <section aria-label="Assistant Claude Code" className="claude-panel">
       {!disponible ? (
         <p role="alert">
-          Claude Code introuvable : ouvrez les Reglages pour verifier l'installation ou indiquer l'emplacement du
+          Claude Code introuvable : ouvrez les Réglages pour vérifier l'installation ou indiquer l'emplacement du
           binaire 'claude'
         </p>
       ) : null}
@@ -146,16 +147,16 @@ export function ClaudePanel({ api }: { api: CalqueApi }) {
 
       <button
         type="button"
-        aria-label="Demander a Claude"
+        aria-label="Demander à Claude"
         disabled={desactive || statut === 'loading'}
         onClick={() => void demander()}
       >
-        Demander a Claude
+        Demander à Claude
       </button>
 
       {statut === 'perime' ? (
         <div role="alert">
-          <p>Le document a change depuis la reponse de Claude Code.</p>
+          <p>Le document a changé depuis la réponse de Claude Code.</p>
           <button type="button" onClick={() => void demander()}>
             Relancer la demande
           </button>
@@ -166,7 +167,7 @@ export function ClaudePanel({ api }: { api: CalqueApi }) {
 
       {statut === 'done' ? (
         <p>
-          Instruction envoyee : {derniereInstruction} — {resume}
+          Instruction envoyée : {derniereInstruction} — {resume}
         </p>
       ) : null}
     </section>
