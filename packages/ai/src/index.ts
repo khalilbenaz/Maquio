@@ -1,5 +1,6 @@
 export * from './patch'
 export * from './prompt'
+export * from './prompt-examples'
 export * from './apply'
 export * from './runner'
 export * from './fake-runner'

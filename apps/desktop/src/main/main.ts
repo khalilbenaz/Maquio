@@ -22,6 +22,7 @@ import { createSecretStore } from './adapters/secretStore'
 import { createClaudeSettingsStore } from './adapters/claudeSettingsStore'
 import { createClaudeWhich, validateClaudeBinaryPath } from './adapters/claudeDetection'
 import type { ClaudePathFs } from './adapters/claudeDetection'
+import { createNeutralClaudeWorkingDirectory } from './adapters/claudeWorkingDirectory'
 import {
   chooseDirectory,
   chooseFigmaJsonFile,
@@ -34,7 +35,7 @@ import { createDocumentHandler } from './handlers/documentHandlers'
 import { createExportHandler } from './handlers/exportHandlers'
 import { createFigmaHandler, createGetSettingsHandler, createSetFigmaTokenHandler } from './handlers/figmaHandlers'
 import { createGetClaudeSettingsHandler, createSetClaudeCustomPathHandler } from './handlers/claudeSettingsHandlers'
-import { createClaudeHandler } from './handlers/claudeHandlers'
+import { ClaudeRequestTracker, createClaudeCancelHandler, createClaudeHandler } from './handlers/claudeHandlers'
 
 // Recherche reelle d'un executable dans le PATH courant, sans lancer de
 // sous-processus (pas de dependance a la commande 'which' du systeme).
@@ -102,8 +103,24 @@ async function resolveClaudeStatus(): Promise<{ available: boolean; path: string
   return { available: p !== null, path: p }
 }
 
-const lanceurClaude = new ProcessClaudeRunner({ spawn: nodeSpawn, which: whichClaude })
+// Defaut A (reparation du pont) : `workingDirectory` fournit a chaque appel
+// un repertoire temporaire vide, cree et nettoye par l'application (voir
+// claudeWorkingDirectory.ts) -- jamais le dossier de l'utilisateur ni celui
+// du document ouvert. Sans lui, `claude -p` herite du cwd d'Electron et,
+// dans un dossier de projet, part l'explorer au lieu de repondre (verifie
+// en conditions reelles : le meme appel termine en 13s depuis /tmp, jamais
+// termine apres 10 minutes depuis un dossier de projet). Le delai par
+// defaut (DEFAULT_CLAUDE_TIMEOUT_MS, 2 minutes) et l'annulation (point 2)
+// sont geres par ProcessClaudeRunner lui-meme (packages/ai/src/runner.ts) ;
+// claudeRequests (ci-dessous) fournit le signal d'annulation transmis a
+// chaque appel, declenche par le canal cancelClaude.
+const lanceurClaude = new ProcessClaudeRunner({
+  spawn: nodeSpawn,
+  which: whichClaude,
+  workingDirectory: createNeutralClaudeWorkingDirectory,
+})
 const serviceClaude = new AiService(lanceurClaude)
+const claudeRequests = new ClaudeRequestTracker()
 
 // Jeton Figma chiffre (decision 3 du brief) : jamais en clair sur disque.
 // Le chemin depend du dossier de donnees utilisateur, connu seulement une
@@ -177,7 +194,11 @@ function enregistrerLesGestionnaires(): void {
 
   ipcMain.handle('listExporters', () => listExporters().map(({ id, label, maturity }) => ({ id, label, maturity })))
 
-  ipcMain.handle('askClaude', (_event, input) => createClaudeHandler({ service: serviceClaude })(input))
+  ipcMain.handle('askClaude', (_event, input) =>
+    createClaudeHandler({ service: serviceClaude, requests: claudeRequests })(input),
+  )
+
+  ipcMain.handle('cancelClaude', () => createClaudeCancelHandler({ requests: claudeRequests })())
 
   ipcMain.handle('claudeAvailable', () => lanceurClaude.isAvailable())
 

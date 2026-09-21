@@ -154,6 +154,29 @@
   line-height: 1.5;
 }
 
+/* Point 2 de la reparation du pont : etat d'attente affiche pendant l'appel
+   a Claude Code, avec le bouton "Annuler" (voir ClaudePanel.tsx) -- boite
+   neutre, distincte de .claude-panel-alert (reservee aux erreurs/etats
+   perimes, teintee d'un rouge doux) pour ne jamais laisser croire a un
+   probleme pendant une attente normale. */
+.claude-panel-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+  padding: 9px 11px;
+  background: var(--calque-surface);
+  border: 1px solid var(--calque-border);
+  border-radius: 8px;
+  color: var(--calque-text-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.claude-panel-loading .claude-panel-settings-link {
+  align-self: flex-start;
+}
+
 .claude-panel-result {
   margin: 0;
   font-size: 12.5px;

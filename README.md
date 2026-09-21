@@ -42,8 +42,9 @@ npm test
 npm run dev
 ```
 
-`npm test` lance toute la suite (496 tests au moment de l'écriture, sans
-écran, sans réseau et sans le binaire `claude`). `npm run dev` ouvre une
+`npm test` lance toute la suite (636 tests au moment de l'écriture, sans
+écran, sans réseau et sans le binaire `claude` — voir plus bas pour le
+test bout-en-bout opt-in qui, lui, appelle le vrai binaire). `npm run dev` ouvre une
 fenêtre Electron en mode développement — non lancé ici, à essayer en
 local.
 
@@ -89,6 +90,20 @@ que son chemin n'est pas renseigné explicitement.
 n'utilise, ne stocke ni ne transmet aucune clé d'API.** Si `claude` est
 introuvable, le panneau Claude de l'interface se désactive avec un
 message qui renvoie vers les Réglages, dès l'ouverture de l'application.
+
+Chaque appel s'exécute dans un **répertoire de travail temporaire et
+vide**, créé par Calque puis supprimé juste après (jamais le dossier de
+l'utilisateur, jamais celui du document ouvert) : lancé sans ce
+répertoire neutre, `claude -p` hérite du répertoire courant du processus
+et, dans un dossier de projet, part l'explorer (mémoire, hooks, contexte
+de session) au lieu de répondre — constaté en conditions réelles, un même
+appel se termine en 13 secondes depuis un répertoire neutre contre plus
+de 10 minutes, jamais terminé, depuis le dossier du dépôt. L'appel est
+par ailleurs plafonné à **2 minutes** (largement au-dessus du régime sain
+observé) et interrompu au-delà avec un message explicite ; le panneau
+affiche un état d'attente pendant l'appel et un bouton **Annuler** qui
+l'interrompt réellement, côté sous-processus, pas seulement côté
+interface.
 
 ## Export
 
@@ -204,6 +219,30 @@ niveaux :
 
 Les tests bout-en-bout Electron (Playwright) sont hors périmètre de la
 v1 ; leur absence est assumée, pas un oubli.
+
+### Test bout-en-bout avec le vrai binaire `claude`
+
+`test/integration/claude-e2e.test.ts` appelle le **vrai** binaire
+`claude` (pas `FakeClaudeRunner`) avec le prompt réellement construit par
+`buildPrompt`, et vérifie que la réponse est acceptée par `parsePatch`
+puis applicable par `patchToCommand` — le seul garde-fou qui aurait
+attrapé le répertoire de travail non maîtrisé et la forme de noeud non
+fixée dans le prompt (voir plus haut). Il reste **opt-in**, jamais
+exécuté par `npm test` : il est ignoré par défaut, et ignoré (`it.skip`)
+même quand la variable d'environnement ci-dessous est mise si `claude`
+est introuvable dans le `PATH`.
+
+```bash
+CALQUE_E2E_CLAUDE=1 npx vitest run test/integration/claude-e2e.test.ts
+```
+
+Il consomme un vrai appel réseau/API via le binaire `claude` installé
+localement (quota, latence) et tourne dans le même répertoire de travail
+neutre que la production (voir `apps/desktop/src/main/adapters/
+claudeWorkingDirectory.ts`), avec un délai généreux (4 minutes) au-dessus
+du délai de production (2 minutes) pour ne mesurer que l'acceptation du
+patch, pas le comportement du délai lui-même (déjà couvert par
+`packages/ai/test/runner.test.ts` avec de faux minuteurs).
 
 ## Ce que la v1 ne fait pas
 

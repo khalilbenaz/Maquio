@@ -18,8 +18,15 @@ import { colorSchema, nodeSchema, textStyleSchema } from '@calque/core'
 import type { DesignTokens, Node, NodePatch } from '@calque/core'
 
 export class InvalidPatchError extends Error {
-  constructor(message: string) {
-    super(message)
+  // `options.cause` (point 4 de la reparation du pont) : quand le rejet
+  // vient de patchSchema.safeParse, la ZodError d'origine est conservee ici
+  // -- jamais dumpee dans `message` (qui reste un resume general en
+  // francais) -- pour que l'appelant (service.ts, puis
+  // apps/desktop/claudeHandlers.ts) puisse la traduire en phrase francaise
+  // lisible via translateUnknownError plutot que d'exposer son format brut
+  // (`path [...] Required`, en anglais, illisible pour l'utilisateur).
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options)
     this.name = 'InvalidPatchError'
   }
 }
@@ -192,7 +199,14 @@ export function parsePatch(raw: string): DocumentPatch {
 
   const result = patchSchema.safeParse(parsed)
   if (!result.success) {
-    throw new InvalidPatchError(`Patch invalide : ${result.error.message}`)
+    // Message generique volontairement (voir la note sur InvalidPatchError
+    // ci-dessus) : le detail exploitable vit dans `cause` (la ZodError),
+    // pas dans ce message -- reproduire ici `result.error.message` est
+    // precisement le "vidage de validateur" (format anglais type
+    // `path [...] Required`) que la reparation du pont corrige.
+    throw new InvalidPatchError('Patch invalide : la réponse ne correspond pas au format de patch attendu', {
+      cause: result.error,
+    })
   }
 
   return result.data

@@ -55,6 +55,15 @@ export type CalqueApi = {
     selectionIds: string[]
     pageId: string
   }): Promise<{ patchJson: string; documentJson: string }>
+  // Point 2 de la reparation du pont : interrompt reellement la demande
+  // askClaude en cours (au plus une a la fois -- le bouton "Demander à
+  // Claude" reste desactive pendant l'attente, voir ClaudePanel.tsx), en
+  // declenchant cote main l'AbortSignal transmis jusqu'a
+  // ProcessClaudeRunner.run (packages/ai/src/runner.ts), qui tue
+  // reellement le sous-processus. Ne leve jamais si aucune demande n'est
+  // en cours (no-op silencieux) : le panneau peut l'appeler sans avoir a
+  // suivre lui-meme si une demande est encore active a l'instant du clic.
+  cancelClaude(): Promise<void>
   claudeAvailable(): Promise<boolean>
   // La connexion a Claude Code se regle dans les reglages, au meme titre
   // que le jeton Figma : getSettings rend maintenant aussi l'etat de
@@ -97,6 +106,7 @@ export const API_CHANNELS = [
   'exportProject',
   'listExporters',
   'askClaude',
+  'cancelClaude',
   'claudeAvailable',
   'getSettings',
   'setFigmaToken',

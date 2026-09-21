@@ -70,6 +70,25 @@ export function ClaudePanel({ api, onOpenSettings }: { api: CalqueApi; onOpenSet
     }
   }, [api, setStatutClaude])
 
+  // Point 2 de la reparation du pont : le bouton "Annuler" (affiche
+  // uniquement pendant `statut === 'loading'`, voir le rendu plus bas)
+  // appelle cancelClaude(), qui declenche cote main l'AbortSignal transmis
+  // jusqu'a ProcessClaudeRunner.run (packages/ai/src/runner.ts) -- celui-ci
+  // interrompt reellement le sous-processus. L'appel askClaude() en cours
+  // (dans demander() ci-dessous) rejette alors avec un message deja
+  // traduit en francais ("Demande interrompue par l'utilisateur", voir
+  // claudeHandlers.ts) : c'est le meme chemin d'erreur que n'importe quel
+  // autre echec, pas un statut dedie. Les erreurs de cancelClaude()
+  // lui-meme (improbables : simple IPC local) n'ont rien de plus a faire
+  // ici, l'echec de la demande en cours les couvre deja.
+  async function annuler() {
+    try {
+      await api.cancelClaude()
+    } catch {
+      // Volontairement ignoree : voir la note ci-dessus.
+    }
+  }
+
   async function demander() {
     const documentAvantEnvoi = useEditorStore.getState().document
     const pageId = useEditorStore.getState().pageId
@@ -174,6 +193,15 @@ export function ClaudePanel({ api, onOpenSettings }: { api: CalqueApi; onOpenSet
         >
           Demander à Claude
         </button>
+
+        {statut === 'loading' ? (
+          <div role="status" className="claude-panel-loading">
+            <p>En attente de la réponse de Claude Code…</p>
+            <button type="button" className="claude-panel-settings-link" onClick={() => void annuler()}>
+              Annuler
+            </button>
+          </div>
+        ) : null}
 
         {statut === 'perime' ? (
           <div role="alert" className="claude-panel-alert">
