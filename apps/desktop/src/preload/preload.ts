@@ -13,6 +13,7 @@ const api: CalqueApi = {
   exportProject: (input) => ipcRenderer.invoke('exportProject', input),
   listExporters: () => ipcRenderer.invoke('listExporters'),
   askClaude: (input) => ipcRenderer.invoke('askClaude', input),
+  cancelClaude: () => ipcRenderer.invoke('cancelClaude'),
   claudeAvailable: () => ipcRenderer.invoke('claudeAvailable'),
   getSettings: () => ipcRenderer.invoke('getSettings'),
   setFigmaToken: (token) => ipcRenderer.invoke('setFigmaToken', token),

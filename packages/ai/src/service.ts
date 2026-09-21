@@ -23,34 +23,58 @@ function truncate(text: string, max = 300): string {
   return text.length > max ? `${text.slice(0, max)}...` : text
 }
 
+// Point 4 de la reparation du pont : quand parsePatch rejette la reponse,
+// l'appelant a besoin de deux choses distinctes -- un message par defaut
+// deja francais et sans dump technique (`message`, inchange par rapport a
+// l'ancien comportement de ask(), voir service.test.ts), ET la reponse
+// brute INTEGRALE (`rawResponse`, pas tronquee ici) pour qu'elle reste
+// consultable en aval. `cause` (herite d'Error) porte l'InvalidPatchError
+// d'origine, qui porte elle-meme la ZodError quand le rejet vient du schema
+// (voir patch.ts) -- c'est ce que apps/desktop/claudeHandlers.ts exploite
+// via translateUnknownError pour produire une explication plus precise que
+// ce message par defaut, sans que packages/ai n'ait besoin de connaitre
+// cette fonction (qui vit cote application, pas ici).
+export class ClaudePatchRejectedError extends Error {
+  readonly rawResponse: string
+
+  constructor(rawResponse: string, options?: { cause?: unknown }) {
+    super(`Impossible d'interpréter la réponse de Claude Code comme un patch : ${truncate(rawResponse)}`, options)
+    this.name = 'ClaudePatchRejectedError'
+    this.rawResponse = rawResponse
+  }
+}
+
 export class AiService {
   constructor(private readonly runner: ClaudeRunner) {}
 
-  async ask(input: {
-    instruction: string
-    document: CalqueDocument
-    selectionIds: string[]
-    pageId: string
-  }): Promise<{ patch: DocumentPatch; commands: Command[]; command: Command }> {
+  async ask(
+    input: {
+      instruction: string
+      document: CalqueDocument
+      selectionIds: string[]
+      pageId: string
+    },
+    // Point 2 de la reparation du pont : relaye tel quel a runner.run(), qui
+    // le combine deja avec son propre delai interne (voir
+    // ProcessClaudeRunner.run dans runner.ts). AiService reste un simple
+    // relais ici, pour que le bouton "Annuler" du panneau (via
+    // apps/desktop/claudeHandlers.ts) puisse interrompre reellement l'appel
+    // en cours.
+    signal?: AbortSignal,
+  ): Promise<{ patch: DocumentPatch; commands: Command[]; command: Command }> {
     const prompt = buildPrompt({
       instruction: input.instruction,
       document: input.document,
       selectionIds: input.selectionIds,
     })
 
-    const raw = await this.runner.run(prompt)
+    const raw = await this.runner.run(prompt, signal)
 
     let patch: DocumentPatch
     try {
       patch = parsePatch(raw)
     } catch (cause) {
-      // Le message contient un extrait de la reponse BRUTE (tronquee) :
-      // c'est ce que le panneau affichera a l'utilisateur (decision 11), pas
-      // le prompt envoye (qui, lui, peut porter des donnees utilisateur et
-      // n'a pas a apparaitre ici).
-      throw new Error(`Impossible d'interpréter la réponse de Claude Code comme un patch : ${truncate(raw)}`, {
-        cause,
-      })
+      throw new ClaudePatchRejectedError(raw, { cause })
     }
 
     const commands = patchToCommands(patch, input.pageId)

@@ -24,6 +24,7 @@ export const apiFactice: CalqueApi = {
     patchJson: JSON.stringify({ summary: 'Reponse de test (double inerte)', ops: [] }),
     documentJson: json,
   }),
+  cancelClaude: async () => {},
   claudeAvailable: async () => true,
   getSettings: async () => ({
     hasFigmaToken: false,

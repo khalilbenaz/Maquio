@@ -1,10 +1,22 @@
-// Lanceur Claude Code (Tache 13).
+// Lanceur Claude Code (Tache 13, delai/annulation/repertoire de travail
+// ajoutes lors de la reparation du pont).
 //
 // `spawn` et `which` sont injectes, jamais importes depuis
 // `node:child_process` : l'adaptateur reel (vrai sous-processus, kill() sur
 // abandon, lecture du PATH) vit dans l'application de bureau (Tache 17).
 // C'est ce qui rend ce fichier testable sans le binaire `claude`, sans
 // sous-processus reel et sans reseau.
+//
+// `workingDirectory` (reparation du pont) suit la meme discipline : une
+// fabrique injectee, jamais `node:fs`/`node:os` importes ici. Le diagnostic
+// en conditions reelles a prouve qu'un `claude -p` lance SANS repertoire de
+// travail explicite herite du cwd d'Electron -- dans un dossier de projet,
+// il part l'explorer (hooks, memoire, contexte de session) au lieu de
+// repondre, ce qui le fait ne jamais rendre la main. C'est
+// `apps/desktop` qui fournit un repertoire temporaire vide, cree et nettoye
+// pour chaque appel (jamais le dossier de l'utilisateur ni celui du
+// document) : ce fichier reste agnostique de la facon dont ce repertoire
+// est obtenu, exactement comme pour `spawn` et `which`.
 //
 // Discipline du prompt (decision 8, meme principe que le jeton dans
 // packages/figma/src/client.ts) : le prompt peut contenir des donnees de
@@ -22,8 +34,17 @@
 export type SpawnLike = (
   cmd: string,
   args: string[],
-  opts: { signal?: AbortSignal },
+  opts: { signal?: AbortSignal; cwd?: string },
 ) => { stdout: AsyncIterable<string>; stderr: AsyncIterable<string>; exitCode: Promise<number> }
+
+// Repertoire de travail neutre pour un seul appel : `path` est passe comme
+// `cwd` du sous-processus, `cleanup` est appelee systematiquement apres
+// l'appel (succes, echec, annulation ou delai depasse -- voir le `finally`
+// de run()). Une fabrique par appel (pas un repertoire partage entre appels)
+// : elle est appelee une fois par `run()`, jamais mise en cache ici, pour
+// qu'aucun etat (session, cache) ne survive d'une demande a l'autre.
+export type WorkingDirectory = { path: string; cleanup(): Promise<void> }
+export type WorkingDirectoryProvider = () => Promise<WorkingDirectory>
 
 export interface ClaudeRunner {
   isAvailable(): Promise<boolean>
@@ -51,6 +72,34 @@ export class ClaudeOutputError extends Error {
   constructor(rawOutput: string) {
     super(`Sortie de Claude Code inexploitable (JSON invalide ou champ "result" absent) : ${truncate(rawOutput)}`)
     this.name = 'ClaudeOutputError'
+  }
+}
+
+// Delai par defaut d'un appel a `claude -p` : 2 minutes. Choix tranche lors
+// de la reparation du pont, a partir de deux mesures reelles (meme prompt,
+// meme machine) : termine en 13 secondes depuis un repertoire neutre,
+// jamais termine apres 10 minutes depuis un repertoire de projet (le
+// defaut A corrige par `workingDirectory` ci-dessus). Une fois ce defaut
+// corrige, une reponse saine prend quelques secondes a quelques dizaines de
+// secondes (patch multi-noeuds compris) : 2 minutes laisse une marge large
+// au-dessus de ce regime sain, sans laisser l'utilisateur devant un panneau
+// "en attente" indefiniment si Claude Code part malgre tout explorer
+// quelque chose d'inattendu.
+export const DEFAULT_CLAUDE_TIMEOUT_MS = 120_000
+
+export class ClaudeTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(
+      `Claude Code n'a pas répondu dans le délai imparti (${Math.round(timeoutMs / 1000)}s) : la demande a été interrompue`,
+    )
+    this.name = 'ClaudeTimeoutError'
+  }
+}
+
+export class ClaudeCancelledError extends Error {
+  constructor() {
+    super("Demande interrompue par l'utilisateur")
+    this.name = 'ClaudeCancelledError'
   }
 }
 
@@ -100,11 +149,25 @@ export class ProcessClaudeRunner implements ClaudeRunner {
   private readonly spawn: SpawnLike
   private readonly which: (bin: string) => Promise<string | null>
   private readonly binary: string
+  private readonly workingDirectory: WorkingDirectoryProvider | undefined
+  private readonly timeoutMs: number
 
-  constructor(opts: { spawn: SpawnLike; which: (bin: string) => Promise<string | null>; binary?: string }) {
+  constructor(opts: {
+    spawn: SpawnLike
+    which: (bin: string) => Promise<string | null>
+    binary?: string
+    // Absent = comportement inchange (le sous-processus herite du cwd du
+    // processus courant) : packages/ai reste agnostique, c'est
+    // apps/desktop qui doit fournir cette fabrique pour que le defaut A
+    // soit reellement corrige en production (voir main.ts).
+    workingDirectory?: WorkingDirectoryProvider
+    timeoutMs?: number
+  }) {
     this.spawn = opts.spawn
     this.which = opts.which
     this.binary = opts.binary ?? 'claude'
+    this.workingDirectory = opts.workingDirectory
+    this.timeoutMs = opts.timeoutMs ?? DEFAULT_CLAUDE_TIMEOUT_MS
   }
 
   async isAvailable(): Promise<boolean> {
@@ -117,17 +180,59 @@ export class ProcessClaudeRunner implements ClaudeRunner {
       throw new ClaudeUnavailableError()
     }
 
-    const proc = this.spawn(bin, ['-p', prompt, '--output-format', 'json'], { signal })
-    const [stdout, stderr, exitCode] = await Promise.all([
-      readAll(proc.stdout),
-      readAll(proc.stderr),
-      proc.exitCode,
-    ])
+    const workingDir = this.workingDirectory ? await this.workingDirectory() : null
 
-    if (exitCode !== 0) {
-      throw new ClaudeFailedError(exitCode, sanitizeForErrorMessage(stderr, prompt))
+    // Deux sources d'annulation independantes, combinees en un seul signal
+    // transmis au sous-processus : le delai interne (`timeoutController`,
+    // declenche par `setTimeout`) et le signal externe eventuel de
+    // l'appelant (le bouton "Annuler" du panneau, relaye jusqu'ici via
+    // AiService.ask -- voir service.ts). `timedOut` distingue les deux a
+    // la reception d'une annulation, pour lever l'erreur qui correspond
+    // reellement a ce qui s'est passe plutot qu'un message generique.
+    let timedOut = false
+    const timeoutController = new AbortController()
+    const timer = setTimeout(() => {
+      timedOut = true
+      timeoutController.abort()
+    }, this.timeoutMs)
+
+    const combinedSignal = AbortSignal.any(signal ? [signal, timeoutController.signal] : [timeoutController.signal])
+
+    try {
+      const proc = this.spawn(bin, ['-p', prompt, '--output-format', 'json'], {
+        signal: combinedSignal,
+        ...(workingDir ? { cwd: workingDir.path } : {}),
+      })
+      const [stdout, stderr, exitCode] = await Promise.all([
+        readAll(proc.stdout),
+        readAll(proc.stderr),
+        proc.exitCode,
+      ])
+
+      if (exitCode !== 0) {
+        throw new ClaudeFailedError(exitCode, sanitizeForErrorMessage(stderr, prompt))
+      }
+
+      return extractResult(stdout, prompt)
+    } catch (err) {
+      // ClaudeFailedError/ClaudeOutputError sont des rejets DELIBERES
+      // construits ci-dessus (ou dans extractResult) : ils portent deja le
+      // bon message, on ne les reinterprete jamais comme une annulation.
+      if (err instanceof ClaudeFailedError || err instanceof ClaudeOutputError) {
+        throw err
+      }
+      if (timedOut) {
+        throw new ClaudeTimeoutError(this.timeoutMs)
+      }
+      if (signal?.aborted) {
+        throw new ClaudeCancelledError()
+      }
+      throw err
+    } finally {
+      clearTimeout(timer)
+      if (workingDir) {
+        await workingDir.cleanup()
+      }
     }
-
-    return extractResult(stdout, prompt)
   }
 }

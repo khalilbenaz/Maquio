@@ -129,6 +129,37 @@ describe('ClaudePanel', () => {
     expect(useEditorStore.getState().history.canUndo).toBe(false)
   })
 
+  // Point 2 de la reparation du pont : un etat d'attente visible et un
+  // bouton "Annuler" qui interrompt REELLEMENT l'appel en cours (via
+  // api.cancelClaude(), cote main -- voir claudeHandlers.test.ts pour la
+  // preuve que ce canal interrompt bien le sous-processus). Ce test verifie
+  // le contrat cote panneau : le bouton appelle cancelClaude(), et le
+  // rejet consequent d'askClaude() (comme le ferait
+  // ClaudeCancelledError traduite par claudeHandlers.ts) est affiche
+  // comme n'importe quelle autre erreur, sans statut dedie.
+  it('affiche un etat d attente avec un bouton Annuler qui interrompt reellement la demande en cours', async () => {
+    let rejeter: (err: Error) => void = () => {}
+    const askClaude = vi.fn(
+      () =>
+        new Promise<{ patchJson: string; documentJson: string }>((_resolve, reject) => {
+          rejeter = reject
+        }),
+    )
+    const cancelClaude = vi.fn(async () => {
+      rejeter(new Error("Demande interrompue par l'utilisateur (réponse brute : )"))
+    })
+    render(<ClaudePanel api={{ ...apiFactice, askClaude, cancelClaude }} onOpenSettings={() => {}} />)
+
+    fireEvent.click(screen.getByLabelText('Demander à Claude'))
+    await screen.findByText(/En attente de la réponse de Claude Code/)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
+
+    expect(cancelClaude).toHaveBeenCalledTimes(1)
+    await screen.findByText(/interrompue par l'utilisateur/)
+    expect(useEditorStore.getState().history.canUndo).toBe(false)
+  })
+
   // La detection de Claude Code se regle desormais dans les reglages (au
   // meme titre que le jeton Figma) : le message de desactivation ne doit
   // plus laisser l'utilisateur sans issue, il doit l'orienter vers l'ecran

@@ -1,6 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
-import { ProcessClaudeRunner, ClaudeUnavailableError, ClaudeFailedError, ClaudeOutputError } from '../src/runner'
-import type { SpawnLike } from '../src/runner'
+import {
+  ProcessClaudeRunner,
+  ClaudeUnavailableError,
+  ClaudeFailedError,
+  ClaudeOutputError,
+  ClaudeTimeoutError,
+  ClaudeCancelledError,
+  DEFAULT_CLAUDE_TIMEOUT_MS,
+} from '../src/runner'
+import type { SpawnLike, WorkingDirectory } from '../src/runner'
 
 const flux = (s: string) => (async function* () { yield s })()
 const fauxSpawn = (sortie: string, code = 0) =>
@@ -52,8 +60,13 @@ describe('ProcessClaudeRunner', () => {
     await expect(r.run('x')).rejects.toBeInstanceOf(ClaudeOutputError)
   })
 
-  // Decision 9 : le signal d annulation est transmis au spawn injecte.
-  it('transmet le signal d annulation au spawn injecte', async () => {
+  // Decision 9, adaptee lors de la reparation du pont : le signal transmis
+  // au spawn injecte n'est plus le signal externe TEL QUEL (identite
+  // stricte) depuis que run() le combine avec son propre delai interne
+  // (AbortSignal.any, voir runner.ts) -- ce qui compte reellement, et ce
+  // que ce test verifie desormais, c'est que l'annulation du signal
+  // externe se propage bien jusqu'a celui recu par spawn.
+  it('propage l annulation du signal externe jusqu au spawn injecte', async () => {
     const controller = new AbortController()
     let received: AbortSignal | undefined
     const spawn: SpawnLike = vi.fn((_cmd, _args, opts) => {
@@ -62,7 +75,10 @@ describe('ProcessClaudeRunner', () => {
     })
     const r = new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude' })
     await r.run('x', controller.signal)
-    expect(received).toBe(controller.signal)
+    expect(received).toBeDefined()
+    expect(received!.aborted).toBe(false)
+    controller.abort()
+    expect(received!.aborted).toBe(true)
   })
 
   // Decision 9 : une annulation en cours d execution interrompt le
@@ -181,5 +197,96 @@ describe('ProcessClaudeRunner', () => {
     expect(err.message).not.toContain(secret)
     expect(err.stack ?? '').not.toContain(secret)
     expect(JSON.stringify(err)).not.toContain(secret)
+  })
+
+  // Defaut A (reparation du pont) : le repertoire de travail neutre est une
+  // fabrique INJECTEE (comme spawn/which), jamais node:fs/node:os importes
+  // ici -- ces deux tests verifient que run() la consulte, transmet bien
+  // son `path` comme `cwd` du sous-processus, et appelle systematiquement
+  // `cleanup()` apres l'appel, qu'il reussisse ou echoue.
+  describe('repertoire de travail neutre (defaut A)', () => {
+    it('lance le sous-processus dans le repertoire fourni par la fabrique et le nettoie apres un succes', async () => {
+      const cleanup = vi.fn(async () => {})
+      const workingDirectory = vi.fn(async (): Promise<WorkingDirectory> => ({ path: '/tmp/calque-claude-xyz', cleanup }))
+      let receivedCwd: string | undefined
+      const spawn: SpawnLike = vi.fn((_cmd, _args, opts) => {
+        receivedCwd = opts.cwd
+        return { stdout: flux(JSON.stringify({ result: 'ok' })), stderr: flux(''), exitCode: Promise.resolve(0) }
+      })
+      const r = new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude', workingDirectory })
+
+      await r.run('x')
+
+      expect(workingDirectory).toHaveBeenCalledTimes(1)
+      expect(receivedCwd).toBe('/tmp/calque-claude-xyz')
+      expect(cleanup).toHaveBeenCalledTimes(1)
+    })
+
+    it('nettoie aussi le repertoire de travail quand l appel echoue', async () => {
+      const cleanup = vi.fn(async () => {})
+      const workingDirectory = vi.fn(async (): Promise<WorkingDirectory> => ({ path: '/tmp/calque-claude-xyz', cleanup }))
+      const spawn: SpawnLike = vi.fn(() => ({ stdout: flux(''), stderr: flux('boom'), exitCode: Promise.resolve(1) }))
+      const r = new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude', workingDirectory })
+
+      await expect(r.run('x')).rejects.toBeInstanceOf(ClaudeFailedError)
+      expect(cleanup).toHaveBeenCalledTimes(1)
+    })
+
+    it('ne fournit aucun cwd au spawn quand aucune fabrique n est injectee (comportement inchange)', async () => {
+      let received: { cwd?: string } | undefined
+      const spawn: SpawnLike = vi.fn((_cmd, _args, opts) => {
+        received = opts
+        return { stdout: flux(JSON.stringify({ result: 'ok' })), stderr: flux(''), exitCode: Promise.resolve(0) }
+      })
+      const r = new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude' })
+      await r.run('x')
+      expect(received?.cwd).toBeUndefined()
+    })
+  })
+
+  // Point 2 du brief de reparation : l'appel est plafonne (2 minutes par
+  // defaut, voir DEFAULT_CLAUDE_TIMEOUT_MS dans runner.ts) et interrompu au-
+  // dela, avec un message clair distinct d'une simple annulation utilisateur.
+  describe('delai et annulation (point 2)', () => {
+    it('expose 2 minutes comme delai par defaut', () => {
+      expect(DEFAULT_CLAUDE_TIMEOUT_MS).toBe(120_000)
+    })
+
+    it('leve ClaudeTimeoutError quand claude ne repond pas dans le delai imparti', async () => {
+      const spawn: SpawnLike = vi.fn((_cmd, _args, opts) => {
+        const exitCode = new Promise<number>((_resolve, reject) => {
+          opts.signal?.addEventListener('abort', () => reject(new Error('sous-processus interrompu')))
+        })
+        return { stdout: flux(''), stderr: flux(''), exitCode }
+      })
+      const r = new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude', timeoutMs: 5 })
+      await expect(r.run('x')).rejects.toBeInstanceOf(ClaudeTimeoutError)
+    })
+
+    it('leve ClaudeCancelledError (pas ClaudeTimeoutError) quand c est le signal externe qui est declenche, pas le delai', async () => {
+      const controller = new AbortController()
+      let spawnCalled: () => void = () => {}
+      const spawnCalledPromise = new Promise<void>((resolve) => {
+        spawnCalled = resolve
+      })
+      const spawn: SpawnLike = vi.fn((_cmd, _args, opts) => {
+        const exitCode = new Promise<number>((_resolve, reject) => {
+          opts.signal?.addEventListener('abort', () => reject(new Error('sous-processus interrompu')))
+        })
+        spawnCalled()
+        return { stdout: flux(''), stderr: flux(''), exitCode }
+      })
+      const r = new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude', timeoutMs: 60_000 })
+      const promise = r.run('x', controller.signal)
+      await spawnCalledPromise
+      controller.abort()
+      await expect(promise).rejects.toBeInstanceOf(ClaudeCancelledError)
+    })
+
+    it('n interrompt pas un appel qui reussit avant le delai', async () => {
+      const spawn = fauxSpawn(JSON.stringify({ result: 'ok' }))
+      const r = new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude', timeoutMs: 60_000 })
+      await expect(r.run('x')).resolves.toBe('ok')
+    })
   })
 })
