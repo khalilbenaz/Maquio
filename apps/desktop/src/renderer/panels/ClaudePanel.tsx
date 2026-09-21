@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react'
 import { DocumentVersionError, parseDocument, serializeDocument } from '@calque/core'
 import type { CalqueDocument, Command } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
+import { useClaudeStatusStore } from '../state/claudeStatusStore'
 import type { CalqueApi } from '../../shared/api'
 import { translateUnknownError } from '../../shared/errors'
 
@@ -41,7 +42,13 @@ function commandeRemplacementDocument(label: string, precedent: CalqueDocument, 
 
 export function ClaudePanel({ api }: { api: CalqueApi }) {
   const [instruction, setInstruction] = useState('')
-  const [disponible, setDisponible] = useState(true)
+  // La disponibilite vit dans un magasin partage avec SettingsDialog (voir
+  // claudeStatusStore.ts), pas dans un etat local : c'est ce qui permet au
+  // panneau de redevenir utilisable des qu'un reglage Claude Code reussit
+  // ailleurs dans l'application, sans redemarrer (SettingsDialog et
+  // ClaudePanel sont freres, sans prop en commun -- voir Toolbar.tsx).
+  const disponible = useClaudeStatusStore((s) => s.available)
+  const setStatutClaude = useClaudeStatusStore((s) => s.setStatus)
   const [statut, setStatut] = useState<Statut>('idle')
   const [derniereInstruction, setDerniereInstruction] = useState('')
   const [resume, setResume] = useState('')
@@ -52,15 +59,15 @@ export function ClaudePanel({ api }: { api: CalqueApi }) {
     api
       .claudeAvailable()
       .then((ok) => {
-        if (!annule) setDisponible(ok)
+        if (!annule) setStatutClaude({ available: ok, path: null })
       })
       .catch(() => {
-        if (!annule) setDisponible(false)
+        if (!annule) setStatutClaude({ available: false, path: null })
       })
     return () => {
       annule = true
     }
-  }, [api])
+  }, [api, setStatutClaude])
 
   async function demander() {
     const documentAvantEnvoi = useEditorStore.getState().document
@@ -123,7 +130,8 @@ export function ClaudePanel({ api }: { api: CalqueApi }) {
     <section aria-label="Assistant Claude Code" className="claude-panel">
       {!disponible ? (
         <p role="alert">
-          Claude Code introuvable : verifiez que le binaire 'claude' est installe et accessible dans le PATH
+          Claude Code introuvable : ouvrez les Reglages pour verifier l'installation ou indiquer l'emplacement du
+          binaire 'claude'
         </p>
       ) : null}
 

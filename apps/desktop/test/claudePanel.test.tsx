@@ -3,11 +3,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { moveNodeCommand, serializeDocument } from '@calque/core'
 import { ClaudePanel } from '../src/renderer/panels/ClaudePanel'
 import { useEditorStore } from '../src/renderer/state/editorStore'
+import { useClaudeStatusStore } from '../src/renderer/state/claudeStatusStore'
 import { documentDeTest } from './helpers/documentDeTest'
 import { apiFactice } from './helpers/apiFactice'
 import { documentJsonDeFormeInvalide } from './helpers/documentJsonInvalide'
 
-beforeEach(() => useEditorStore.getState().load(documentDeTest()))
+beforeEach(() => {
+  useEditorStore.getState().load(documentDeTest())
+  // Reinitialise le magasin partage avec SettingsDialog (voir
+  // claudeStatusStore.ts) : un test qui le laisse a `false` ferait
+  // demarrer le suivant desactive, independamment de son propre double
+  // d'API.
+  useClaudeStatusStore.getState().setStatus({ available: true, path: null })
+})
 
 // Round de correction 1 (Critical) : un SyntaxError (JSON tronque) ou un
 // ZodError (document de forme invalide), leves localement par
@@ -119,5 +127,34 @@ describe('ClaudePanel', () => {
     const alerte = await screen.findByRole('alert')
     verifieMessagePropre(alerte.textContent ?? '')
     expect(useEditorStore.getState().history.canUndo).toBe(false)
+  })
+
+  // La detection de Claude Code se regle desormais dans les reglages (au
+  // meme titre que le jeton Figma) : le message de desactivation ne doit
+  // plus laisser l'utilisateur sans issue, il doit l'orienter vers l'ecran
+  // ou il peut agir.
+  it('le message de desactivation renvoie vers les reglages', async () => {
+    render(<ClaudePanel api={{ ...apiFactice, claudeAvailable: async () => false }} />)
+    const message = await screen.findByText(/Claude Code introuvable/)
+    expect(message.textContent).toMatch(/Reglages/)
+  })
+
+  // SettingsDialog et ClaudePanel sont freres (tous deux sous Toolbar/App,
+  // voir Toolbar.tsx) : ils n'ont aucune prop en commun. C'est le magasin
+  // partage claudeStatusStore qui fait que le panneau redevient utilisable
+  // des qu'un reglage reussit, sans redemarrer l'application -- ce test
+  // verifie ce contrat directement (SettingsDialog ecrit dans ce meme
+  // magasin, voir settingsDialog.test.tsx).
+  it('redevient actif quand le magasin partage de statut Claude passe a disponible, sans redemarrer', async () => {
+    render(<ClaudePanel api={{ ...apiFactice, claudeAvailable: async () => false }} />)
+    expect(await screen.findByText(/Claude Code introuvable/)).toBeTruthy()
+    expect(screen.getByLabelText('Demander a Claude').hasAttribute('disabled')).toBe(true)
+
+    act(() => {
+      useClaudeStatusStore.getState().setStatus({ available: true, path: '/usr/local/bin/claude' })
+    })
+
+    expect(screen.queryByText(/Claude Code introuvable/)).toBeNull()
+    expect(screen.getByLabelText('Demander a Claude').hasAttribute('disabled')).toBe(false)
   })
 })

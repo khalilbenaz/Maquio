@@ -50,8 +50,28 @@ export type CalqueApi = {
     pageId: string
   }): Promise<{ patchJson: string; documentJson: string }>
   claudeAvailable(): Promise<boolean>
-  getSettings(): Promise<{ hasFigmaToken: boolean }>
+  // La connexion a Claude Code se regle dans les reglages, au meme titre
+  // que le jeton Figma : getSettings rend maintenant aussi l'etat de
+  // detection du binaire `claude` (trouve ou non, et le chemin REELLEMENT
+  // resolu quand il l'est -- l'information qui permet de comprendre quel
+  // `claude` sera lance s'il y en a plusieurs), ainsi que le chemin
+  // personnalise actuellement enregistre (null si aucun).
+  getSettings(): Promise<{
+    hasFigmaToken: boolean
+    claudeAvailable: boolean
+    claudePath: string | null
+    claudeCustomPath: string | null
+  }>
   setFigmaToken(token: string): Promise<void>
+  // Enregistre (ou efface, avec une chaine vide) un chemin personnalise
+  // vers le binaire `claude`, utile quand il n'est pas dans le PATH de
+  // l'application (cas courant sur macOS : une application lancee depuis
+  // le Finder n'herite pas du PATH d'un shell de connexion). Un chemin
+  // inexistant, non executable, ou qui designe un dossier est refuse avec
+  // sa raison (l'ancien reglage n'est pas ecrase) -- voir
+  // claudeSettingsHandlers.ts. Rend le nouvel etat de detection, deja a
+  // jour avec le reglage applique.
+  setClaudeCustomPath(path: string): Promise<{ claudeAvailable: boolean; claudePath: string | null }>
 }
 
 export const API_CHANNELS = [
@@ -64,4 +84,5 @@ export const API_CHANNELS = [
   'claudeAvailable',
   'getSettings',
   'setFigmaToken',
+  'setClaudeCustomPath',
 ] as const

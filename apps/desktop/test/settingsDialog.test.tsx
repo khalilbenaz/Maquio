@@ -3,9 +3,12 @@
 // par l'API etait inatteignable pour un utilisateur (le jeton restait
 // toujours absent, voir figmaHandlers.ts / FigmaTokenMissingError).
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SettingsDialog } from '../src/renderer/dialogs/SettingsDialog'
+import { useClaudeStatusStore } from '../src/renderer/state/claudeStatusStore'
 import { apiFactice } from './helpers/apiFactice'
+
+beforeEach(() => useClaudeStatusStore.getState().setStatus({ available: true, path: null }))
 
 describe('SettingsDialog', () => {
   it('le champ du jeton est de type password', () => {
@@ -90,7 +93,20 @@ describe('SettingsDialog', () => {
   })
 
   it('lit l etat courant via getSettings a l ouverture', async () => {
-    render(<SettingsDialog api={{ ...apiFactice, getSettings: async () => ({ hasFigmaToken: true }) }} onClose={() => {}} />)
+    render(
+      <SettingsDialog
+        api={{
+          ...apiFactice,
+          getSettings: async () => ({
+            hasFigmaToken: true,
+            claudeAvailable: true,
+            claudePath: '/usr/local/bin/claude',
+            claudeCustomPath: null,
+          }),
+        }}
+        onClose={() => {}}
+      />,
+    )
     expect(await screen.findByText(/un jeton figma est enregistre/i)).toBeTruthy()
   })
 
@@ -98,5 +114,148 @@ describe('SettingsDialog', () => {
     render(<SettingsDialog api={apiFactice} onClose={() => {}} />)
     expect(screen.getByText(/figma\.com\/developers\/api/)).toBeTruthy()
     expect(screen.queryByRole('link')).toBeNull()
+  })
+})
+
+// La connexion a Claude Code se regle desormais dans les reglages, au meme
+// titre que le jeton Figma (jusqu'ici, un binaire `claude` absent du PATH
+// desactivait le panneau Claude en silence, sans que l'utilisateur puisse
+// rien y faire).
+describe('SettingsDialog — Claude Code', () => {
+  it('affiche l etat trouve avec le chemin reellement resolu', async () => {
+    render(
+      <SettingsDialog
+        api={{
+          ...apiFactice,
+          getSettings: async () => ({
+            hasFigmaToken: false,
+            claudeAvailable: true,
+            claudePath: '/opt/homebrew/bin/claude',
+            claudeCustomPath: null,
+          }),
+        }}
+        onClose={() => {}}
+      />,
+    )
+    const etat = await screen.findByText(/\/opt\/homebrew\/bin\/claude/)
+    expect(etat.textContent).toMatch(/trouve/i)
+  })
+
+  it('affiche l etat introuvable quand le binaire n est pas detecte', async () => {
+    render(
+      <SettingsDialog
+        api={{
+          ...apiFactice,
+          getSettings: async () => ({
+            hasFigmaToken: false,
+            claudeAvailable: false,
+            claudePath: null,
+            claudeCustomPath: null,
+          }),
+        }}
+        onClose={() => {}}
+      />,
+    )
+    expect(await screen.findByText(/introuvable/i)).toBeTruthy()
+  })
+
+  it('explique que Calque lance le binaire deja installe et n utilise aucune cle d API', () => {
+    render(<SettingsDialog api={apiFactice} onClose={() => {}} />)
+    expect(screen.getByText(/aucune cle d.api/i)).toBeTruthy()
+  })
+
+  it('enregistre un chemin personnalise valide via setClaudeCustomPath', async () => {
+    const setClaudeCustomPath = vi.fn(async (p: string) => ({ claudeAvailable: true, claudePath: p }))
+    render(<SettingsDialog api={{ ...apiFactice, setClaudeCustomPath }} onClose={() => {}} />)
+
+    fireEvent.change(screen.getByLabelText('Chemin personnalise vers le binaire claude'), {
+      target: { value: '/opt/homebrew/bin/claude' },
+    })
+    fireEvent.click(screen.getByLabelText('Enregistrer le chemin de Claude Code'))
+
+    await screen.findByText(/\/opt\/homebrew\/bin\/claude/)
+    expect(setClaudeCustomPath).toHaveBeenCalledWith('/opt/homebrew/bin/claude')
+  })
+
+  it('refuse un chemin invalide avec sa raison, sans vider le champ ni ecraser l etat affiche', async () => {
+    const setClaudeCustomPath = vi.fn(async () => {
+      throw new Error('Fichier introuvable : /mauvais/chemin')
+    })
+    render(
+      <SettingsDialog
+        api={{
+          ...apiFactice,
+          getSettings: async () => ({
+            hasFigmaToken: false,
+            claudeAvailable: true,
+            claudePath: '/usr/local/bin/claude',
+            claudeCustomPath: null,
+          }),
+          setClaudeCustomPath,
+        }}
+        onClose={() => {}}
+      />,
+    )
+    await screen.findByText(/\/usr\/local\/bin\/claude/)
+
+    const champ = screen.getByLabelText('Chemin personnalise vers le binaire claude') as HTMLInputElement
+    fireEvent.change(champ, { target: { value: '/mauvais/chemin' } })
+    fireEvent.click(screen.getByLabelText('Enregistrer le chemin de Claude Code'))
+
+    await screen.findByText(/Fichier introuvable/)
+    expect(champ.value).toBe('/mauvais/chemin')
+    // L'etat affiche (l'ancien reglage) n'a pas bouge : le refus n'a rien
+    // ecrase cote main (voir claudeSettingsHandlers.test.ts).
+    expect(screen.getByText(/\/usr\/local\/bin\/claude/)).toBeTruthy()
+  })
+
+  it('le bouton Verifier relance la detection et affiche le nouveau resultat', async () => {
+    const getSettings = vi
+      .fn()
+      .mockResolvedValueOnce({ hasFigmaToken: false, claudeAvailable: false, claudePath: null, claudeCustomPath: null })
+      .mockResolvedValueOnce({
+        hasFigmaToken: false,
+        claudeAvailable: true,
+        claudePath: '/usr/local/bin/claude',
+        claudeCustomPath: null,
+      })
+
+    render(<SettingsDialog api={{ ...apiFactice, getSettings }} onClose={() => {}} />)
+    await screen.findByText(/introuvable/i)
+
+    fireEvent.click(screen.getByLabelText('Verifier la connexion Claude Code'))
+
+    await screen.findByText(/\/usr\/local\/bin\/claude/)
+    expect(getSettings).toHaveBeenCalledTimes(2)
+  })
+
+  it('ecrit le nouvel etat dans le magasin partage avec ClaudePanel apres un enregistrement reussi', async () => {
+    const setClaudeCustomPath = vi.fn(async () => ({ claudeAvailable: true, claudePath: '/opt/homebrew/bin/claude' }))
+    render(
+      <SettingsDialog
+        api={{
+          ...apiFactice,
+          getSettings: async () => ({
+            hasFigmaToken: false,
+            claudeAvailable: false,
+            claudePath: null,
+            claudeCustomPath: null,
+          }),
+          setClaudeCustomPath,
+        }}
+        onClose={() => {}}
+      />,
+    )
+    await screen.findByText(/introuvable/i)
+    expect(useClaudeStatusStore.getState().available).toBe(false)
+
+    fireEvent.change(screen.getByLabelText('Chemin personnalise vers le binaire claude'), {
+      target: { value: '/opt/homebrew/bin/claude' },
+    })
+    fireEvent.click(screen.getByLabelText('Enregistrer le chemin de Claude Code'))
+
+    await screen.findByText(/\/opt\/homebrew\/bin\/claude/)
+    expect(useClaudeStatusStore.getState().available).toBe(true)
+    expect(useClaudeStatusStore.getState().path).toBe('/opt/homebrew/bin/claude')
   })
 })

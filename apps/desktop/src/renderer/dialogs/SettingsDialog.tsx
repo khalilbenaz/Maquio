@@ -1,7 +1,6 @@
-// Dialogue de reglages (Tache 17, correction round 2 : Critical) : ecran
-// minimal pour saisir le jeton personnel Figma, sans lequel l'import
-// Figma par l'API est inatteignable (aucun autre composant n'appelait
-// setFigmaToken/getSettings avant ce correctif). Recoit l'API en
+// Dialogue de reglages (Tache 17, correction round 2 : Critical ; etendu
+// pour les reglages Claude Code) : ecran pour le jeton personnel Figma ET
+// pour la connexion a Claude Code, au meme titre. Recoit l'API en
 // propriete, comme FigmaImportDialog et ExportDialog -- jamais
 // window.calque directement.
 //
@@ -13,8 +12,18 @@
 // SecretStorageUnavailableError) est deja traduit en message francais
 // cote main ; ce dialogue se contente de l'afficher, sans le remplacer ni
 // l'avaler.
+//
+// Claude Code, a l'inverse, n'est PAS un secret (voir
+// claudeSettingsStore.ts) : le chemin personnalise enregistre est
+// reaffiche a chaque ouverture (pre-rempli), et reste visible dans le
+// champ apres un enregistrement reussi -- il n'y a rien a cacher. Un
+// enregistrement reussi (ou un "Verifier") ecrit aussi le nouvel etat dans
+// claudeStatusStore, le magasin partage avec ClaudePanel (freres sous
+// Toolbar/App, sans prop en commun) : c'est ce qui fait que le panneau
+// Claude redevient utilisable immediatement, sans redemarrer l'application.
 import { useEffect, useState } from 'react'
 import type { CalqueApi } from '../../shared/api'
+import { useClaudeStatusStore } from '../state/claudeStatusStore'
 
 type Statut = 'idle' | 'loading' | 'error'
 
@@ -24,15 +33,28 @@ export function SettingsDialog({ api, onClose }: { api: CalqueApi; onClose: () =
   const [statut, setStatut] = useState<Statut>('idle')
   const [erreur, setErreur] = useState('')
 
+  const [claudeAvailable, setClaudeAvailable] = useState(false)
+  const [claudePath, setClaudePath] = useState<string | null>(null)
+  const [cheminSaisi, setCheminSaisi] = useState('')
+  const [claudeStatut, setClaudeStatut] = useState<Statut>('idle')
+  const [claudeErreur, setClaudeErreur] = useState('')
+
+  const ecrireStatutPartage = useClaudeStatusStore((s) => s.setStatus)
+
   useEffect(() => {
     let annule = false
     api.getSettings().then((reglages) => {
-      if (!annule) setHasFigmaToken(reglages.hasFigmaToken)
+      if (annule) return
+      setHasFigmaToken(reglages.hasFigmaToken)
+      setClaudeAvailable(reglages.claudeAvailable)
+      setClaudePath(reglages.claudePath)
+      setCheminSaisi(reglages.claudeCustomPath ?? '')
+      ecrireStatutPartage({ available: reglages.claudeAvailable, path: reglages.claudePath })
     })
     return () => {
       annule = true
     }
-  }, [api])
+  }, [api, ecrireStatutPartage])
 
   async function enregistrer() {
     setStatut('loading')
@@ -50,6 +72,45 @@ export function SettingsDialog({ api, onClose }: { api: CalqueApi; onClose: () =
       // l'utilisateur n'ait pas a la ressaisir (decision 3).
       setErreur(err instanceof Error ? err.message : String(err))
       setStatut('error')
+    }
+  }
+
+  // Relance la detection sans rien enregistrer : reutilise getSettings(),
+  // qui refait un `which` a chaque appel cote main (jamais mis en cache) --
+  // voir claudeSettingsHandlers.ts / main.ts (resolveClaudeStatus).
+  async function verifierClaude() {
+    setClaudeStatut('loading')
+    setClaudeErreur('')
+    try {
+      const reglages = await api.getSettings()
+      setClaudeAvailable(reglages.claudeAvailable)
+      setClaudePath(reglages.claudePath)
+      setCheminSaisi(reglages.claudeCustomPath ?? '')
+      ecrireStatutPartage({ available: reglages.claudeAvailable, path: reglages.claudePath })
+      setClaudeStatut('idle')
+    } catch (err) {
+      setClaudeErreur(err instanceof Error ? err.message : String(err))
+      setClaudeStatut('error')
+    }
+  }
+
+  async function enregistrerCheminClaude() {
+    setClaudeStatut('loading')
+    setClaudeErreur('')
+    try {
+      const resultat = await api.setClaudeCustomPath(cheminSaisi)
+      setClaudeAvailable(resultat.claudeAvailable)
+      setClaudePath(resultat.claudePath)
+      ecrireStatutPartage({ available: resultat.claudeAvailable, path: resultat.claudePath })
+      setClaudeStatut('idle')
+    } catch (err) {
+      // Refuse avec sa raison (fichier inexistant, non executable, ou
+      // dossier -- voir claudeSettingsHandlers.ts) : le champ garde la
+      // valeur saisie, et l'etat affiche (claudeAvailable/claudePath) n'est
+      // pas touche, puisque le reglage cote main n'a pas ete ecrase non
+      // plus.
+      setClaudeErreur(err instanceof Error ? err.message : String(err))
+      setClaudeStatut('error')
     }
   }
 
@@ -74,13 +135,56 @@ export function SettingsDialog({ api, onClose }: { api: CalqueApi; onClose: () =
       >
         Enregistrer
       </button>
-      <button type="button" aria-label="Fermer les reglages" onClick={onClose}>
-        Fermer
-      </button>
 
       <p>Obtenir un jeton personnel Figma : https://www.figma.com/developers/api#access-tokens</p>
 
       {statut === 'error' ? <p role="alert">{erreur}</p> : null}
+
+      <div role="group" aria-label="Claude Code">
+        <h2>Claude Code</h2>
+
+        <p>
+          {claudeAvailable
+            ? `Claude Code trouve : ${claudePath ?? ''}`
+            : 'Claude Code introuvable'}
+        </p>
+        <p>
+          Calque lance le binaire 'claude' deja installe sur cette machine et n'utilise aucune cle d'API.
+        </p>
+
+        <label htmlFor="claude-custom-path-input">Chemin personnalise vers le binaire claude</label>
+        <input
+          id="claude-custom-path-input"
+          aria-label="Chemin personnalise vers le binaire claude"
+          type="text"
+          placeholder="/usr/local/bin/claude"
+          value={cheminSaisi}
+          disabled={claudeStatut === 'loading'}
+          onChange={(e) => setCheminSaisi(e.target.value)}
+        />
+        <button
+          type="button"
+          aria-label="Enregistrer le chemin de Claude Code"
+          disabled={claudeStatut === 'loading'}
+          onClick={() => void enregistrerCheminClaude()}
+        >
+          Enregistrer
+        </button>
+        <button
+          type="button"
+          aria-label="Verifier la connexion Claude Code"
+          disabled={claudeStatut === 'loading'}
+          onClick={() => void verifierClaude()}
+        >
+          Verifier
+        </button>
+
+        {claudeStatut === 'error' ? <p role="alert">{claudeErreur}</p> : null}
+      </div>
+
+      <button type="button" aria-label="Fermer les reglages" onClick={onClose}>
+        Fermer
+      </button>
     </section>
   )
 }

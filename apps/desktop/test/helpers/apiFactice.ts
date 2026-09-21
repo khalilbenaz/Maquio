@@ -25,6 +25,12 @@ export const apiFactice: CalqueApi = {
     documentJson: json,
   }),
   claudeAvailable: async () => true,
-  getSettings: async () => ({ hasFigmaToken: false }),
+  getSettings: async () => ({
+    hasFigmaToken: false,
+    claudeAvailable: true,
+    claudePath: '/usr/local/bin/claude',
+    claudeCustomPath: null,
+  }),
   setFigmaToken: async () => {},
+  setClaudeCustomPath: async () => ({ claudeAvailable: true, claudePath: '/usr/local/bin/claude' }),
 }
