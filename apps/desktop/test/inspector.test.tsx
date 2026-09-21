@@ -42,6 +42,56 @@ describe('InspectorPanel', () => {
     expect(useEditorStore.getState().document.pages[0]!.nodes[0]!.frame.y).toBe(77)
   })
 
+  // Finition v1 : l'arrondi a l'entier ne s'applique qu'a la geometrie
+  // produite par un GESTE (voir useDragInteraction.test.ts / canvas.test.tsx)
+  // -- une valeur decimale saisie au clavier dans l'inspecteur doit rester
+  // exactement ce que l'utilisateur a tape.
+  it('une valeur decimale saisie au clavier est conservee telle quelle, sans arrondi', () => {
+    render(<InspectorPanel />)
+    act(() => {
+      useEditorStore.getState().select(['rect1'])
+    })
+    const champ = screen.getByLabelText('X') as HTMLInputElement
+    fireEvent.change(champ, { target: { value: '12.5' } })
+    fireEvent.blur(champ)
+    expect(useEditorStore.getState().document.pages[0]!.nodes[0]!.frame.x).toBe(12.5)
+  })
+
+  // Finition v1 : l'affichage n'excede jamais deux decimales, sans jamais
+  // arrondir la valeur STOCKEE dans le document -- seul ce qui est montre
+  // dans le champ (avant toute frappe) est reformate.
+  it("l affichage n excede jamais deux decimales, sans jamais arrondir la valeur du document", () => {
+    const doc = documentDeTest()
+    const rect1 = doc.pages[0]!.nodes[0] as RectNode
+    const precis: RectNode = {
+      ...rect1,
+      frame: { x: 81.4489051094, y: 245.649635036, w: 233.2116, h: 202.1167 },
+    }
+    useEditorStore.getState().load({ ...doc, pages: [{ ...doc.pages[0]!, nodes: [precis, doc.pages[0]!.nodes[1]!] }] })
+    useEditorStore.getState().select(['rect1'])
+    render(<InspectorPanel />)
+
+    expect((screen.getByLabelText('X') as HTMLInputElement).value).toBe('81.45')
+    expect((screen.getByLabelText('Y') as HTMLInputElement).value).toBe('245.65')
+    expect((screen.getByLabelText('Largeur') as HTMLInputElement).value).toBe('233.21')
+    expect((screen.getByLabelText('Hauteur') as HTMLInputElement).value).toBe('202.12')
+
+    // La valeur STOCKEE, elle, reste exacte : l'arrondi est un
+    // formatage d'affichage, pas une troncature de donnees.
+    expect(useEditorStore.getState().document.pages[0]!.nodes[0]!.frame.x).toBe(81.4489051094)
+  })
+
+  it("un entier s affiche sans decimale inutile (233, pas 233.00)", () => {
+    render(<InspectorPanel />)
+    act(() => {
+      useEditorStore.getState().select(['rect1'])
+    })
+    const champ = screen.getByLabelText('Largeur') as HTMLInputElement
+    fireEvent.change(champ, { target: { value: '233' } })
+    fireEvent.blur(champ)
+    expect(champ.value).toBe('233')
+  })
+
   it('une valeur inchangee a la validation n emet aucune commande (corollaire de la decision 2)', () => {
     render(<InspectorPanel />)
     act(() => {

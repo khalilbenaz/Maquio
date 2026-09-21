@@ -8,7 +8,7 @@
 // pour rester testables sans preload. Aucun acces au disque, au reseau ou
 // a un sous-processus ici : tout cela passe par le preload (window.calque).
 import { useEffect, useState } from 'react'
-import { parseDocument, serializeDocument } from '@calque/core'
+import { createDocument, parseDocument, serializeDocument } from '@calque/core'
 import type { CalqueApi } from '../shared/api'
 import { useEditorStore } from './state/editorStore'
 import { Canvas } from './canvas/Canvas'
@@ -59,6 +59,19 @@ function Editeur({ api }: { api: CalqueApi }) {
   const [savedJson, setSavedJson] = useState(() => serializeDocument(documentCourant))
   const dirty = serializeDocument(documentCourant) !== savedJson
 
+  // "Nouveau" (finition v1) : aucun canal main n'est necessaire (voir la
+  // note dans preload.ts) -- un document vierge se construit entierement
+  // ici avec createDocument(), deja utilise par le magasin lui-meme pour
+  // son document initial. Reinitialise aussi le suivi de chemin/etat
+  // enregistre, comme ouvrir() : un "Nouveau" ne doit jamais ecraser le
+  // fichier ouvert precedemment au prochain "Enregistrer".
+  function nouveau() {
+    const doc = createDocument('Document sans titre')
+    useEditorStore.getState().load(doc)
+    setDocumentPath(null)
+    setSavedJson(serializeDocument(doc))
+  }
+
   async function ouvrir() {
     const result = await api.openDocument()
     if (result === null) return
@@ -75,18 +88,21 @@ function Editeur({ api }: { api: CalqueApi }) {
     setSavedJson(json)
   }
 
-  // Decision 10 : le menu natif "Fichier" (Ouvrir/Enregistrer/Enregistrer
-  // sous) vit cote main et signale son intention via le second pont
-  // (window.calqueMenu, distinct de CalqueApi) -- c'est le renderer qui
-  // execute reellement l'action, via les canaux openDocument/saveDocument
-  // habituels.
+  // Decision 10 : le menu natif "Fichier" (Nouveau/Ouvrir/Enregistrer/
+  // Enregistrer sous) vit cote main et signale son intention via le second
+  // pont (window.calqueMenu, distinct de CalqueApi) -- c'est le renderer
+  // qui execute reellement l'action, via les canaux openDocument/
+  // saveDocument habituels pour les trois derniers, et localement (voir
+  // nouveau() ci-dessus) pour le premier.
   useEffect(() => {
     const evenements = window.calqueMenu
     if (!evenements) return
+    const detacherNouveau = evenements.onNewRequested(() => nouveau())
     const detacherOuvrir = evenements.onOpenRequested(() => void ouvrir())
     const detacherEnregistrer = evenements.onSaveRequested(() => void enregistrer(false))
     const detacherEnregistrerSous = evenements.onSaveAsRequested(() => void enregistrer(true))
     return () => {
+      detacherNouveau()
       detacherOuvrir()
       detacherEnregistrer()
       detacherEnregistrerSous()

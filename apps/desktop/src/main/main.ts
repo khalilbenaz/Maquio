@@ -205,9 +205,28 @@ function envoyerAuxFenetres(canal: string): void {
 
 function construireLeMenu(): Menu {
   return Menu.buildFromTemplate([
+    // Menu application standard (finition v1, Critical) : sur macOS, le
+    // system (Cocoa/NSMenu) affiche TOUJOURS le tout premier menu de la
+    // barre avec le nom du processus ("Calque"), quel que soit le `label`
+    // qu'on lui donne -- c'est ce qui avalait silencieusement le menu
+    // "Fichier" ci-dessous quand il occupait la premiere position : ses
+    // elements (Nouveau/Ouvrir/Enregistrer/Enregistrer sous/Quitter)
+    // fonctionnaient bel et bien, mais le menu qui les contenait
+    // s'affichait sous le nom "Calque", jamais sous "Fichier" -- d'ou le
+    // defaut signale ("la barre de menus n'a que Calque et Édition").
+    // `role: 'appMenu'` cede cette premiere position au menu standard
+    // (À propos, Services, Masquer, Quitter...), deja localise par le
+    // systeme, et laisse "Fichier" apparaitre normalement en deuxieme
+    // position, sous son propre nom.
+    { role: 'appMenu' },
     {
       label: 'Fichier',
       submenu: [
+        {
+          label: 'Nouveau',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => envoyerAuxFenetres('calque:menu-new'),
+        },
         {
           label: 'Ouvrir...',
           accelerator: 'CmdOrCtrl+O',
@@ -223,8 +242,6 @@ function construireLeMenu(): Menu {
           accelerator: 'CmdOrCtrl+Shift+S',
           click: () => envoyerAuxFenetres('calque:menu-save-as'),
         },
-        { type: 'separator' },
-        { role: 'quit', label: 'Quitter' },
       ],
     },
     {

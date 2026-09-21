@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, beforeEach, vi } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
 import { createDocument } from '@calque/core'
 import { Canvas } from '../src/renderer/canvas/Canvas'
+import { computeFitTransform } from '../src/renderer/canvas/viewport'
 import { useEditorStore } from '../src/renderer/state/editorStore'
 import { documentDeTest } from './helpers/documentDeTest'
 
@@ -343,5 +344,132 @@ describe('Canvas - zoom a la molette (refonte visuelle)', () => {
     const zoomAvant = useEditorStore.getState().zoom
     fireEvent.wheel(screen.getByTestId('canvas-scene'), { deltaX: 20, deltaY: 30 })
     expect(useEditorStore.getState().zoom).toBe(zoomAvant)
+  })
+})
+
+// Finition v1 : la geometrie produite par un GESTE (creation, deplacement,
+// redimensionnement) est arrondie a l'entier en unites de page au moment ou
+// la commande est construite -- un zoom non entier (screenToPage divise par
+// le zoom) produisait sinon des flottants a dix decimales dans le document
+// (ex. X 81.4489051094 constate a l'usage a zoom 0.64).
+describe('Canvas - arrondi de la geometrie a un zoom non entier (finition v1)', () => {
+  it('un trace produit des coordonnees et des dimensions entieres', () => {
+    render(<Canvas />)
+    act(() => {
+      useEditorStore.getState().setZoom(0.64)
+      useEditorStore.getState().setTool('rect')
+    })
+
+    const background = screen.getByTestId('canvas-background')
+    fireEvent.pointerDown(background, { clientX: 10, clientY: 10 })
+    fireEvent.pointerMove(window, { clientX: 100, clientY: 80 })
+    fireEvent.pointerUp(window, { clientX: 100, clientY: 80 })
+
+    const state = useEditorStore.getState()
+    const createdId = state.selection[0]!
+    const created = state.document.pages[0]!.nodes.find((n) => n.id === createdId)!
+
+    expect(Number.isInteger(created.frame.x)).toBe(true)
+    expect(Number.isInteger(created.frame.y)).toBe(true)
+    expect(Number.isInteger(created.frame.w)).toBe(true)
+    expect(Number.isInteger(created.frame.h)).toBe(true)
+  })
+
+  it('un deplacement produit un delta entier', () => {
+    render(<Canvas />)
+    act(() => {
+      useEditorStore.getState().setZoom(0.64)
+    })
+
+    const el = screen.getByTestId('node-rect1')
+    fireEvent.pointerDown(el, { clientX: 0, clientY: 0 })
+    fireEvent.pointerMove(window, { clientX: 20, clientY: 13 })
+    fireEvent.pointerUp(window, { clientX: 20, clientY: 13 })
+
+    const frame = useEditorStore.getState().document.pages[0]!.nodes[0]!.frame
+    expect(Number.isInteger(frame.x)).toBe(true)
+    expect(Number.isInteger(frame.y)).toBe(true)
+  })
+
+  it('un redimensionnement produit une largeur et une hauteur entieres', () => {
+    render(<Canvas />)
+    act(() => {
+      useEditorStore.getState().setZoom(0.64)
+    })
+
+    fireEvent.pointerDown(screen.getByTestId('node-rect1'))
+    const handle = screen.getByTestId('handle-se')
+    fireEvent.pointerDown(handle, { clientX: 50, clientY: 50 })
+    fireEvent.pointerMove(window, { clientX: 80, clientY: 65 })
+    fireEvent.pointerUp(window, { clientX: 80, clientY: 65 })
+
+    const frame = useEditorStore.getState().document.pages[0]!.nodes[0]!.frame
+    expect(Number.isInteger(frame.x)).toBe(true)
+    expect(Number.isInteger(frame.y)).toBe(true)
+    expect(Number.isInteger(frame.w)).toBe(true)
+    expect(Number.isInteger(frame.h)).toBe(true)
+  })
+})
+
+// Finition v1 : l'ajustement automatique du plan de travail (computeFitTransform,
+// voir viewport.ts) ne doit plus se recalculer qu'a l'ouverture d'un document
+// (deja couvert par le zoom/pan par defaut apres load() ci-dessus et dans
+// editorStore.test.ts) -- PAS a chaque redimensionnement de la fenetre, qui
+// ecrasait silencieusement un zoom choisi a la main. Ces tests simulent un
+// conteneur de taille reelle (jsdom ne fait jamais de mise en page) en
+// substituant getBoundingClientRect.
+describe('Canvas - ajustement au redimensionnement (finition v1)', () => {
+  const container = { width: 900, height: 700 }
+
+  beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      width: container.width,
+      height: container.height,
+      top: 0,
+      left: 0,
+      right: container.width,
+      bottom: container.height,
+      toJSON() {
+        return {}
+      },
+    } as DOMRect)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('le redimensionnement de la fenetre ne change pas le zoom ni le panoramique courants', () => {
+    render(<Canvas />)
+
+    act(() => {
+      useEditorStore.getState().setZoom(2.5)
+      useEditorStore.getState().setPan({ x: 10, y: 10 })
+    })
+
+    fireEvent(window, new Event('resize'))
+
+    expect(useEditorStore.getState().zoom).toBe(2.5)
+    expect(useEditorStore.getState().pan).toEqual({ x: 10, y: 10 })
+  })
+
+  it('le bouton "Ajuster a la fenetre" (requestFitToWindow) recalcule le zoom d ajustement', () => {
+    render(<Canvas />)
+
+    act(() => {
+      useEditorStore.getState().setZoom(2.5)
+    })
+
+    act(() => {
+      useEditorStore.getState().requestFitToWindow()
+    })
+
+    const device = useEditorStore.getState().document.pages[0]!.device
+    const { zoom: zoomAttendu } = computeFitTransform(container, device)
+
+    expect(useEditorStore.getState().zoom).toBeCloseTo(zoomAttendu, 5)
+    expect(useEditorStore.getState().zoom).not.toBe(2.5)
   })
 })

@@ -34,6 +34,16 @@ export type EditorState = {
   zoom: number
   pan: { x: number; y: number }
   dragPreview: DragPreview
+  // Jeton incremente par requestFitToWindow (finition v1) : le seul signal
+  // qui doit recalculer l'ajustement du plan de travail EN DEHORS de
+  // l'ouverture d'un document (voir Canvas.tsx, qui observe deja pageId et
+  // les dimensions de l'appareil pour ce cas-la). Un redimensionnement de
+  // fenetre, lui, ne doit plus jamais ecraser un zoom choisi a la main --
+  // c'est le defaut signale : l'ajustement se recalculait a CHAQUE
+  // redimensionnement, donc un zoom manuel etait perdu au premier
+  // redimensionnement suivant. Le bouton "Ajuster a la fenetre" de la barre
+  // d'outils reste le seul moyen de le redeclencher a la demande.
+  fitToWindowToken: number
 
   load(doc: CalqueDocument): void
   select(ids: string[]): void
@@ -44,6 +54,7 @@ export type EditorState = {
   setZoom(zoom: number): void
   setPan(pan: { x: number; y: number }): void
   setDragPreview(preview: DragPreview): void
+  requestFitToWindow(): void
 }
 
 function initialDocument(): CalqueDocument {
@@ -62,6 +73,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     zoom: 1,
     pan: { x: 0, y: 0 },
     dragPreview: null,
+    fitToWindowToken: 0,
 
     load(nextDoc) {
       const history = new History(nextDoc)
@@ -113,6 +125,10 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
     setDragPreview(preview) {
       set({ dragPreview: preview })
+    },
+
+    requestFitToWindow() {
+      set((s) => ({ fitToWindowToken: s.fitToWindowToken + 1 }))
     },
   }
 })

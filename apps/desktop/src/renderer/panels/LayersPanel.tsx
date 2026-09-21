@@ -194,19 +194,30 @@ export function LayersPanel() {
   return (
     <aside className="layers-panel" aria-label="Calques">
       <h2 className="layers-title">Calques</h2>
-      <ul role="tree" className="layers-tree" aria-label="Arborescence des calques">
-        {nodes.map((node) => (
-          <LayerRow
-            key={node.id}
-            node={node}
-            depth={0}
-            nodes={nodes}
-            pageId={pageId}
-            collapsed={collapsed}
-            onToggleCollapse={toggleCollapse}
-          />
-        ))}
-      </ul>
+      {nodes.length === 0 ? (
+        // Etat vide (finition v1, maquette Empty.dc.html) : sans ce
+        // message, une page sans noeud laissait le panneau simplement vide,
+        // sans rien pour indiquer que c'est l'etat attendu (et non une
+        // panne) ni pour orienter vers le premier geste a faire.
+        <div className="layers-empty">
+          <p>Aucun calque pour l&apos;instant.</p>
+          <p>Les éléments que vous tracez apparaissent ici, du fond vers le dessus.</p>
+        </div>
+      ) : (
+        <ul role="tree" className="layers-tree" aria-label="Arborescence des calques">
+          {nodes.map((node) => (
+            <LayerRow
+              key={node.id}
+              node={node}
+              depth={0}
+              nodes={nodes}
+              pageId={pageId}
+              collapsed={collapsed}
+              onToggleCollapse={toggleCollapse}
+            />
+          ))}
+        </ul>
+      )}
     </aside>
   )
 }

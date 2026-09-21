@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createDocument } from '@calque/core'
+import { createDocument, createNodeCommand } from '@calque/core'
 import type { CalqueDocument, FrameNode, Node as CalqueNode, RectNode } from '@calque/core'
 import { Canvas } from '../src/renderer/canvas/Canvas'
 import { LayersPanel } from '../src/renderer/panels/LayersPanel'
@@ -148,5 +148,24 @@ describe('LayersPanel', () => {
     const state = useEditorStore.getState()
     expect(state.history.canUndo).toBe(false)
     expect(state.document.pages[0]!.nodes.map((n) => n.id)).toEqual(['frame1', 'rect2'])
+  })
+
+  // Finition v1 (maquette Empty.dc.html) : sans ce message, une page sans
+  // noeud laissait le panneau simplement vide, sans rien pour indiquer que
+  // c'est l'etat attendu.
+  it("affiche l etat vide quand la page n a aucun noeud, et le fait disparaitre des qu un calque est cree", () => {
+    useEditorStore.getState().load(createDocument('Document vide'))
+    render(<LayersPanel />)
+
+    expect(screen.getByText("Aucun calque pour l'instant.")).toBeTruthy()
+    expect(screen.getByText('Les éléments que vous tracez apparaissent ici, du fond vers le dessus.')).toBeTruthy()
+
+    act(() => {
+      const { pageId, execute } = useEditorStore.getState()
+      execute(createNodeCommand(pageId, null, rectNode('r1', 0, 0)))
+    })
+
+    expect(screen.queryByText("Aucun calque pour l'instant.")).toBeNull()
+    expect(screen.getByTestId('layer-r1')).toBeTruthy()
   })
 })

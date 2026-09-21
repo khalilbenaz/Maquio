@@ -97,8 +97,18 @@ type NumberFieldProps = {
   onCommit: (value: number) => void
 }
 
+// Affichage propre (finition v1) : au plus deux decimales, et jamais de
+// decimale inutile (233, pas 233.00 ; 12.5, pas 12.50). Un arrondi
+// D'AFFICHAGE uniquement -- il ne s'applique qu'au moment ou `draft` est
+// (re)initialise depuis la valeur du document (ici et dans l'effet ci-
+// dessous), jamais a ce que l'utilisateur tape : une frappe met a jour
+// `draft` directement depuis l'evenement (handleChange), et onCommit ne
+// lit jamais formatNumber -- une saisie clavier comme "12.5" est donc
+// conservee telle quelle, non arrondie.
 function formatNumber(v: number | null): string {
-  return v === null ? '' : String(v)
+  if (v === null || !Number.isFinite(v)) return ''
+  const trimmed = v.toFixed(2).replace(/\.?0+$/, '')
+  return trimmed === '-0' ? '0' : trimmed
 }
 
 function NumberField({ label, value, min, max, onCommit }: NumberFieldProps) {

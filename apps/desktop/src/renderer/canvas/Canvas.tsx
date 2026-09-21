@@ -7,9 +7,13 @@
 //
 // Ce que la refonte change ici, precisement :
 // - le plan de travail est desormais CENTRE et AJUSTE pour tenir dans la
-//   zone visible a l'ouverture et au redimensionnement de la fenetre (voir
-//   viewport.ts / computeFitTransform), au lieu de rester fige a 100 % au
-//   point (0,0) du monde ;
+//   zone visible a l'ouverture d'un document (voir viewport.ts /
+//   computeFitTransform), au lieu de rester fige a 100 % au point (0,0) du
+//   monde -- finition v1 : cet ajustement ne se recalcule PLUS a chaque
+//   redimensionnement de la fenetre (un zoom choisi a la main n'est donc
+//   plus ecrase), le bouton "Ajuster a la fenetre" de la barre d'outils
+//   permet de le redeclencher a la demande (voir fitToWindowToken plus
+//   bas) ;
 // - la zone sombre qui l'entoure (data-testid="canvas-scene") reagit
 //   desormais au clic pour desselectionner -- avant la refonte, elle etait
 //   inerte, ce qui est la cause directe du "le drag and drop ne marche
@@ -124,6 +128,7 @@ export function Canvas() {
   const zoom = useEditorStore((s) => s.zoom)
   const pan = useEditorStore((s) => s.pan)
   const tool = useEditorStore((s) => s.tool)
+  const fitToWindowToken = useEditorStore((s) => s.fitToWindowToken)
 
   const onBackgroundPointerDown = useCreateInteraction(canvasRef)
 
@@ -131,32 +136,38 @@ export function Canvas() {
   const device = page?.device
 
   // Ajustement et centrage du plan de travail (correction du defaut
-  // fonctionnel principal de la refonte) : calcule au montage et a chaque
-  // redimensionnement de la fenetre. Sous jsdom (tests), le conteneur n'a
-  // jamais de dimensions reelles (getBoundingClientRect() rend des zeros,
-  // aucune mise en page n'etant executee) : computeFitTransform rend alors
-  // ses valeurs neutres (zoom 1, pan {0,0}) et cet effet n'a aucun effet
-  // observable, ce qui laisse les tests existants (qui supposent ce zoom
-  // et ce pan par defaut apres un load()) inchanges.
+  // fonctionnel principal de la refonte). Finition v1 (correction d'un
+  // second defaut, signale par nous-memes en revue) : cet ajustement ne se
+  // recalcule plus QU'A L'OUVERTURE D'UN DOCUMENT -- montage, ouverture de
+  // fichier, import Figma, nouveau document, tous representes ici par un
+  // changement de `pageId` (chaque document charge via load() recoit un
+  // nouvel identifiant de page) ou des dimensions de l'appareil edite --
+  // et sur demande explicite via `fitToWindowToken` (bouton "Ajuster a la
+  // fenetre" de la barre d'outils, voir Toolbar.tsx). Il ne reagit PLUS au
+  // redimensionnement de la fenetre : avant cette correction, un
+  // utilisateur qui avait zoome a la main puis redimensionnait la fenetre
+  // perdait silencieusement son reglage, l'ajustement automatique
+  // l'ecrasant a chaque resize.
+  //
+  // Sous jsdom (tests), le conteneur n'a jamais de dimensions reelles
+  // (getBoundingClientRect() rend des zeros, aucune mise en page n'etant
+  // executee) : computeFitTransform rend alors ses valeurs neutres (zoom 1,
+  // pan {0,0}) et cet effet n'a aucun effet observable, ce qui laisse les
+  // tests existants (qui supposent ce zoom et ce pan par defaut apres un
+  // load()) inchanges.
   useLayoutEffect(() => {
     if (!device) return
-    function ajuster() {
-      const el = canvasRef.current
-      if (!el) return
-      const rect = el.getBoundingClientRect()
-      const { zoom: zoomAjuste, pan: panAjuste } = computeFitTransform(
-        { width: rect.width, height: rect.height },
-        { width: device!.width, height: device!.height },
-      )
-      if (rect.width <= 0 || rect.height <= 0) return
-      useEditorStore.getState().setZoom(zoomAjuste)
-      useEditorStore.getState().setPan(panAjuste)
-    }
-    ajuster()
-    window.addEventListener('resize', ajuster)
-    return () => window.removeEventListener('resize', ajuster)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageId, device?.width, device?.height])
+    const el = canvasRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    if (rect.width <= 0 || rect.height <= 0) return
+    const { zoom: zoomAjuste, pan: panAjuste } = computeFitTransform(
+      { width: rect.width, height: rect.height },
+      { width: device.width, height: device.height },
+    )
+    useEditorStore.getState().setZoom(zoomAjuste)
+    useEditorStore.getState().setPan(panAjuste)
+  }, [pageId, device?.width, device?.height, fitToWindowToken])
 
   // Zoom (Ctrl/Cmd + molette) et panoramique (molette seule) : les deux
   // actions setZoom/setPan existaient deja dans le magasin, mais rien ne
