@@ -1,17 +1,19 @@
-/* Barre d outils (Tache 16). Sobre et sombre par defaut ; les comportements
-   sont ce qui est teste, pas le style. */
+/* Barre d outils (Tache 16, refonte visuelle). Reprend le style des
+   maquettes : 52px de haut, groupe d'outils dans une pilule sombre, filets
+   fins entre les groupes, outil actif sur fond accent. */
 
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 6px 10px;
-  background: #17181a;
-  color: #e4e4e7;
-  border-bottom: 1px solid #2f3033;
+  gap: 6px;
+  padding: 0 12px;
+  height: var(--calque-toolbar-height);
+  background: var(--calque-chrome-bg);
+  color: var(--calque-text);
+  border-bottom: 1px solid var(--calque-border);
   font-size: 13px;
   flex-shrink: 0;
-  /* En dessous de 1024px environ, tous les groupes ne tiennent plus sur
+  /* En dessous d'une certaine largeur, tous les groupes ne tiennent plus sur
      une seule ligne : un defilement horizontal remplace alors la troncature
      silencieuse des derniers boutons (Reglages, cibles d'export) hors de la
      fenêtre. */
@@ -26,28 +28,93 @@
   flex-shrink: 0;
 }
 
+.toolbar-group-tools {
+  gap: 2px;
+  padding: 3px;
+  background: var(--calque-surface);
+  border: 1px solid var(--calque-border);
+  border-radius: 9px;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 22px;
+  background: var(--calque-border);
+  margin: 0 6px;
+  flex-shrink: 0;
+}
+
+.toolbar-spacer {
+  flex-grow: 1;
+}
+
 .toolbar-button {
+  width: 34px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
-  border: 1px solid transparent;
-  color: inherit;
-  border-radius: 4px;
-  padding: 4px 8px;
+  border: none;
+  color: var(--calque-text-muted);
+  border-radius: 6px;
   cursor: pointer;
   font: inherit;
 }
 
 .toolbar-button:hover:not(:disabled) {
-  background: #2a2b2f;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--calque-text);
 }
 
 .toolbar-button-active {
-  background: #2b3f6f;
-  border-color: #2b6fff;
+  background: var(--calque-accent);
+  color: var(--calque-chrome-bg);
+}
+
+.toolbar-button-active:hover:not(:disabled) {
+  background: var(--calque-accent);
+  color: var(--calque-chrome-bg);
 }
 
 .toolbar-button:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
+}
+
+.toolbar-button-outline {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--calque-border);
+  border-radius: 6px;
+}
+
+.toolbar-zoom-value {
+  width: auto;
+  min-width: 46px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--calque-text);
+}
+
+.toolbar-button-text {
+  height: 30px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--calque-text);
+  background: transparent;
+  border: 1px solid var(--calque-border);
+  border-radius: 7px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.toolbar-button-text:hover {
+  border-color: var(--calque-border-strong);
 }
 
 .toolbar-export {
@@ -58,31 +125,36 @@
   position: absolute;
   top: 100%;
   right: 0;
+  margin-top: 4px;
   display: flex;
   flex-direction: column;
-  background: #1e1f22;
-  border: 1px solid #2f3033;
-  border-radius: 4px;
+  background: var(--calque-panel-raised);
+  border: 1px solid var(--calque-border-strong);
+  border-radius: 8px;
   padding: 4px;
-  min-width: 180px;
+  min-width: 190px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
   z-index: 10;
 }
 
 .toolbar-export-item {
   background: transparent;
   border: none;
-  color: inherit;
+  color: var(--calque-text);
   text-align: left;
-  padding: 6px 8px;
-  border-radius: 4px;
+  padding: 7px 9px;
+  border-radius: 6px;
   font: inherit;
-  cursor: not-allowed;
-  opacity: 0.6;
+  cursor: pointer;
+}
+
+.toolbar-export-item:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .toolbar-badge {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #9a9aa2;
+  color: var(--calque-text-faint);
 }

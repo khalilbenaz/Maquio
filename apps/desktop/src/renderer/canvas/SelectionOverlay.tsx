@@ -6,10 +6,12 @@ import { findNode, handleRects, unionRects } from '@calque/core'
 import type { HandleId, Rect } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import { pageNodesOf, resolvePreviewAbsoluteFrame, useResizeInteraction } from './useDragInteraction'
+import './SelectionOverlay.css'
 
 const HANDLE_SIZE = 8
+const ACCENT = '#e2714a'
 
-function Handle({ id, rect, nodeId }: { id: HandleId; rect: Rect; nodeId: string }) {
+function Handle({ id, rect, nodeId, zoom }: { id: HandleId; rect: Rect; nodeId: string; zoom: number }) {
   const onPointerDown = useResizeInteraction(nodeId, id)
   return (
     <rect
@@ -19,6 +21,9 @@ function Handle({ id, rect, nodeId }: { id: HandleId; rect: Rect; nodeId: string
       width={rect.w}
       height={rect.h}
       className="calque-handle"
+      fill="#ffffff"
+      stroke={ACCENT}
+      strokeWidth={1.5 / zoom}
       style={{ pointerEvents: 'auto', cursor: `${id}-resize` }}
       onPointerDown={onPointerDown}
     />
@@ -54,25 +59,25 @@ export function SelectionOverlay() {
             height={bounding.h}
             className="calque-selection-frame"
             fill="none"
-            stroke="#2b6fff"
-            strokeWidth={1 / zoom}
+            stroke={ACCENT}
+            strokeWidth={1.5 / zoom}
           />
         ) : null}
 
         {bounding !== null && selection.length === 1
           ? Object.entries(handleRects(bounding, HANDLE_SIZE / zoom)).map(([id, rect]) => (
-              <Handle key={id} id={id as HandleId} rect={rect} nodeId={selection[0]!} />
+              <Handle key={id} id={id as HandleId} rect={rect} nodeId={selection[0]!} zoom={zoom} />
             ))
           : null}
 
         {dragPreview !== null && dragPreview.kind === 'move'
           ? dragPreview.guides.x.map((gx) => (
-              <line key={`gx-${gx}`} x1={gx} y1={-10000} x2={gx} y2={10000} stroke="#ff2b6f" strokeWidth={1 / zoom} />
+              <line key={`gx-${gx}`} x1={gx} y1={-10000} x2={gx} y2={10000} stroke="#e5c07b" strokeWidth={1 / zoom} />
             ))
           : null}
         {dragPreview !== null && dragPreview.kind === 'move'
           ? dragPreview.guides.y.map((gy) => (
-              <line key={`gy-${gy}`} x1={-10000} y1={gy} x2={10000} y2={gy} stroke="#ff2b6f" strokeWidth={1 / zoom} />
+              <line key={`gy-${gy}`} x1={-10000} y1={gy} x2={10000} y2={gy} stroke="#e5c07b" strokeWidth={1 / zoom} />
             ))
           : null}
 
@@ -82,8 +87,8 @@ export function SelectionOverlay() {
             y={dragPreview.frame.y}
             width={dragPreview.frame.w}
             height={dragPreview.frame.h}
-            fill="rgba(43, 111, 255, 0.15)"
-            stroke="#2b6fff"
+            fill="rgba(226, 113, 74, 0.15)"
+            stroke={ACCENT}
             strokeDasharray="4 2"
             strokeWidth={1 / zoom}
           />

@@ -129,47 +129,60 @@ export function ClaudePanel({ api }: { api: CalqueApi }) {
 
   return (
     <section aria-label="Assistant Claude Code" className="claude-panel">
-      {!disponible ? (
-        <p role="alert">
-          Claude Code introuvable : ouvrez les Réglages pour vérifier l'installation ou indiquer l'emplacement du
-          binaire 'claude'
-        </p>
-      ) : null}
+      <div className="claude-panel-header">
+        <span className={disponible ? 'claude-panel-dot claude-panel-dot-on' : 'claude-panel-dot claude-panel-dot-off'} />
+        <span className="claude-panel-title">Claude Code</span>
+        <span className="claude-panel-header-spacer" />
+        <span className="claude-panel-status">{disponible ? 'connecté' : 'non connecté'}</span>
+      </div>
 
-      <label htmlFor="claude-instruction">Instruction</label>
-      <textarea
-        id="claude-instruction"
-        aria-label="Instruction"
-        value={instruction}
-        disabled={desactive}
-        onChange={(e) => setInstruction(e.target.value)}
-      />
+      <div className="claude-panel-body">
+        {!disponible ? (
+          <p role="alert" className="claude-panel-alert">
+            Claude Code introuvable : ouvrez les Réglages pour vérifier l'installation ou indiquer l'emplacement du
+            binaire 'claude'
+          </p>
+        ) : null}
 
-      <button
-        type="button"
-        aria-label="Demander à Claude"
-        disabled={desactive || statut === 'loading'}
-        onClick={() => void demander()}
-      >
-        Demander à Claude
-      </button>
+        <label htmlFor="claude-instruction">Instruction</label>
+        <textarea
+          id="claude-instruction"
+          aria-label="Instruction"
+          value={instruction}
+          disabled={desactive}
+          onChange={(e) => setInstruction(e.target.value)}
+        />
 
-      {statut === 'perime' ? (
-        <div role="alert">
-          <p>Le document a changé depuis la réponse de Claude Code.</p>
-          <button type="button" onClick={() => void demander()}>
-            Relancer la demande
-          </button>
-        </div>
-      ) : null}
+        <button
+          type="button"
+          aria-label="Demander à Claude"
+          disabled={desactive || statut === 'loading'}
+          onClick={() => void demander()}
+        >
+          Demander à Claude
+        </button>
 
-      {statut === 'error' ? <p role="alert">{erreur}</p> : null}
+        {statut === 'perime' ? (
+          <div role="alert" className="claude-panel-alert">
+            <p>Le document a changé depuis la réponse de Claude Code.</p>
+            <button type="button" onClick={() => void demander()}>
+              Relancer la demande
+            </button>
+          </div>
+        ) : null}
 
-      {statut === 'done' ? (
-        <p>
-          Instruction envoyée : {derniereInstruction} — {resume}
-        </p>
-      ) : null}
+        {statut === 'error' ? (
+          <p role="alert" className="claude-panel-alert">
+            {erreur}
+          </p>
+        ) : null}
+
+        {statut === 'done' ? (
+          <p className="claude-panel-result">
+            Instruction envoyée : {derniereInstruction} — {resume}
+          </p>
+        ) : null}
+      </div>
     </section>
   )
 }
