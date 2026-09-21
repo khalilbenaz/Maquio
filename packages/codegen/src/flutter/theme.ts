@@ -5,7 +5,7 @@ import type { DesignTokens } from '@calque/core'
 import { buildTokenIdentifiers } from '../shared/token-identifiers'
 import type { ExportedFile } from '../types'
 import { type Arg, attach, call, collapseShortCalls, lit } from './dart-writer'
-import { colorExpr, colorHex, fontWeightExpr, formatNumber } from './dart-utils'
+import { DART_RESERVED_WORDS, colorExpr, colorHex, escapeDartString, fontWeightExpr, formatNumber } from './dart-utils'
 
 // Correction Important 3 (re-revue) : une ligne blanche entre le
 // constructeur prive et un corps de classe VIDE (categorie de tokens sans
@@ -26,14 +26,14 @@ function classBody(className: string, memberLines: string[]): string[] {
 // (colors/spacing/typography) a son propre espace de noms Dart (classe
 // distincte), donc sa propre resolution d'unicite.
 function colorConstantLines(tokens: DesignTokens): string[] {
-  const ids = buildTokenIdentifiers(Object.keys(tokens.colors))
+  const ids = buildTokenIdentifiers(Object.keys(tokens.colors), DART_RESERVED_WORDS)
   return Object.entries(tokens.colors).map(
     ([name, color]) => `  static const Color ${ids.get(name)!} = Color(${colorHex(color)});`,
   )
 }
 
 function spacingConstantLines(tokens: DesignTokens): string[] {
-  const ids = buildTokenIdentifiers(Object.keys(tokens.spacing))
+  const ids = buildTokenIdentifiers(Object.keys(tokens.spacing), DART_RESERVED_WORDS)
   return Object.entries(tokens.spacing).map(
     ([name, value]) => `  static const double ${ids.get(name)!} = ${formatNumber(value)};`,
   )
@@ -42,10 +42,15 @@ function spacingConstantLines(tokens: DesignTokens): string[] {
 function textStyleLines(tokens: DesignTokens): string[] {
   const out: string[] = []
   const entries = Object.entries(tokens.typography)
-  const ids = buildTokenIdentifiers(Object.keys(tokens.typography))
+  const ids = buildTokenIdentifiers(Object.keys(tokens.typography), DART_RESERVED_WORDS)
   entries.forEach(([name, style], index) => {
     const args: Arg[] = [
-      { key: 'fontFamily', block: lit(`'${style.fontFamily.replace(/'/g, "\\'")}'`) },
+      // Correction D5 (rapport dart-correctness) : `escapeDartString`
+      // partagee, jamais un `.replace(/'/g, ...)` local -- l'ancienne
+      // version n'echappait ni l'antislash ni `$` (interpolation Dart),
+      // une famille de police contenant `$` ouvrait donc une
+      // interpolation invalide ou silencieuse.
+      { key: 'fontFamily', block: lit(`'${escapeDartString(style.fontFamily)}'`) },
       { key: 'fontSize', block: lit(formatNumber(style.fontSize)) },
       { key: 'fontWeight', block: lit(fontWeightExpr(style.fontWeight)) },
     ]
@@ -55,7 +60,12 @@ function textStyleLines(tokens: DesignTokens): string[] {
     if (style.letterSpacing !== 0) {
       args.push({ key: 'letterSpacing', block: lit(formatNumber(style.letterSpacing)) })
     }
-    args.push({ key: 'color', block: lit(colorExpr(style.color, tokens)) })
+    // `omitConstKeyword: true` (lint `unnecessary_const`, suite du
+    // rapport dart-correctness) : cette valeur est TOUJOURS assignee a un
+    // champ `static const` (voir `attach('static const TextStyle ... = '`
+    // ci-dessous) -- un `const Color(...)` explicite y serait redondant,
+    // Dart promeut deja l'expression en constante par le contexte.
+    args.push({ key: 'color', block: lit(colorExpr(style.color, tokens, undefined, true)) })
 
     out.push(...attach(`static const TextStyle ${ids.get(name)!} = `, call('TextStyle', args), 1, ';'))
     if (index < entries.length - 1) out.push('')
@@ -72,7 +82,7 @@ export function generateThemeFile(tokens: DesignTokens): ExportedFile {
   // n'existerait alors pas ; inversement un token nomme "Primary" (autre
   // casse) normalise bien en "primary" et doit maintenant declencher le
   // colorScheme, ce que l'ancienne comparaison de chaine brute manquait.
-  const colorIds = buildTokenIdentifiers(Object.keys(tokens.colors))
+  const colorIds = buildTokenIdentifiers(Object.keys(tokens.colors), DART_RESERVED_WORDS)
   const primaryEntry = [...colorIds.entries()].find(([, id]) => id === 'primary')
   const themeArgs: Arg[] = [{ key: 'useMaterial3', block: lit('true') }]
   if (primaryEntry) {

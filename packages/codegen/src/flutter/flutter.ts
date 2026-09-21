@@ -47,7 +47,13 @@ import {
 } from './dart-utils'
 import { generateThemeFile } from './theme'
 
-type RenderContext = { tokens: DesignTokens; warnings: string[] }
+// `usesTheme` (D4 du rapport dart-correctness) : mis a `true` des qu'une
+// reference `AppColors.*` est effectivement emise pour la page en cours
+// (voir `colorExpr` de dart-utils.ts), pour que `renderPage` n'importe
+// '../theme.dart' que si l'ecran genere s'en sert reellement -- un import
+// inconditionnel produit un `unused_import` a l'analyse pour tout ecran
+// sans token de couleur (cas courant : une frame de mise en page pure).
+type RenderContext = { tokens: DesignTokens; warnings: string[]; usesTheme: boolean }
 
 function dartString(value: string): string {
   return `'${escapeDartString(value)}'`
@@ -75,14 +81,17 @@ function decorationBlock(
   strokes: Stroke[],
   cornerRadius: number | null,
   shapeCircle: boolean,
-  tokens: DesignTokens,
+  ctx: RenderContext,
 ): Block | null {
   const fillColor = firstSolidFillColor(fills)
   const stroke = firstStroke(strokes)
   const args: Arg[] = []
+  const markThemeUsed = () => {
+    ctx.usesTheme = true
+  }
 
   if (shapeCircle) args.push({ key: 'shape', block: lit('BoxShape.circle') })
-  if (fillColor) args.push({ key: 'color', block: lit(colorExpr(fillColor, tokens)) })
+  if (fillColor) args.push({ key: 'color', block: lit(colorExpr(fillColor, ctx.tokens, markThemeUsed)) })
   if (cornerRadius !== null && cornerRadius > 0) {
     args.push({ key: 'borderRadius', block: lit(`BorderRadius.circular(${formatNumber(cornerRadius)})`) })
   }
@@ -90,7 +99,7 @@ function decorationBlock(
     args.push({
       key: 'border',
       block: call('Border.all', [
-        { key: 'color', block: lit(colorExpr(stroke.color, tokens)) },
+        { key: 'color', block: lit(colorExpr(stroke.color, ctx.tokens, markThemeUsed)) },
         { key: 'width', block: lit(formatNumber(stroke.width)) },
       ]),
     })
@@ -99,24 +108,51 @@ function decorationBlock(
   return args.length === 0 ? null : call('BoxDecoration', args)
 }
 
-function renderRect(node: RectNode, ctx: RenderContext): Block {
+// Lint `sized_box_for_whitespace` de `flutter_lints` (suite du rapport
+// dart-correctness) : verifie a la main avec `flutter analyze` --
+// `Container(width:, height:)` SANS decoration, SANS `clipBehavior` et
+// SANS marge se fait toujours signaler, MEME avec un `child` (le lint
+// suggere `SizedBox`, qui accepte lui aussi `width`/`height`/`child`).
+// Ce generateur n'emet jamais de marge sur un `Container` (aucune des
+// trois fonctions qui l'utilisent -- rect/ellipse/frame -- ne construit
+// d'argument `margin`), donc la condition se reduit ici a « ni
+// decoration ni clipBehavior ». Construit soit un `SizedBox`, soit un
+// `Container` equivalent, jamais duplique a la main a chaque site
+// d'appel (rect, ellipse, frame).
+function boxOrSizedBox(
+  width: number,
+  height: number,
+  decoration: Block | null,
+  clipsContent: boolean,
+  child: Block | null,
+): Block {
   const args: Arg[] = [
-    { key: 'width', block: lit(formatNumber(node.frame.w)) },
-    { key: 'height', block: lit(formatNumber(node.frame.h)) },
+    { key: 'width', block: lit(formatNumber(width)) },
+    { key: 'height', block: lit(formatNumber(height)) },
   ]
-  const decoration = decorationBlock(node.fills, node.strokes, node.cornerRadius, false, ctx.tokens)
+  if (decoration === null && !clipsContent) {
+    if (child) args.push({ key: 'child', block: child })
+    return call('SizedBox', args)
+  }
   if (decoration) args.push({ key: 'decoration', block: decoration })
+  if (clipsContent) args.push({ key: 'clipBehavior', block: lit('Clip.hardEdge') })
+  if (child) args.push({ key: 'child', block: child })
   return call('Container', args)
 }
 
+function renderRect(node: RectNode, ctx: RenderContext): Block {
+  const decoration = decorationBlock(node.fills, node.strokes, node.cornerRadius, false, ctx)
+  return boxOrSizedBox(node.frame.w, node.frame.h, decoration, false, null)
+}
+
 function renderEllipse(node: EllipseNode, ctx: RenderContext): Block {
-  const args: Arg[] = [
-    { key: 'width', block: lit(formatNumber(node.frame.w)) },
-    { key: 'height', block: lit(formatNumber(node.frame.h)) },
-  ]
-  const decoration = decorationBlock(node.fills, node.strokes, null, true, ctx.tokens)
-  if (decoration) args.push({ key: 'decoration', block: decoration })
-  return call('Container', args)
+  // `shapeCircle: true` fait toujours pousser un argument `shape` dans
+  // `decorationBlock` (voir plus haut) : `decoration` n'est donc jamais
+  // `null` ici, `boxOrSizedBox` emet donc toujours `Container` pour une
+  // ellipse -- comportement inchange, passe par la meme fonction pour ne
+  // pas dupliquer la decision.
+  const decoration = decorationBlock(node.fills, node.strokes, null, true, ctx)
+  return boxOrSizedBox(node.frame.w, node.frame.h, decoration, false, null)
 }
 
 function renderImage(node: ImageNode): Block {
@@ -135,10 +171,13 @@ function renderImage(node: ImageNode): Block {
 // verticale (largeur figee a 1).
 function renderLine(node: LineNode, ctx: RenderContext): Block {
   const horizontal = node.frame.w >= node.frame.h
+  const markThemeUsed = () => {
+    ctx.usesTheme = true
+  }
   return call('Container', [
     { key: 'width', block: lit(horizontal ? formatNumber(node.frame.w) : '1') },
     { key: 'height', block: lit(horizontal ? '1' : formatNumber(node.frame.h)) },
-    { key: 'color', block: lit(colorExpr(node.stroke.color, ctx.tokens)) },
+    { key: 'color', block: lit(colorExpr(node.stroke.color, ctx.tokens, markThemeUsed)) },
   ])
 }
 
@@ -154,7 +193,10 @@ function renderText(node: TextNode, ctx: RenderContext): Block {
   if (node.style.letterSpacing !== 0) {
     styleArgs.push({ key: 'letterSpacing', block: lit(formatNumber(node.style.letterSpacing)) })
   }
-  styleArgs.push({ key: 'color', block: lit(colorExpr(node.style.color, ctx.tokens)) })
+  const markThemeUsed = () => {
+    ctx.usesTheme = true
+  }
+  styleArgs.push({ key: 'color', block: lit(colorExpr(node.style.color, ctx.tokens, markThemeUsed)) })
 
   return call('Text', [
     { block: lit(dartString(node.characters)) },
@@ -237,7 +279,7 @@ function renderFrame(frame: FrameNode, ctx: RenderContext): Block {
       : layoutWidget
   }
 
-  let decoration = decorationBlock(frame.fills, frame.strokes, frame.cornerRadius, false, ctx.tokens)
+  let decoration = decorationBlock(frame.fills, frame.strokes, frame.cornerRadius, false, ctx)
   // Important 2, corrige apres re-revue : `Container` de Flutter refuse
   // `clipBehavior` sans `decoration` (assert `decoration != null ||
   // clipBehavior == Clip.none`, container.dart) -- une frame
@@ -248,19 +290,15 @@ function renderFrame(frame: FrameNode, ctx: RenderContext): Block {
   // (comportement par defaut de `ClipRect` sans forme particuliere) :
   // `clipsContent` reste honore, pas seulement rendu compilable.
   if (frame.clipsContent && !decoration) decoration = lit('const BoxDecoration()')
-  const containerArgs: Arg[] = [
-    { key: 'width', block: lit(formatNumber(frame.frame.w)) },
-    { key: 'height', block: lit(formatNumber(frame.frame.h)) },
-  ]
-  if (decoration) containerArgs.push({ key: 'decoration', block: decoration })
   // `clipBehavior: Clip.hardEdge` est l'equivalent natif Flutter de
   // `clipsContent`, trivial a honorer ici (Clip vient de package:flutter/
   // material.dart, deja importe) -- jamais de decoupe silencieusement
-  // perdue pour une cible qui sait le faire.
-  if (frame.clipsContent) containerArgs.push({ key: 'clipBehavior', block: lit('Clip.hardEdge') })
-  containerArgs.push({ key: 'child', block: content })
-
-  return call('Container', containerArgs)
+  // perdue pour une cible qui sait le faire. `boxOrSizedBox` (D-lint,
+  // rapport dart-correctness) choisit `SizedBox` a la place de
+  // `Container` quand ni decoration ni clipBehavior ne sont dus -- le cas
+  // le plus courant pour une frame de mise en page pure importee de
+  // Figma (`fills: [{ type: 'none' }]`, `clipsContent: false`).
+  return boxOrSizedBox(frame.frame.w, frame.frame.h, decoration, frame.clipsContent, content)
 }
 
 function renderNodeInner(node: Node, ctx: RenderContext): Block | null {
@@ -321,11 +359,17 @@ function renderPage(page: Page, ctx: RenderContext): ExportedFile {
   const className = toPascalCase(page.name)
   const fileName = toSnakeCase(page.name)
 
+  // D4 (rapport dart-correctness) : `import '../theme.dart';` seulement si
+  // l'ecran reference au moins un `AppColors.*` (`ctx.usesTheme`, mis a
+  // jour par `colorExpr` au fil du rendu des noeuds ci-dessus, donc deja
+  // stabilise a ce point). Un import inconditionnel produisait un
+  // `unused_import` a l'analyse pour tout ecran sans token de couleur.
+  const themeImportLines = ctx.usesTheme ? [`import '../theme.dart';`, ''] : []
+
   const lines = [
     `import 'package:flutter/material.dart';`,
     '',
-    `import '../theme.dart';`,
-    '',
+    ...themeImportLines,
     `class ${className} extends StatelessWidget {`,
     `  const ${className}({super.key});`,
     '',
@@ -346,7 +390,7 @@ function exportFlutter(doc: CalqueDocument, _opts: ExportOptions): ExportResult 
 
   for (const page of doc.pages) {
     const laidOutPage = layoutPage(page)
-    const ctx: RenderContext = { tokens: doc.tokens, warnings }
+    const ctx: RenderContext = { tokens: doc.tokens, warnings, usesTheme: false }
     files.push(renderPage(laidOutPage, ctx))
   }
 

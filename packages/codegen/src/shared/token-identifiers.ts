@@ -24,8 +24,17 @@ import { createUniqueIdentifierNamer } from './identifier'
 // categorie. Deterministe : l'ordre d'iteration de `names` (celui de
 // `Object.keys`, stable pour des cles chaine non numeriques) fixe l'ordre
 // de resolution des collisions.
-export function buildTokenIdentifiers(names: Iterable<string>): ReadonlyMap<string, string> {
-  const namer = createUniqueIdentifierNamer('token')
+//
+// `reservedWords` (D1 du rapport dart-correctness) : mots de la langue
+// cible qui ne doivent jamais etre emis tels quels comme identifiant --
+// voir `createUniqueIdentifierNamer`, a qui ce parametre est transmis tel
+// quel. Vide par defaut (aucun effet pour un appelant qui n'en a pas
+// besoin, ex. React Native).
+export function buildTokenIdentifiers(
+  names: Iterable<string>,
+  reservedWords: ReadonlySet<string> = new Set(),
+): ReadonlyMap<string, string> {
+  const namer = createUniqueIdentifierNamer('token', reservedWords)
   const map = new Map<string, string>()
   for (const name of names) map.set(name, namer(name))
   return map
@@ -38,8 +47,12 @@ export function buildTokenIdentifiers(names: Iterable<string>): ReadonlyMap<stri
 // couleur/valeur a resoudre -- ex. `colorExpr` d'un noeud -- mais doivent
 // rester coherents avec le fichier de theme genere a partir du meme
 // document).
-export function tokenIdentifier(name: string, allNamesInCategory: Iterable<string>): string {
-  const ids = buildTokenIdentifiers(allNamesInCategory)
+export function tokenIdentifier(
+  name: string,
+  allNamesInCategory: Iterable<string>,
+  reservedWords: ReadonlySet<string> = new Set(),
+): string {
+  const ids = buildTokenIdentifiers(allNamesInCategory, reservedWords)
   const id = ids.get(name)
   if (id === undefined) {
     throw new Error(`tokenIdentifier: "${name}" n'appartient pas a la categorie fournie`)

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../theme.dart';
-
 class RotatedScreen extends StatelessWidget {
   const RotatedScreen({super.key});
 
