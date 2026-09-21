@@ -43,6 +43,16 @@
   font-weight: 600;
 }
 
+/* Correctif parentage (v2, addendum navigation) : liseré en accent sur
+   l'écran survolé par un noeud en cours de déplacement, quand il diffère de
+   son écran englobant actuel -- indique où l'élément atterrira si le geste
+   se termine ici (voir Canvas.tsx, dragPreview.targetScreenId). */
+.calque-canvas-drop-target {
+  box-sizing: border-box;
+  border: 2px solid var(--calque-accent);
+  border-radius: 4px;
+}
+
 .calque-canvas-empty {
   position: absolute;
   display: flex;

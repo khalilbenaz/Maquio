@@ -422,6 +422,34 @@ export function Canvas({ api }: { api: CalqueApi }) {
         {flattenVisible(pageNodes).map((node) => (
           <NodeView key={node.id} node={node} nodes={pageNodes} />
         ))}
+
+        {/* Correctif parentage (§3) : liseré en accent sur l'ecran survole
+            par le noeud en cours de deplacement, quand il differe de son
+            ecran englobant actuel -- dragPreview.targetScreenId ne porte
+            cette valeur que dans ce cas precis (voir useNodeInteraction).
+            Rendu dans le meme conteneur transforme que les ecrans eux-memes
+            (canvas-canvas-world), donc en unites de PAGE directement, comme
+            canvas-background ci-dessus. */}
+        {dragPreview !== null && dragPreview.kind === 'move' && dragPreview.targetScreenId !== null
+          ? (() => {
+              const cible = screens.find((s) => s.id === dragPreview.targetScreenId)
+              if (cible === undefined) return null
+              return (
+                <div
+                  data-testid={`screen-drop-target-${cible.id}`}
+                  className="calque-canvas-drop-target"
+                  style={{
+                    position: 'absolute',
+                    left: cible.frame.x,
+                    top: cible.frame.y,
+                    width: cible.frame.w,
+                    height: cible.frame.h,
+                    pointerEvents: 'none',
+                  }}
+                />
+              )
+            })()
+          : null}
       </div>
 
       {/* v2 (addendum navigation §4) : une etiquette par ecran (nom +
@@ -491,6 +519,25 @@ export function Canvas({ api }: { api: CalqueApi }) {
       ) : null}
 
       <SelectionOverlay canvasRef={canvasRef} />
+
+      {/* Correctif parentage : un outil de creation actif capture le geste
+          sur TOUT le canevas, par-dessus les ecrans et les noeuds deja
+          presents -- pas seulement sur l'ancien "canvas-background" (le
+          plan de travail v1, borne a page.device et desormais recouvert
+          par le premier ecran des qu'il en existe un : useNodeInteraction,
+          attache a chaque NodeView, capturerait sinon le pointerdown en
+          premier -- e.stopPropagation() y est inconditionnel -- sans rien
+          faire tant que l'outil actif n'est pas 'select'). Rendu tout en
+          haut de la pile (apres SelectionOverlay), actif UNIQUEMENT quand
+          un outil de creation est selectionne : aucune interference avec
+          la selection, le deplacement ou les poignees en mode 'select'. */}
+      {outilActif ? (
+        <div
+          data-testid="canvas-create-overlay"
+          onPointerDown={onBackgroundPointerDown}
+          style={{ position: 'absolute', inset: 0, pointerEvents: 'auto', cursor: 'crosshair' }}
+        />
+      ) : null}
 
       {outilActif ? (
         <div className="calque-canvas-toolinfo">

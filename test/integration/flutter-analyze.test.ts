@@ -35,7 +35,55 @@ import { dirname, join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { figmaToDocument } from '@calque/figma'
 import { flutterExporter } from '@calque/codegen'
+import { createDocument, createScreenNode, DEVICE_PRESETS } from '@calque/core'
+import type { CalqueDocument, FrameNode, TextNode } from '@calque/core'
 import { FIGMA_FIXTURES } from './fixtures'
+
+// Correctif parentage (v2, addendum navigation) : cas ajoute a CE harnais,
+// pas aux fixtures Figma partagees (fixtures.ts, consommees par d'autres
+// tests d'integration qui attendent toutes un FigmaFileResponse) -- un
+// CalqueDocument construit directement, deux ecrans, chacun avec un contenu
+// PROPRE (un texte au nom distinct). C'est la preuve que le defaut corrige
+// (un element trace dans un ecran restait un frere de premier niveau, donc
+// invisible pour l'export qui ne voit que le sous-arbre de l'ecran actif --
+// voir le rapport) ne peut plus se reproduire : selectActiveScreen exporte
+// bien `active.children`, donc si le contenu N'EST PAS reellement imbrique
+// sous le bon ecran, il n'apparaitrait dans AUCUN des deux exports (un
+// contenu reste a plat au premier niveau de la page, jamais dans
+// `children`) -- ce que les deux assertions "toContain" ci-dessous,
+// combinees, excluent.
+function texteEcran(id: string, name: string, characters: string): TextNode {
+  return {
+    id,
+    name,
+    type: 'text',
+    frame: { x: 20, y: 20, w: 200, h: 40 },
+    visible: true,
+    locked: false,
+    opacity: 1,
+    rotation: 0,
+    characters,
+    style: {
+      fontFamily: 'Inter',
+      fontSize: 16,
+      fontWeight: 400,
+      lineHeight: 20,
+      letterSpacing: 0,
+      color: { r: 0, g: 0, b: 0, a: 1 },
+      align: 'left',
+    },
+  }
+}
+
+function documentDeuxEcransAvecContenuPropre(): CalqueDocument {
+  const device = DEVICE_PRESETS.iphone15
+  const texte1 = texteEcran('texte-ecran-1', 'ContenuEcranUn', 'Contenu propre de l ecran un')
+  const texte2 = texteEcran('texte-ecran-2', 'ContenuEcranDeux', 'Contenu propre de l ecran deux')
+  const ecran1 = createScreenNode('Écran 1', device, { x: 0, y: 0, w: device.width, h: device.height }, [texte1])
+  const ecran2 = createScreenNode('Écran 2', device, { x: 500, y: 0, w: device.width, h: device.height }, [texte2])
+  const doc = createDocument('Deux ecrans, contenu propre')
+  return { ...doc, pages: [{ ...doc.pages[0]!, device, nodes: [ecran1, ecran2] }] }
+}
 
 function isFlutterAvailable(): boolean {
   try {
@@ -80,6 +128,16 @@ describe('garde-fou flutter analyze (preuve de compilation reelle)', () => {
   let packageDir = ''
   let issues: AnalyzeIssue[] = []
   let elapsedMs = 0
+  // Correctif parentage : calcule INCONDITIONNELLEMENT (pas de dependance a
+  // FLUTTER_AVAILABLE) -- flutterExporter.export() est du JS pur, aucun SDK
+  // requis, donc l'assertion de placement du contenu (plus bas) doit rester
+  // verifiee meme quand `flutter` est absent de la machine. Seule l'ecriture
+  // sur disque + `flutter analyze` proprement dits restent gardes par
+  // FLUTTER_AVAILABLE, comme le reste de ce harnais.
+  const docDeuxEcrans = documentDeuxEcransAvecContenuPropre()
+  const [ecran1, ecran2] = docDeuxEcrans.pages[0]!.nodes as [FrameNode, FrameNode]
+  const exportEcran1 = flutterExporter.export(docDeuxEcrans, { projectName: 'demo', activeScreenId: ecran1.id })
+  const exportEcran2 = flutterExporter.export(docDeuxEcrans, { projectName: 'demo', activeScreenId: ecran2.id })
 
   beforeAll(() => {
     if (!FLUTTER_AVAILABLE) return
@@ -137,6 +195,22 @@ describe('garde-fou flutter analyze (preuve de compilation reelle)', () => {
       }
     }
 
+    // Correctif parentage : les deux exports du document a deux ecrans avec
+    // contenu propre rejoignent le meme paquet jetable, sous leurs propres
+    // namespaces ('multi-screen-content-ecran1'/'2'), pour que le meme
+    // `flutter analyze` (un seul processus, plus bas) les couvre aussi.
+    for (const [namespace, result] of [
+      ['multi-screen-content-ecran1', exportEcran1],
+      ['multi-screen-content-ecran2', exportEcran2],
+    ] as const) {
+      for (const file of result.files) {
+        const relative = file.path.replace(/^lib\//, '')
+        const target = join(packageDir, 'lib', namespace, relative)
+        mkdirSync(dirname(target), { recursive: true })
+        writeFileSync(target, file.contents, 'utf8')
+      }
+    }
+
     const pubGet = spawnSync('flutter', ['pub', 'get'], { cwd: packageDir, encoding: 'utf8' })
     if (pubGet.status !== 0) {
       throw new Error(`flutter pub get a echoue :\n${pubGet.stdout}\n${pubGet.stderr}`)
@@ -171,6 +245,47 @@ describe('garde-fou flutter analyze (preuve de compilation reelle)', () => {
       ).toEqual([])
     })
   }
+
+  // Correctif parentage : meme garde-fou "vrai compilateur" que pour les
+  // fixtures Figma ci-dessus, applique aux deux exports du document a deux
+  // ecrans construit directement (pas via Figma) -- la preuve que le Dart
+  // genere a partir d'un document CORRECTEMENT imbrique (ce que garantit
+  // desormais le correctif) reste valide, pas seulement que le placement du
+  // contenu est le bon (verifie separement ci-dessous).
+  for (const namespace of ['multi-screen-content-ecran1', 'multi-screen-content-ecran2']) {
+    runIfFlutterAvailable(`la sortie Flutter pour ${namespace} ne produit aucune remontee flutter analyze`, () => {
+      const prefix = `lib/${namespace}/`
+      const fixtureIssues = issues.filter((i) => i.file.includes(prefix))
+      expect(
+        fixtureIssues,
+        fixtureIssues
+          .map((i) => `${i.severity} • ${i.file}:${i.line}:${i.col} ${i.message} (${i.code})`)
+          .join('\n'),
+      ).toEqual([])
+    })
+  }
+
+  // Correctif parentage -- la verification qui prouve que ce correctif sert
+  // a quelque chose (pas seulement que le Dart produit est valide, mais
+  // qu'il contient bien le BON contenu) : un document a deux ecrans dont
+  // chacun a un contenu propre doit produire, pour chaque ecran actif, un
+  // Dart qui contient CE contenu et PAS l'autre. Avant le correctif, un
+  // element trace dans un ecran restait un frere de premier niveau de cet
+  // ecran (jamais son enfant) -- `selectActiveScreen` (packages/codegen)
+  // n'exportant que `active.children`, un tel contenu n'aurait alors figure
+  // dans AUCUN des deux exports (un ecran vide de tout contenu, quel que
+  // soit l'ecran actif choisi). Ce test ne depend pas de `flutter` (pur JS,
+  // voir le calcul inconditionnel de exportEcran1/exportEcran2 plus haut).
+  it('le contenu de chaque ecran se retrouve dans le bon ecran, et seulement lui', () => {
+    const contenu1 = exportEcran1.files.map((f) => f.contents).join('\n')
+    const contenu2 = exportEcran2.files.map((f) => f.contents).join('\n')
+
+    expect(contenu1).toContain('Contenu propre de l ecran un')
+    expect(contenu1).not.toContain('Contenu propre de l ecran deux')
+
+    expect(contenu2).toContain('Contenu propre de l ecran deux')
+    expect(contenu2).not.toContain('Contenu propre de l ecran un')
+  })
 
   // Le harnais doit rester raisonnablement rapide (borne large : la
   // machine de CI n'a pas forcement le meme cache pub que ce poste) --

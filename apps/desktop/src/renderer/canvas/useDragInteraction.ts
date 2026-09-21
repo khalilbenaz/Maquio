@@ -24,14 +24,17 @@ import {
   hitTest,
   isScreenNode,
   moveNodeCommand,
+  removeNode,
+  reparentNodeCommand,
   resizeNodeCommand,
   resizeRect,
+  screenAtPoint,
   screenContaining,
   setLinkCommand,
   snapValue,
   translateRect,
 } from '@calque/core'
-import type { CalqueDocument, FrameNode, HandleId, Node, Rect } from '@calque/core'
+import type { CalqueDocument, HandleId, Node, Rect } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import type { DragPreview, Tool } from '../state/editorStore'
 import type { CalqueApi } from '../../shared/api'
@@ -309,11 +312,39 @@ export function useNodeInteraction(nodeId: string) {
 
       state.select([targetId])
 
+      // Correctif parentage (v2, addendum navigation) : un ecran ne devient
+      // JAMAIS l'enfant d'un autre ecran (regle imposee cote interface, pas
+      // seulement par le coeur) -- on ne calcule donc meme pas de cible de
+      // reparentage quand le noeud deplace EST un ecran, il ne fait jamais
+      // que se deplacer parmi les noeuds de premier niveau, exactement comme
+      // avant ce correctif. `originalScreenId` est l'ecran englobant ACTUEL
+      // du noeud (screenContaining, pas seulement son parent direct) : null
+      // pour un noeud de premier niveau qui n'est pas un ecran (le "repere
+      // hors maquette" legitime, §1 du correctif). `targetAbs` et
+      // `nodesWithoutTarget` (le sous-arbre du noeud deplace retire de la
+      // liste, pour ne jamais le laisser se "detecter lui-meme" sous le
+      // curseur) sont captures UNE FOIS au debut du geste : le document ne
+      // change pas pendant un glissement (decision 4), aucune commande
+      // n'etant executee avant le relachement.
+      const targetNode = findNode(nodes, targetId)
+      const isScreen = targetNode !== null && isScreenNode(targetNode)
+      const originalScreenId = isScreen ? null : screenContaining(nodes, targetId)
+      const targetAbs = absoluteFrame(nodes, targetId)
+      const nodesWithoutTarget = isScreen ? nodes : removeNode(nodes, targetId)
+
       const startX = e.clientX
       const startY = e.clientY
       let dx = 0
       let dy = 0
       let moved = false
+      // Ecran survole par le noeud deplace, DIFFERENT de son ecran englobant
+      // actuel (ou null hors de tout ecran) -- recalcule a chaque
+      // pointermove, lu au relachement pour decider du reparentage. Distinct
+      // du champ `targetScreenId` du dragPreview (qui ne sert qu'a
+      // l'indication visuelle, §3 du correctif) : les deux portent la meme
+      // valeur pour un noeud ordinaire, mais seule celle-ci est lue par
+      // handleUp (le dragPreview est deja remis a null a ce moment-la).
+      let hoveredScreenId: string | null = originalScreenId
 
       const handleMove = (ev: PointerEvent) => {
         const current = useEditorStore.getState()
@@ -324,7 +355,19 @@ export function useNodeInteraction(nodeId: string) {
         dx = snapped.dx
         dy = snapped.dy
         moved = true
-        current.setDragPreview({ kind: 'move', nodeId: targetId, dx, dy, guides: snapped.guides })
+
+        if (!isScreen) {
+          const movedCenter = { x: targetAbs.x + dx + targetAbs.w / 2, y: targetAbs.y + dy + targetAbs.h / 2 }
+          const hovered = screenAtPoint(nodesWithoutTarget, movedCenter)
+          hoveredScreenId = hovered?.id ?? null
+        }
+        // Indice visuel (§3 du correctif) : seulement quand l'ecran survole
+        // differe de l'ecran englobant ACTUEL -- rien pendant un simple
+        // deplacement a l'interieur du meme ecran (hoveredScreenId ===
+        // originalScreenId), et jamais pour un ecran deplace (isScreen).
+        const highlight = !isScreen && hoveredScreenId !== originalScreenId ? hoveredScreenId : null
+
+        current.setDragPreview({ kind: 'move', nodeId: targetId, dx, dy, guides: snapped.guides, targetScreenId: highlight })
       }
 
       // Nettoyage "abandon" (pointerup jamais recu) : retire les
@@ -341,13 +384,43 @@ export function useNodeInteraction(nodeId: string) {
         cleanup()
         const current = useEditorStore.getState()
         current.setDragPreview(null)
+
+        if (!moved) return
+
+        // Reparentage (§2 du correctif) : le point de relachement retombe
+        // sur un ecran DIFFERENT de l'ecran englobant actuel du noeud (y
+        // compris "hors de tout ecran", hoveredScreenId === null). Un seul
+        // et unique reparentNodeCommand porte a la fois le changement de
+        // parent ET le nouveau cadre (relatif au nouveau parent, calcule
+        // pour que le noeud ne bouge pas visuellement) : deplacement et
+        // reparentage sont le meme geste, donc la meme commande annulable.
+        if (!isScreen && hoveredScreenId !== originalScreenId) {
+          const nodesNow = pageNodesOf(current.document, current.pageId)
+          const newParent = hoveredScreenId === null ? null : findNode(nodesNow, hoveredScreenId)
+          const originX = newParent !== null ? newParent.frame.x : 0
+          const originY = newParent !== null ? newParent.frame.y : 0
+          const siblings = newParent !== null && newParent.type === 'frame' ? newParent.children : nodesNow
+          const newFrame = roundRect({
+            x: targetAbs.x + dx - originX,
+            y: targetAbs.y + dy - originY,
+            w: targetAbs.w,
+            h: targetAbs.h,
+          })
+          current.execute(
+            reparentNodeCommand(current.pageId, targetId, hoveredScreenId, siblings.length, newFrame),
+          )
+          return
+        }
+
+        // Deplacement ordinaire, meme ecran englobant (ou noeud sans ecran,
+        // ou noeud ecran lui-meme) : comportement inchange depuis la v1.
         // Arrondi a l'entier en unites de page (finition v1) : dx/dy bruts
         // sont divises par le zoom (screenToPage) et donc potentiellement
         // fractionnaires a un zoom non entier -- seul le delta arrondi est
         // commis dans le document.
         const roundedDx = Math.round(dx)
         const roundedDy = Math.round(dy)
-        if (moved && (roundedDx !== 0 || roundedDy !== 0)) {
+        if (roundedDx !== 0 || roundedDy !== 0) {
           current.execute(moveNodeCommand(current.pageId, targetId, roundedDx, roundedDy))
         }
       }
@@ -415,21 +488,6 @@ export function useResizeInteraction(nodeId: string, handle: HandleId) {
   )
 }
 
-// v2 (addendum navigation §4/§5) : l'ecran (frame de premier niveau +
-// `device`) dont le cadre absolu contient `point` (coordonnees de page),
-// ou `null` si aucun. Les ecrans etant de premier niveau, leur cadre
-// absolu est directement `frame` (aucun cumul d'ancetre) -- pas besoin
-// d'absoluteFrame ici. Sert a la poignee de lien (useLinkInteraction) pour
-// determiner sur quel ecran le geste a ete relache.
-function screenAt(nodes: Node[], point: { x: number; y: number }): FrameNode | null {
-  for (const n of nodes) {
-    if (!isScreenNode(n)) continue
-    const { x, y, w, h } = n.frame
-    if (point.x >= x && point.x <= x + w && point.y >= y && point.y <= y + h) return n
-  }
-  return null
-}
-
 // Poignee de lien sur le cadre de selection (§5, chemin 2 : « une poignee
 // de lien sur le cadre de sélection, que l'on tire jusqu'à l'écran cible »).
 // Meme discipline que les autres gestes du canevas (decision 4) : AUCUNE
@@ -479,7 +537,7 @@ export function useLinkInteraction(nodeId: string, canvasRef: RefObject<HTMLElem
         current.setDragPreview(null)
 
         const nodes = pageNodesOf(current.document, current.pageId)
-        const target = screenAt(nodes, lastPoint)
+        const target = screenAtPoint(nodes, lastPoint)
         if (target === null) return
         if (screenContaining(nodes, nodeId) === target.id) return
 
@@ -535,6 +593,18 @@ export function useCreateInteraction(canvasRef: RefObject<HTMLElement | null>, a
       }
 
       const start = screenToPage({ x: e.clientX, y: e.clientY }, originOf(), state.zoom, state.pan)
+
+      // Correctif parentage (§1) : le parent du noeud a venir se decide UNE
+      // FOIS, au demarrage du geste, sur le point de DEPART -- pas sur le
+      // point de relachement, qui peut deriver hors de tout ecran pendant le
+      // trace sans que l'intention change. `screenAtPoint` reutilise deja la
+      // regle de `hitTest` pour retenir l'ecran le plus profond quand
+      // plusieurs se chevauchent (voir tree.ts). `null` si le geste demarre
+      // sur le fond, hors de tout ecran -- le noeud reste alors de premier
+      // niveau, un cas legitime (repere, note hors maquette), pas un refus.
+      const nodesAuDepart = pageNodesOf(state.document, state.pageId)
+      const parentScreen = screenAtPoint(nodesAuDepart, start)
+
       let currentFrame: Rect = { x: start.x, y: start.y, w: 0, h: 0 }
       state.setDragPreview({ kind: 'create', tool, frame: currentFrame })
 
@@ -557,12 +627,28 @@ export function useCreateInteraction(canvasRef: RefObject<HTMLElement | null>, a
         const current = useEditorStore.getState()
         current.setDragPreview(null)
 
-        const finalFrame: Rect = {
+        const finalFrameAbsolue: Rect = {
           x: Math.round(currentFrame.x),
           y: Math.round(currentFrame.y),
           w: Math.max(1, Math.round(currentFrame.w)),
           h: Math.max(1, Math.round(currentFrame.h)),
         }
+
+        // Correctif parentage (§1) : cadre relatif a l'ecran de depart, quand
+        // il y en a un -- les ecrans etant tous de premier niveau, leur
+        // cadre ABSOLU est directement `frame` (aucun cumul d'ancetre), donc
+        // une simple soustraction suffit. Entier deja garanti par
+        // finalFrameAbsolue (arrondie ci-dessus) moins un entier.
+        const parentId = parentScreen !== null ? parentScreen.id : null
+        const finalFrame: Rect =
+          parentScreen === null
+            ? finalFrameAbsolue
+            : {
+                x: finalFrameAbsolue.x - parentScreen.frame.x,
+                y: finalFrameAbsolue.y - parentScreen.frame.y,
+                w: finalFrameAbsolue.w,
+                h: finalFrameAbsolue.h,
+              }
 
         if (tool === 'image') {
           // Asynchrone (dialogue natif cote main) : aucune commande n'est
@@ -575,7 +661,7 @@ export function useCreateInteraction(canvasRef: RefObject<HTMLElement | null>, a
               return
             }
             const node = createDefaultNode(tool, finalFrame, chosenPath)
-            stateApresChoix.execute(createNodeCommand(stateApresChoix.pageId, null, node))
+            stateApresChoix.execute(createNodeCommand(stateApresChoix.pageId, parentId, node))
             stateApresChoix.select([node.id])
             stateApresChoix.setTool('select')
           })
@@ -583,7 +669,7 @@ export function useCreateInteraction(canvasRef: RefObject<HTMLElement | null>, a
         }
 
         const node = createDefaultNode(tool, finalFrame)
-        current.execute(createNodeCommand(current.pageId, null, node))
+        current.execute(createNodeCommand(current.pageId, parentId, node))
         current.select([node.id])
         current.setTool('select')
       }

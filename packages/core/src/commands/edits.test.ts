@@ -118,6 +118,71 @@ describe('reparentNodeCommand', () => {
     expect(findParent(back.pages[0]!.nodes, 'b')).toBeNull()
     expect(back.pages[0]!.nodes.map((n) => n.id)).toEqual(['f', 'a', 'b'])
   })
+
+  // Correctif parentage (v2, addendum navigation) : le parametre `frame`
+  // optionnel porte reparentage ET repositionnement dans la MEME commande --
+  // c'est ce dont a besoin un glissement d'ecran a ecran sur le canevas pour
+  // qu'un seul "annuler" restaure a la fois le parent d'origine ET le cadre
+  // d'origine.
+  it('avec un cadre fourni, reparente ET repositionne en une seule commande, restauree a l identique par un seul invert', () => {
+    const { doc, pageId } = baseDoc()
+    const frameNode: FrameNode = {
+      id: 'f', name: 'f', type: 'frame', frame: { x: 300, y: 0, w: 100, h: 100 },
+      visible: true, locked: false, opacity: 1, rotation: 0,
+      layout: { mode: 'absolute', gap: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 }, alignMain: 'start', alignCross: 'start' },
+      fills: [], strokes: [], cornerRadius: 0, clipsContent: false, children: [],
+    }
+    let d = createNodeCommand(pageId, null, frameNode).apply(doc)
+    d = createNodeCommand(pageId, null, rect('a', 10, 10)).apply(d)
+
+    const cmd = reparentNodeCommand(pageId, 'a', 'f', 0, { x: 310, y: 10, w: 10, h: 10 })
+    const inverse = cmd.invert(d)
+    const moved = cmd.apply(d)
+    expect(findParent(moved.pages[0]!.nodes, 'a')?.id).toBe('f')
+    expect(findNode(moved.pages[0]!.nodes, 'a')!.frame).toEqual({ x: 310, y: 10, w: 10, h: 10 })
+
+    const back = inverse.apply(moved)
+    expect(findParent(back.pages[0]!.nodes, 'a')).toBeNull()
+    expect(findNode(back.pages[0]!.nodes, 'a')!.frame).toEqual({ x: 10, y: 10, w: 10, h: 10 })
+    expect(back).toEqual(d)
+  })
+
+  it('sans cadre fourni (glisser-deposer du panneau des calques, inchange depuis la v1), ne touche pas au cadre', () => {
+    const { doc, pageId } = baseDoc()
+    const frameNode: FrameNode = {
+      id: 'f', name: 'f', type: 'frame', frame: { x: 0, y: 0, w: 100, h: 100 },
+      visible: true, locked: false, opacity: 1, rotation: 0,
+      layout: { mode: 'absolute', gap: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 }, alignMain: 'start', alignCross: 'start' },
+      fills: [], strokes: [], cornerRadius: 0, clipsContent: false, children: [],
+    }
+    let d = createNodeCommand(pageId, null, frameNode).apply(doc)
+    d = createNodeCommand(pageId, null, rect('a', 10, 10)).apply(d)
+
+    const moved = reparentNodeCommand(pageId, 'a', 'f', 0).apply(d)
+    expect(findNode(moved.pages[0]!.nodes, 'a')!.frame).toEqual({ x: 10, y: 10, w: 10, h: 10 })
+  })
+
+  it('un lien pose sur le noeud survit au reparentage vers un AUTRE ecran (§3.2 de l addendum navigation)', () => {
+    const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
+    const { doc, pageId } = baseDoc()
+    const ecranA = createScreenNode('Écran A', device, { x: 0, y: 0, w: device.width, h: device.height })
+    const ecranB = createScreenNode('Écran B', device, { x: 500, y: 0, w: device.width, h: device.height })
+    const ecranC = createScreenNode('Écran C', device, { x: 1000, y: 0, w: device.width, h: device.height })
+    let d = createScreenCommand(pageId, ecranA).apply(doc)
+    d = createScreenCommand(pageId, ecranB).apply(d)
+    d = createScreenCommand(pageId, ecranC).apply(d)
+    d = createNodeCommand(pageId, ecranA.id, rect('bouton', 10, 10)).apply(d)
+    // Le bouton, dans ecranA, est lie a ecranB (« au clic -> Écran B »).
+    d = setLinkCommand(pageId, 'bouton', ecranB.id).apply(d)
+
+    // Glissement d'ecran a ecran : le bouton passe de ecranA a ecranC (un
+    // TROISIEME ecran, distinct de la cible du lien) -- reparentNodeCommand
+    // ne touche jamais au champ `link`, quel que soit son contenu.
+    const moved = reparentNodeCommand(pageId, 'bouton', ecranC.id, 0, { x: 20, y: 20, w: 10, h: 10 }).apply(d)
+    const boutonDeplace = findNode(moved.pages[0]!.nodes, 'bouton')!
+    expect(findParent(moved.pages[0]!.nodes, 'bouton')?.id).toBe(ecranC.id)
+    expect(boutonDeplace.link).toEqual({ target: ecranB.id })
+  })
 })
 
 describe('updateNodeCommand (point 6)', () => {

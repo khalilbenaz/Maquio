@@ -133,69 +133,86 @@ function LayerRow({ node, depth, nodes, pageId, collapsed, onToggleCollapse }: R
   }
 
   return (
-    <li
-      role="treeitem"
-      aria-selected={selected}
-      aria-expanded={hasChildren ? !isCollapsed : undefined}
-      data-testid={`layer-${node.id}`}
-      className={selected ? 'layers-row layers-row-selected' : 'layers-row'}
-      style={{ paddingLeft: depth * 16 }}
-      draggable
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-      onClick={handleSelect}
-    >
-      <span className="layers-row-main">
-        {hasChildren ? (
-          <button
-            type="button"
-            className="layers-toggle"
-            data-testid={`layer-toggle-${node.id}`}
-            aria-label={isCollapsed ? `Déplier ${node.name}` : `Replier ${node.name}`}
-            onClick={handleToggleCollapse}
-          >
-            {isCollapsed ? '▸' : '▾'}
-          </button>
-        ) : (
-          <span className="layers-toggle-spacer" aria-hidden="true" />
-        )}
-        <span className="layers-row-name">{node.name}</span>
-      </span>
+    // Correctif parentage : le <li> lui-meme reste un simple conteneur DE
+    // BLOC (aucune classe, aucun style) -- la ligne proprement dite (le
+    // "treeitem", flex, cliquable, glissable) vit dans le <div> ci-dessous,
+    // et le <ul> des enfants est un FRERE de ce <div>, pas un troisieme
+    // enfant flex a l'interieur de la ligne. Avant ce correctif, `.layers-
+    // row` (display:flex, justify-content:space-between) etait posee
+    // directement sur le <li>, et le <ul role="group"> des enfants en
+    // devenait alors un TROISIEME ELEMENT FLEX au meme titre que le nom et
+    // les icones -- justify-content:space-between les distribuait tous les
+    // trois SUR LA MEME LIGNE (le nom de la ligne se retrouvait ecrase a
+    // largeur nulle, invisible, par le <ul> des enfants qui reclamait sa
+    // largeur naturelle) au lieu d'empiler les enfants EN DESSOUS, indentes.
+    // Aucun test existant (jsdom ne calcule jamais de vraie mise en page)
+    // ne pouvait le voir -- seule une capture d'ecran de l'application
+    // reelle, une fois qu'un ecran a vraiment un enfant, l'a revele.
+    <li>
+      <div
+        role="treeitem"
+        aria-selected={selected}
+        aria-expanded={hasChildren ? !isCollapsed : undefined}
+        data-testid={`layer-${node.id}`}
+        className={selected ? 'layers-row layers-row-selected' : 'layers-row'}
+        style={{ paddingLeft: depth * 16 }}
+        draggable
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        onClick={handleSelect}
+      >
+        <span className="layers-row-main">
+          {hasChildren ? (
+            <button
+              type="button"
+              className="layers-toggle"
+              data-testid={`layer-toggle-${node.id}`}
+              aria-label={isCollapsed ? `Déplier ${node.name}` : `Replier ${node.name}`}
+              onClick={handleToggleCollapse}
+            >
+              {isCollapsed ? '▸' : '▾'}
+            </button>
+          ) : (
+            <span className="layers-toggle-spacer" aria-hidden="true" />
+          )}
+          <span className="layers-row-name">{node.name}</span>
+        </span>
 
-      <span className="layers-row-actions">
-        <button
-          type="button"
-          data-testid={`layer-visibility-${node.id}`}
-          aria-label={node.visible ? `Masquer le calque ${node.name}` : `Afficher le calque ${node.name}`}
-          aria-pressed={node.visible}
-          className="layers-icon-button"
-          onClick={handleToggleVisibility}
-        >
-          {node.visible ? '\u{1F441}' : '—'}
-        </button>
-        <button
-          type="button"
-          data-testid={`layer-lock-${node.id}`}
-          aria-label={node.locked ? `Déverrouiller le calque ${node.name}` : `Verrouiller le calque ${node.name}`}
-          aria-pressed={node.locked}
-          className="layers-icon-button"
-          onClick={handleToggleLock}
-        >
-          {node.locked ? '\u{1F512}' : '\u{1F513}'}
-        </button>
-        {estUnEcran ? (
+        <span className="layers-row-actions">
           <button
             type="button"
-            data-testid={`layer-duplicate-${node.id}`}
-            aria-label={`Dupliquer l'écran ${node.name}`}
+            data-testid={`layer-visibility-${node.id}`}
+            aria-label={node.visible ? `Masquer le calque ${node.name}` : `Afficher le calque ${node.name}`}
+            aria-pressed={node.visible}
             className="layers-icon-button"
-            onClick={handleDuplicate}
+            onClick={handleToggleVisibility}
           >
-            {'\u{29C9}'}
+            {node.visible ? '\u{1F441}' : '—'}
           </button>
-        ) : null}
-      </span>
+          <button
+            type="button"
+            data-testid={`layer-lock-${node.id}`}
+            aria-label={node.locked ? `Déverrouiller le calque ${node.name}` : `Verrouiller le calque ${node.name}`}
+            aria-pressed={node.locked}
+            className="layers-icon-button"
+            onClick={handleToggleLock}
+          >
+            {node.locked ? '\u{1F512}' : '\u{1F513}'}
+          </button>
+          {estUnEcran ? (
+            <button
+              type="button"
+              data-testid={`layer-duplicate-${node.id}`}
+              aria-label={`Dupliquer l'écran ${node.name}`}
+              className="layers-icon-button"
+              onClick={handleDuplicate}
+            >
+              {'\u{29C9}'}
+            </button>
+          ) : null}
+        </span>
+      </div>
 
       {hasChildren && !isCollapsed ? (
         <ul role="group" className="layers-children">
