@@ -63,25 +63,25 @@ export function ExportDialog({
       />
       <button
         type="button"
-        aria-label="Lancer l export"
+        aria-label="Lancer l'export"
         disabled={statut === 'loading' || nomProjet.trim() === ''}
         onClick={() => void exporter()}
       >
         Exporter
       </button>
-      <button type="button" aria-label="Fermer l export" onClick={onClose}>
+      <button type="button" aria-label="Fermer l'export" onClick={onClose}>
         Fermer
       </button>
 
-      {statut === 'annule' ? <p>Export annule</p> : null}
+      {statut === 'annule' ? <p>Export annulé</p> : null}
       {statut === 'error' ? <p role="alert">{erreur}</p> : null}
       {statut === 'succes' ? (
         <div>
           <p>
-            {fichiers.length} fichier(s) exporte(s) dans {dossier}
+            {fichiers.length} fichier(s) exporté(s) dans {dossier}
           </p>
           {avertissements.length > 0 ? (
-            <ul aria-label="Avertissements d export">
+            <ul aria-label="Avertissements d'export">
               {avertissements.map((a) => (
                 <li key={a}>{a}</li>
               ))}

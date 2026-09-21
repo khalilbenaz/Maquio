@@ -69,7 +69,7 @@ function commonParentId(nodes: Node[], nodeIds: string[]): string | null {
 
 export function createNodeCommand(pageId: string, parentId: string | null, node: Node, index?: number): Command {
   return {
-    label: 'Creer',
+    label: 'Créer',
     apply(doc: CalqueDocument): CalqueDocument {
       return updatePageNodes(doc, pageId, (nodes) => insertNode(nodes, parentId, node, index))
     },
@@ -105,7 +105,7 @@ export function deleteNodeCommand(pageId: string, nodeId: string): Command {
 // Deplacement RELATIF (dx, dy), pas un cadre final.
 export function moveNodeCommand(pageId: string, nodeId: string, dx: number, dy: number): Command {
   return {
-    label: 'Deplacer',
+    label: 'Déplacer',
     apply(doc: CalqueDocument): CalqueDocument {
       return updateNodeIn(doc, pageId, nodeId, (node) => ({ ...node, frame: translateRect(node.frame, dx, dy) }))
     },
@@ -283,7 +283,7 @@ export function groupCommand(pageId: string, nodeIds: string[]): Command {
 
 export function ungroupCommand(pageId: string, frameId: string): Command {
   return {
-    label: 'Degrouper',
+    label: 'Dégrouper',
     apply(doc: CalqueDocument): CalqueDocument {
       return updatePageNodes(doc, pageId, (nodes) => {
         const frameNode = findNode(nodes, frameId)

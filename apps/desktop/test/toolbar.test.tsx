@@ -34,17 +34,17 @@ describe('Toolbar', () => {
 
     const bouton = screen.getByLabelText('Annuler')
     expect(bouton.hasAttribute('disabled')).toBe(false)
-    expect(bouton.getAttribute('title')).toContain('Deplacer')
+    expect(bouton.getAttribute('title')).toContain('Déplacer')
   })
 
   it('desactive retablir tant qu aucun undo n a ete effectue', () => {
     render(<Toolbar api={apiFactice} />)
-    expect(screen.getByLabelText('Retablir').hasAttribute('disabled')).toBe(true)
+    expect(screen.getByLabelText('Rétablir').hasAttribute('disabled')).toBe(true)
   })
 
   it('affiche les six outils de creation et change l outil actif au clic', () => {
     render(<Toolbar api={apiFactice} />)
-    for (const label of ['Selection', 'Frame', 'Rectangle', 'Ellipse', 'Texte', 'Image']) {
+    for (const label of ['Sélection', 'Frame', 'Rectangle', 'Ellipse', 'Texte', 'Image']) {
       expect(screen.getByLabelText(label)).toBeTruthy()
     }
     fireEvent.click(screen.getByLabelText('Rectangle'))
@@ -56,7 +56,7 @@ describe('Toolbar', () => {
     expect(screen.getByText('100%')).toBeTruthy()
     fireEvent.click(screen.getByLabelText('Agrandir le zoom'))
     expect(useEditorStore.getState().zoom).toBeGreaterThan(1)
-    fireEvent.click(screen.getByLabelText('Reinitialiser le zoom'))
+    fireEvent.click(screen.getByLabelText('Réinitialiser le zoom'))
     expect(useEditorStore.getState().zoom).toBe(1)
   })
 
@@ -86,7 +86,7 @@ describe('Toolbar', () => {
   // inatteignable pour un utilisateur.
   it('le bouton Reglages ouvre le dialogue des reglages', () => {
     render(<Toolbar api={apiFactice} />)
-    fireEvent.click(screen.getByLabelText('Reglages'))
-    expect(screen.getByLabelText('Reglages', { selector: 'section' })).toBeTruthy()
+    fireEvent.click(screen.getByLabelText('Réglages'))
+    expect(screen.getByLabelText('Réglages', { selector: 'section' })).toBeTruthy()
   })
 })

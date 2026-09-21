@@ -24,7 +24,7 @@ describe('SettingsDialog', () => {
     fireEvent.change(screen.getByLabelText('Jeton personnel Figma'), { target: { value: 'mon-jeton-secret' } })
     fireEvent.click(screen.getByLabelText('Enregistrer le jeton Figma'))
 
-    await screen.findByText(/un jeton figma est enregistre/i)
+    await screen.findByText(/un jeton figma est enregistré/i)
     expect(setFigmaToken).toHaveBeenCalledWith('mon-jeton-secret')
   })
 
@@ -35,7 +35,7 @@ describe('SettingsDialog', () => {
     fireEvent.change(champ, { target: { value: 'mon-jeton-secret' } })
     fireEvent.click(screen.getByLabelText('Enregistrer le jeton Figma'))
 
-    await screen.findByText(/un jeton figma est enregistre/i)
+    await screen.findByText(/un jeton figma est enregistré/i)
     expect(champ.value).toBe('')
   })
 
@@ -44,7 +44,7 @@ describe('SettingsDialog', () => {
       ...apiFactice,
       setFigmaToken: async () => {
         throw new Error(
-          "Le stockage securise du systeme n'est pas disponible sur cette machine : le jeton Figma ne peut pas etre enregistre en toute securite, il n'a pas ete sauvegarde",
+          "Le stockage sécurisé du système n'est pas disponible sur cette machine : le jeton Figma ne peut pas être enregistré en toute sécurité, il n'a pas été sauvegardé",
         )
       },
     }
@@ -54,9 +54,9 @@ describe('SettingsDialog', () => {
     fireEvent.change(champ, { target: { value: 'mon-jeton-secret' } })
     fireEvent.click(screen.getByLabelText('Enregistrer le jeton Figma'))
 
-    await screen.findByText(/stockage securise/i)
+    await screen.findByText(/stockage sécurisé/i)
     expect(champ.value).toBe('mon-jeton-secret')
-    expect(screen.getByText(/aucun jeton figma enregistre/i)).toBeTruthy()
+    expect(screen.getByText(/aucun jeton figma enregistré/i)).toBeTruthy()
   })
 
   it('le jeton saisi n apparait dans aucun message affiche, succes ou echec', async () => {
@@ -65,7 +65,7 @@ describe('SettingsDialog', () => {
     )
     fireEvent.change(screen.getByLabelText('Jeton personnel Figma'), { target: { value: 'jeton-tres-secret' } })
     fireEvent.click(screen.getByLabelText('Enregistrer le jeton Figma'))
-    await screen.findByText(/un jeton figma est enregistre/i)
+    await screen.findByText(/un jeton figma est enregistré/i)
     expect(document.body.textContent).not.toContain('jeton-tres-secret')
     unmount()
 
@@ -107,7 +107,7 @@ describe('SettingsDialog', () => {
         onClose={() => {}}
       />,
     )
-    expect(await screen.findByText(/un jeton figma est enregistre/i)).toBeTruthy()
+    expect(await screen.findByText(/un jeton figma est enregistré/i)).toBeTruthy()
   })
 
   it('affiche l adresse ou obtenir un jeton, en texte non cliquable', () => {
@@ -138,7 +138,7 @@ describe('SettingsDialog — Claude Code', () => {
       />,
     )
     const etat = await screen.findByText(/\/opt\/homebrew\/bin\/claude/)
-    expect(etat.textContent).toMatch(/trouve/i)
+    expect(etat.textContent).toMatch(/trouvé/i)
   })
 
   it('affiche l etat introuvable quand le binaire n est pas detecte', async () => {
@@ -161,14 +161,14 @@ describe('SettingsDialog — Claude Code', () => {
 
   it('explique que Calque lance le binaire deja installe et n utilise aucune cle d API', () => {
     render(<SettingsDialog api={apiFactice} onClose={() => {}} />)
-    expect(screen.getByText(/aucune cle d.api/i)).toBeTruthy()
+    expect(screen.getByText(/aucune clé d.api/i)).toBeTruthy()
   })
 
   it('enregistre un chemin personnalise valide via setClaudeCustomPath', async () => {
     const setClaudeCustomPath = vi.fn(async (p: string) => ({ claudeAvailable: true, claudePath: p }))
     render(<SettingsDialog api={{ ...apiFactice, setClaudeCustomPath }} onClose={() => {}} />)
 
-    fireEvent.change(screen.getByLabelText('Chemin personnalise vers le binaire claude'), {
+    fireEvent.change(screen.getByLabelText('Chemin personnalisé vers le binaire claude'), {
       target: { value: '/opt/homebrew/bin/claude' },
     })
     fireEvent.click(screen.getByLabelText('Enregistrer le chemin de Claude Code'))
@@ -198,7 +198,7 @@ describe('SettingsDialog — Claude Code', () => {
     )
     await screen.findByText(/\/usr\/local\/bin\/claude/)
 
-    const champ = screen.getByLabelText('Chemin personnalise vers le binaire claude') as HTMLInputElement
+    const champ = screen.getByLabelText('Chemin personnalisé vers le binaire claude') as HTMLInputElement
     fireEvent.change(champ, { target: { value: '/mauvais/chemin' } })
     fireEvent.click(screen.getByLabelText('Enregistrer le chemin de Claude Code'))
 
@@ -223,7 +223,7 @@ describe('SettingsDialog — Claude Code', () => {
     render(<SettingsDialog api={{ ...apiFactice, getSettings }} onClose={() => {}} />)
     await screen.findByText(/introuvable/i)
 
-    fireEvent.click(screen.getByLabelText('Verifier la connexion Claude Code'))
+    fireEvent.click(screen.getByLabelText('Vérifier la connexion Claude Code'))
 
     await screen.findByText(/\/usr\/local\/bin\/claude/)
     expect(getSettings).toHaveBeenCalledTimes(2)
@@ -249,7 +249,7 @@ describe('SettingsDialog — Claude Code', () => {
     await screen.findByText(/introuvable/i)
     expect(useClaudeStatusStore.getState().available).toBe(false)
 
-    fireEvent.change(screen.getByLabelText('Chemin personnalise vers le binaire claude'), {
+    fireEvent.change(screen.getByLabelText('Chemin personnalisé vers le binaire claude'), {
       target: { value: '/opt/homebrew/bin/claude' },
     })
     fireEvent.click(screen.getByLabelText('Enregistrer le chemin de Claude Code'))

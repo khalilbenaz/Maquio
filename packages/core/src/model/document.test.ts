@@ -39,6 +39,6 @@ describe('serialize/parse', () => {
     expect(() => parseDocument(ancien)).toThrow(/ancienne/)
 
     const futur = JSON.stringify({ ...createDocument('X'), version: 99 })
-    expect(() => parseDocument(futur)).toThrow(/recente/)
+    expect(() => parseDocument(futur)).toThrow(/récente/)
   })
 })

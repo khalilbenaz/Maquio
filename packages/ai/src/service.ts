@@ -48,7 +48,7 @@ export class AiService {
       // c'est ce que le panneau affichera a l'utilisateur (decision 11), pas
       // le prompt envoye (qui, lui, peut porter des donnees utilisateur et
       // n'a pas a apparaitre ici).
-      throw new Error(`Impossible d'interpreter la reponse de Claude Code comme un patch : ${truncate(raw)}`, {
+      throw new Error(`Impossible d'interpréter la réponse de Claude Code comme un patch : ${truncate(raw)}`, {
         cause,
       })
     }

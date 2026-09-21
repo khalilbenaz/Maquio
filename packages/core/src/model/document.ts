@@ -65,7 +65,7 @@ export function parseDocument(json: string): CalqueDocument {
 
   if (version !== undefined && version > DOCUMENT_VERSION) {
     throw new DocumentVersionError(
-      `Document en version ${version}, plus recente que la version supportee ${DOCUMENT_VERSION}`,
+      `Document en version ${version}, plus récente que la version supportée ${DOCUMENT_VERSION}`,
     )
   }
   if (version !== undefined && version < DOCUMENT_VERSION) {

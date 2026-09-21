@@ -101,7 +101,7 @@ function Editeur({ api }: { api: CalqueApi }) {
   }, [documentPath])
 
   useEffect(() => {
-    globalThis.document.title = `${nomDuDocument}${dirty ? ' • non enregistre' : ''} — Calque`
+    globalThis.document.title = `${nomDuDocument}${dirty ? ' • non enregistré' : ''} — Calque`
   }, [nomDuDocument, dirty])
 
   return (

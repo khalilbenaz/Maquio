@@ -20,10 +20,10 @@ export function confirmOverwrite(win: BrowserWindow | null): (existingFiles: str
   return async (existingFiles) => {
     const options = {
       type: 'warning' as const,
-      buttons: ['Annuler', 'Ecraser'],
+      buttons: ['Annuler', 'Écraser'],
       defaultId: 0,
       cancelId: 0,
-      message: `${existingFiles.length} fichier(s) existent deja a cet emplacement`,
+      message: `${existingFiles.length} fichier(s) existent déjà à cet emplacement`,
       detail: existingFiles.join('\n'),
     }
     const result = win ? await dialog.showMessageBox(win, options) : await dialog.showMessageBox(options)

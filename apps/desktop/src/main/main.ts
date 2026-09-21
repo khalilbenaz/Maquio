@@ -228,15 +228,15 @@ function construireLeMenu(): Menu {
       ],
     },
     {
-      label: 'Edition',
+      label: 'Édition',
       submenu: [
         { role: 'undo', label: 'Annuler' },
-        { role: 'redo', label: 'Retablir' },
+        { role: 'redo', label: 'Rétablir' },
         { type: 'separator' },
         { role: 'cut', label: 'Couper' },
         { role: 'copy', label: 'Copier' },
         { role: 'paste', label: 'Coller' },
-        { role: 'selectAll', label: 'Tout selectionner' },
+        { role: 'selectAll', label: 'Tout sélectionner' },
       ],
     },
   ])

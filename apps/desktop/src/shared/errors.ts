@@ -41,31 +41,31 @@ function decrireProbleme(issue: ZodIssue): string {
   const chemin = decrireChemin(issue.path)
   switch (issue.code) {
     case 'invalid_type':
-      return `la propriete "${chemin}" devrait etre de type ${issue.expected} (valeur recue de type ${issue.received})`
+      return `la propriété "${chemin}" devrait être de type ${issue.expected} (valeur reçue de type ${issue.received})`
     case 'invalid_literal':
-      return `la propriete "${chemin}" a une valeur inattendue`
+      return `la propriété "${chemin}" a une valeur inattendue`
     case 'unrecognized_keys':
-      return `des proprietes inconnues sont presentes (${issue.keys.join(', ')})`
+      return `des propriétés inconnues sont présentes (${issue.keys.join(', ')})`
     case 'invalid_union':
-      return `la propriete "${chemin}" ne correspond a aucune des formes attendues`
+      return `la propriété "${chemin}" ne correspond à aucune des formes attendues`
     case 'invalid_union_discriminator':
-      return `la propriete "${chemin}" a une valeur de type non reconnue`
+      return `la propriété "${chemin}" a une valeur de type non reconnue`
     case 'invalid_enum_value':
-      return `la propriete "${chemin}" a une valeur non autorisee`
+      return `la propriété "${chemin}" a une valeur non autorisée`
     case 'invalid_date':
-      return `la propriete "${chemin}" n'est pas une date valide`
+      return `la propriété "${chemin}" n'est pas une date valide`
     case 'invalid_string':
-      return `la propriete "${chemin}" n'a pas le format attendu`
+      return `la propriété "${chemin}" n'a pas le format attendu`
     case 'too_small':
-      return `la propriete "${chemin}" est trop petite`
+      return `la propriété "${chemin}" est trop petite`
     case 'too_big':
-      return `la propriete "${chemin}" est trop grande`
+      return `la propriété "${chemin}" est trop grande`
     case 'not_multiple_of':
-      return `la propriete "${chemin}" n'est pas un multiple valide`
+      return `la propriété "${chemin}" n'est pas un multiple valide`
     case 'not_finite':
-      return `la propriete "${chemin}" doit etre un nombre fini`
+      return `la propriété "${chemin}" doit être un nombre fini`
     default:
-      return `la propriete "${chemin}" est invalide`
+      return `la propriété "${chemin}" est invalide`
   }
 }
 
@@ -73,7 +73,7 @@ function decrireZodError(err: ZodError): string {
   const [premier, ...reste] = err.issues
   if (premier === undefined) return 'le contenu ne correspond pas au format attendu'
   const suffixe = reste.length > 0 ? ` (et ${reste.length} autre(s) probleme(s))` : ''
-  return `le contenu est mal forme : ${decrireProbleme(premier)}${suffixe}`
+  return `le contenu est mal formé : ${decrireProbleme(premier)}${suffixe}`
 }
 
 // Traduit une erreur QUELCONQUE (non reconnue par l'appelant) en un message

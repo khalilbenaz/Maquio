@@ -115,8 +115,8 @@ export function SettingsDialog({ api, onClose }: { api: CalqueApi; onClose: () =
   }
 
   return (
-    <section aria-label="Reglages" className="settings-dialog">
-      <p>{hasFigmaToken ? 'Un jeton Figma est enregistre' : 'Aucun jeton Figma enregistre'}</p>
+    <section aria-label="Réglages" className="settings-dialog">
+      <p>{hasFigmaToken ? 'Un jeton Figma est enregistré' : 'Aucun jeton Figma enregistré'}</p>
 
       <label htmlFor="figma-token-input">Jeton personnel Figma</label>
       <input
@@ -145,17 +145,17 @@ export function SettingsDialog({ api, onClose }: { api: CalqueApi; onClose: () =
 
         <p>
           {claudeAvailable
-            ? `Claude Code trouve : ${claudePath ?? ''}`
+            ? `Claude Code trouvé : ${claudePath ?? ''}`
             : 'Claude Code introuvable'}
         </p>
         <p>
-          Calque lance le binaire 'claude' deja installe sur cette machine et n'utilise aucune cle d'API.
+          Calque lance le binaire 'claude' déjà installé sur cette machine et n'utilise aucune clé d'API.
         </p>
 
-        <label htmlFor="claude-custom-path-input">Chemin personnalise vers le binaire claude</label>
+        <label htmlFor="claude-custom-path-input">Chemin personnalisé vers le binaire claude</label>
         <input
           id="claude-custom-path-input"
-          aria-label="Chemin personnalise vers le binaire claude"
+          aria-label="Chemin personnalisé vers le binaire claude"
           type="text"
           placeholder="/usr/local/bin/claude"
           value={cheminSaisi}
@@ -172,17 +172,17 @@ export function SettingsDialog({ api, onClose }: { api: CalqueApi; onClose: () =
         </button>
         <button
           type="button"
-          aria-label="Verifier la connexion Claude Code"
+          aria-label="Vérifier la connexion Claude Code"
           disabled={claudeStatut === 'loading'}
           onClick={() => void verifierClaude()}
         >
-          Verifier
+          Vérifier
         </button>
 
         {claudeStatut === 'error' ? <p role="alert">{claudeErreur}</p> : null}
       </div>
 
-      <button type="button" aria-label="Fermer les reglages" onClick={onClose}>
+      <button type="button" aria-label="Fermer les réglages" onClick={onClose}>
         Fermer
       </button>
     </section>

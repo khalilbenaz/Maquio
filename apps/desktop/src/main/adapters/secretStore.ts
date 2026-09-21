@@ -29,7 +29,7 @@ export type SecretStoreFs = {
 export class SecretStorageUnavailableError extends Error {
   constructor() {
     super(
-      "Le stockage securise du systeme n'est pas disponible sur cette machine : le jeton Figma ne peut pas etre enregistre en toute securite, il n'a pas ete sauvegarde",
+      "Le stockage sécurisé du système n'est pas disponible sur cette machine : le jeton Figma ne peut pas être enregistré en toute sécurité, il n'a pas été sauvegardé",
     )
     this.name = 'SecretStorageUnavailableError'
   }

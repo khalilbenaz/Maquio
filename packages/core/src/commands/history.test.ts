@@ -92,6 +92,6 @@ describe('History', () => {
     h.execute(createNodeCommand(pageId, null, rect))
     h.execute(moveNodeCommand(pageId, 'r1', 5, 5))
     h.execute(deleteNodeCommand(pageId, 'r1'))
-    expect(h.undoLabels).toEqual(['Supprimer', 'Deplacer', 'Creer'])
+    expect(h.undoLabels).toEqual(['Supprimer', 'Déplacer', 'Créer'])
   })
 })

@@ -1,0 +1,62 @@
+/* Panneau Claude Code (Tache 17). Partage la colonne de droite avec
+   InspectorPanel (voir App.tsx) : flex: 1 1 0 fait que les deux panneaux se
+   partagent la hauteur disponible a parts egales, et min-height: 0 permet a
+   ce panneau de rétrécir sous sa hauteur de contenu naturelle plutôt que de
+   déborder de la fenêtre -- c'est overflow-y: auto qui absorbe le surplus en
+   le rendant défilable, au lieu de tronquer le champ Instruction ou le
+   bouton "Demander à Claude" au bord bas de la fenêtre (défaut constaté a
+   1280x800, voir le rapport de correction d'interface). */
+
+.claude-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  gap: 6px;
+  background: #1e1f22;
+  color: #e4e4e7;
+  border-top: 1px solid #2f3033;
+  font-size: 13px;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.claude-panel label {
+  color: #b6b6bd;
+  font-size: 12px;
+}
+
+.claude-panel textarea {
+  min-height: 72px;
+  resize: vertical;
+  background: #2a2b2f;
+  border: 1px solid #3a3b40;
+  color: #e4e4e7;
+  border-radius: 4px;
+  padding: 6px;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.claude-panel button {
+  align-self: flex-start;
+  background: #2b3f6f;
+  border: 1px solid #2b6fff;
+  color: inherit;
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font: inherit;
+  flex-shrink: 0;
+}
+
+.claude-panel button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.claude-panel p {
+  margin: 0;
+  word-break: break-word;
+}

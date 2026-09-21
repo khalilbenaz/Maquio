@@ -39,7 +39,7 @@ export class InvalidPatchError extends Error {
 // d'arbre (cf. cahier des charges, decision 7).
 export class MixedParentsError extends Error {
   constructor() {
-    super("Les noeuds selectionnes n'ont pas tous le meme parent")
+    super("Les noeuds sélectionnés n'ont pas tous le même parent")
     this.name = 'MixedParentsError'
   }
 }
@@ -51,7 +51,7 @@ export class MixedParentsError extends Error {
 // par un message d'erreur generique.
 export class EmptySelectionError extends Error {
   constructor() {
-    super('La selection ne peut pas etre vide')
+    super('La sélection ne peut pas être vide')
     this.name = 'EmptySelectionError'
   }
 }

@@ -122,7 +122,7 @@ function LayerRow({ node, depth, nodes, pageId, collapsed, onToggleCollapse }: R
             type="button"
             className="layers-toggle"
             data-testid={`layer-toggle-${node.id}`}
-            aria-label={isCollapsed ? `Deplier ${node.name}` : `Replier ${node.name}`}
+            aria-label={isCollapsed ? `Déplier ${node.name}` : `Replier ${node.name}`}
             onClick={handleToggleCollapse}
           >
             {isCollapsed ? '▸' : '▾'}
@@ -147,7 +147,7 @@ function LayerRow({ node, depth, nodes, pageId, collapsed, onToggleCollapse }: R
         <button
           type="button"
           data-testid={`layer-lock-${node.id}`}
-          aria-label={node.locked ? `Deverrouiller le calque ${node.name}` : `Verrouiller le calque ${node.name}`}
+          aria-label={node.locked ? `Déverrouiller le calque ${node.name}` : `Verrouiller le calque ${node.name}`}
           aria-pressed={node.locked}
           className="layers-icon-button"
           onClick={handleToggleLock}

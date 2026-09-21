@@ -11,21 +11,21 @@ import { containsPoint } from '../geometry/rect'
 
 export class NodeNotFoundError extends Error {
   constructor(id: string) {
-    super(`Noeud introuvable : ${id}`)
+    super(`Nœud introuvable : ${id}`)
     this.name = 'NodeNotFoundError'
   }
 }
 
 export class NotAFrameError extends Error {
   constructor(id: string) {
-    super(`Le noeud ${id} n'est pas une frame, il ne peut pas porter d'enfants`)
+    super(`Le nœud ${id} n'est pas une frame, il ne peut pas porter d'enfants`)
     this.name = 'NotAFrameError'
   }
 }
 
 export class CycleError extends Error {
   constructor(id: string, targetParentId: string) {
-    super(`Deplacement invalide : ${targetParentId} est le noeud ${id} lui-meme ou l'un de ses descendants`)
+    super(`Déplacement invalide : ${targetParentId} est le nœud ${id} lui-même ou l'un de ses descendants`)
     this.name = 'CycleError'
   }
 }

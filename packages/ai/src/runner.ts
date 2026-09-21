@@ -32,14 +32,14 @@ export interface ClaudeRunner {
 
 export class ClaudeUnavailableError extends Error {
   constructor() {
-    super("Claude Code est introuvable : verifiez que le binaire 'claude' est installe et accessible dans le PATH")
+    super("Claude Code est introuvable : vérifiez que le binaire 'claude' est installé et accessible dans le PATH")
     this.name = 'ClaudeUnavailableError'
   }
 }
 
 export class ClaudeFailedError extends Error {
   constructor(exitCode: number, stderr: string) {
-    super(`Claude Code a echoue (code de sortie ${exitCode}) : ${stderr.trim()}`)
+    super(`Claude Code a échoué (code de sortie ${exitCode}) : ${stderr.trim()}`)
     this.name = 'ClaudeFailedError'
   }
 }

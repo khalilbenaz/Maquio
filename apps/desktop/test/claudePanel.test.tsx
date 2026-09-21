@@ -31,13 +31,13 @@ describe('ClaudePanel', () => {
   it('desactive le panneau quand le binaire claude est absent, des l ouverture', async () => {
     render(<ClaudePanel api={{ ...apiFactice, claudeAvailable: async () => false }} />)
     expect(await screen.findByText(/Claude Code introuvable/)).toBeTruthy()
-    expect(screen.getByLabelText('Demander a Claude').hasAttribute('disabled')).toBe(true)
+    expect(screen.getByLabelText('Demander à Claude').hasAttribute('disabled')).toBe(true)
   })
 
   it('applique le patch renvoye comme une action annulable', async () => {
     render(<ClaudePanel api={apiFactice} />)
     fireEvent.change(screen.getByLabelText('Instruction'), { target: { value: 'ajoute un bouton' } })
-    fireEvent.click(screen.getByLabelText('Demander a Claude'))
+    fireEvent.click(screen.getByLabelText('Demander à Claude'))
     await screen.findByText(/ajoute/)
     expect(useEditorStore.getState().history.canUndo).toBe(true)
   })
@@ -50,7 +50,7 @@ describe('ClaudePanel', () => {
       },
     }
     render(<ClaudePanel api={api} />)
-    fireEvent.click(screen.getByLabelText('Demander a Claude'))
+    fireEvent.click(screen.getByLabelText('Demander à Claude'))
     await screen.findByText(/patch invalide/)
     expect(useEditorStore.getState().history.canUndo).toBe(false)
   })
@@ -71,7 +71,7 @@ describe('ClaudePanel', () => {
     render(<ClaudePanel api={{ ...apiFactice, askClaude }} />)
 
     fireEvent.change(screen.getByLabelText('Instruction'), { target: { value: 'ajoute un bouton' } })
-    fireEvent.click(screen.getByLabelText('Demander a Claude'))
+    fireEvent.click(screen.getByLabelText('Demander à Claude'))
     expect(askClaude).toHaveBeenCalledTimes(1)
 
     const nombreEntreesAvant = useEditorStore.getState().history.undoLabels.length
@@ -88,7 +88,7 @@ describe('ClaudePanel', () => {
       })
     })
 
-    await screen.findByText(/document a change/i)
+    await screen.findByText(/document a changé/i)
     // Le patch perime n'a pas ete applique : seule l'edition manuelle
     // ci-dessus a alimente l'historique.
     expect(useEditorStore.getState().history.undoLabels.length).toBe(nombreEntreesAvant + 1)
@@ -106,7 +106,7 @@ describe('ClaudePanel', () => {
       }),
     }
     render(<ClaudePanel api={api} />)
-    fireEvent.click(screen.getByLabelText('Demander a Claude'))
+    fireEvent.click(screen.getByLabelText('Demander à Claude'))
 
     const alerte = await screen.findByRole('alert')
     verifieMessagePropre(alerte.textContent ?? '')
@@ -122,7 +122,7 @@ describe('ClaudePanel', () => {
       }),
     }
     render(<ClaudePanel api={api} />)
-    fireEvent.click(screen.getByLabelText('Demander a Claude'))
+    fireEvent.click(screen.getByLabelText('Demander à Claude'))
 
     const alerte = await screen.findByRole('alert')
     verifieMessagePropre(alerte.textContent ?? '')
@@ -136,7 +136,7 @@ describe('ClaudePanel', () => {
   it('le message de desactivation renvoie vers les reglages', async () => {
     render(<ClaudePanel api={{ ...apiFactice, claudeAvailable: async () => false }} />)
     const message = await screen.findByText(/Claude Code introuvable/)
-    expect(message.textContent).toMatch(/Reglages/)
+    expect(message.textContent).toMatch(/Réglages/)
   })
 
   // SettingsDialog et ClaudePanel sont freres (tous deux sous Toolbar/App,
@@ -148,13 +148,13 @@ describe('ClaudePanel', () => {
   it('redevient actif quand le magasin partage de statut Claude passe a disponible, sans redemarrer', async () => {
     render(<ClaudePanel api={{ ...apiFactice, claudeAvailable: async () => false }} />)
     expect(await screen.findByText(/Claude Code introuvable/)).toBeTruthy()
-    expect(screen.getByLabelText('Demander a Claude').hasAttribute('disabled')).toBe(true)
+    expect(screen.getByLabelText('Demander à Claude').hasAttribute('disabled')).toBe(true)
 
     act(() => {
       useClaudeStatusStore.getState().setStatus({ available: true, path: '/usr/local/bin/claude' })
     })
 
     expect(screen.queryByText(/Claude Code introuvable/)).toBeNull()
-    expect(screen.getByLabelText('Demander a Claude').hasAttribute('disabled')).toBe(false)
+    expect(screen.getByLabelText('Demander à Claude').hasAttribute('disabled')).toBe(false)
   })
 })

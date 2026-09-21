@@ -23,7 +23,7 @@ import { SettingsDialog } from '../dialogs/SettingsDialog'
 import './Toolbar.css'
 
 const TOOLS: { id: Tool; label: string; icon: string }[] = [
-  { id: 'select', label: 'Selection', icon: '⬜' },
+  { id: 'select', label: 'Sélection', icon: '⬜' },
   { id: 'frame', label: 'Frame', icon: '▢' },
   { id: 'rect', label: 'Rectangle', icon: '▭' },
   { id: 'ellipse', label: 'Ellipse', icon: '◯' },
@@ -82,8 +82,8 @@ export function Toolbar({ api }: { api: CalqueApi }) {
   const nextUndoLabel = history.undoLabels[0]
 
   return (
-    <header className="toolbar" aria-label="Barre d outils">
-      <div className="toolbar-group" role="group" aria-label="Outils de creation">
+    <header className="toolbar" aria-label="Barre d'outils">
+      <div className="toolbar-group" role="group" aria-label="Outils de création">
         {TOOLS.map((t) => (
           <button
             key={t.id}
@@ -100,10 +100,10 @@ export function Toolbar({ api }: { api: CalqueApi }) {
       </div>
 
       <div className="toolbar-group" role="group" aria-label="Zoom">
-        <button type="button" aria-label="Reduire le zoom" className="toolbar-button" onClick={() => setZoom(clampZoom(zoom - ZOOM_STEP))}>
+        <button type="button" aria-label="Réduire le zoom" className="toolbar-button" onClick={() => setZoom(clampZoom(zoom - ZOOM_STEP))}>
           -
         </button>
-        <button type="button" aria-label="Reinitialiser le zoom" className="toolbar-button" onClick={() => setZoom(1)}>
+        <button type="button" aria-label="Réinitialiser le zoom" className="toolbar-button" onClick={() => setZoom(1)}>
           {Math.round(zoom * 100)}%
         </button>
         <button type="button" aria-label="Agrandir le zoom" className="toolbar-button" onClick={() => setZoom(clampZoom(zoom + ZOOM_STEP))}>
@@ -117,17 +117,17 @@ export function Toolbar({ api }: { api: CalqueApi }) {
           aria-label="Annuler"
           className="toolbar-button"
           disabled={!canUndo}
-          title={canUndo ? `Annuler : ${nextUndoLabel}` : 'Rien a annuler'}
+          title={canUndo ? `Annuler : ${nextUndoLabel}` : 'Rien à annuler'}
           onClick={undo}
         >
           {'↶'}
         </button>
         <button
           type="button"
-          aria-label="Retablir"
+          aria-label="Rétablir"
           className="toolbar-button"
           disabled={!canRedo}
-          title={canRedo ? 'Retablir la derniere action annulee' : 'Rien a retablir'}
+          title={canRedo ? 'Rétablir la dernière action annulée' : 'Rien à rétablir'}
           onClick={redo}
         >
           {'↷'}
@@ -155,7 +155,7 @@ export function Toolbar({ api }: { api: CalqueApi }) {
             Exporter
           </button>
           {exportOpen ? (
-            <div role="menu" aria-label="Cibles d export" className="toolbar-export-menu">
+            <div role="menu" aria-label="Cibles d'export" className="toolbar-export-menu">
               {exportTargets.map((target) => (
                 <button
                   key={target.id}
@@ -176,9 +176,9 @@ export function Toolbar({ api }: { api: CalqueApi }) {
         </div>
       </div>
 
-      <div className="toolbar-group" role="group" aria-label="Reglages de l application">
-        <button type="button" aria-label="Reglages" className="toolbar-button" onClick={() => setReglagesOuverts(true)}>
-          Reglages
+      <div className="toolbar-group" role="group" aria-label="Réglages de l'application">
+        <button type="button" aria-label="Réglages" className="toolbar-button" onClick={() => setReglagesOuverts(true)}>
+          Réglages
         </button>
       </div>
 
