@@ -22,9 +22,17 @@ dépôt à côté du code qu'il décrit.
   naturel, directement dans le document : la réponse est un patch validé
   par schéma, appliqué par le même mécanisme d'historique que les gestes
   de souris — donc annulable.
-- **Exporter l'écran** vers quatre cibles mobiles : Flutter et React
-  Native en générateurs complets, SwiftUI et Jetpack Compose en aperçu
-  (voir [Export](#export) pour le détail de chaque cible).
+- **Assembler avec des composants mobiles sémantiques** : une palette de
+  30 composants et 7 conteneurs (boutons, champs, cases, interrupteurs,
+  curseurs, listes déroulantes, dates, icônes, avatars, cartes, listes,
+  grilles, barre d'application, barre de navigation, onglets, tiroir,
+  dialogues, feuilles basses, snackbars, Row / Column / Stack...), avec
+  recherche, glisser-déposer et propriétés éditables et annulables. Voir
+  [Composants mobiles](#composants-mobiles).
+- **Exporter TOUS les écrans** avec leur navigation vers quatre cibles
+  mobiles : Flutter et React Native en générateurs complets, SwiftUI et
+  Jetpack Compose en aperçu (voir [Export](#export) pour le détail de chaque
+  cible).
 
 ## Démarrage rapide
 
@@ -42,7 +50,7 @@ npm test
 npm run dev
 ```
 
-`npm test` lance toute la suite (664 tests au moment de l'écriture, sans
+`npm test` lance toute la suite (près de 900 tests au moment de l'écriture, sans
 écran, sans réseau et sans le binaire `claude` — voir plus bas pour le
 test bout-en-bout opt-in qui, lui, appelle le vrai binaire). `npm run dev` ouvre une
 fenêtre Electron en mode développement — non lancé ici, à essayer en
@@ -105,6 +113,45 @@ affiche un état d'attente pendant l'appel et un bouton **Annuler** qui
 l'interrompt réellement, côté sous-processus, pas seulement côté
 interface.
 
+## Composants mobiles
+
+Un bouton n'est plus un rectangle avec du texte : le modèle porte des
+composants **sémantiques**, exportés vers le widget natif de chaque cible.
+Onglet **Composants** de la colonne de gauche : sept familles, recherche
+(libellé, famille ou nom natif : `toggle`, `scaffold`, `TextField`...),
+glisser-déposer sur le canevas ou clic. La barre d'application, la barre de
+navigation basse, le bouton flottant, le tiroir, la feuille basse, le dialogue
+et le snackbar se placent d'eux-mêmes à leur emplacement naturel dans l'écran.
+
+| Famille | Composants | Flutter | React Native | SwiftUI | Compose |
+|---|---|---|---|---|---|
+| Actions | Button (primaire / secondaire / texte, désactivé, icône), IconButton, FAB (petit / grand / étendu) | ElevatedButton / OutlinedButton / TextButton, IconButton, FloatingActionButton | Pressable | Button (.borderedProminent / .bordered / .borderless) | Button / OutlinedButton / TextButton, FilledIconButton, FloatingActionButton |
+| Saisie | TextField (libellé, indication, mot de passe, multiligne, erreur), Checkbox, Switch, Radio, Slider, Dropdown, DatePicker | TextField, Checkbox, Switch, RadioGroup, Slider, DropdownButtonFormField, showDatePicker | TextInput, Switch, `@react-native-community/slider`, `@react-native-picker/picker`, `datetimepicker` | TextField / SecureField, Toggle, Slider, Picker, DatePicker | OutlinedTextField, Checkbox, Switch, RadioButton, Slider, ExposedDropdownMenuBox, DatePickerDialog |
+| Affichage | Icon, Avatar, Badge, Chip, Divider, Card, ProgressBar, Spinner | Icon, CircleAvatar, Badge, ActionChip / FilterChip, Divider, Card, LinearProgressIndicator, CircularProgressIndicator | MaterialIcons, View, ActivityIndicator | Image(systemName:), ProgressView | Icon, Badge, AssistChip / FilterChip, HorizontalDivider, Card, LinearProgressIndicator |
+| Listes | ListTile, ListView, Grid, ScrollView | ListTile, ListView, GridView.count, SingleChildScrollView | Pressable, ScrollView, flexWrap | ScrollView + LazyVStack, LazyVGrid | ListItem, LazyColumn / LazyRow, LazyVerticalGrid |
+| Navigation | AppBar, BottomNavigationBar, Tabs, Drawer, lien « au clic, aller à l'écran X » | Scaffold(appBar, bottomNavigationBar, drawer), TabBar, Navigator.pushNamed | en-tête View, barre View, tiroir à état local, React Navigation | navigationTitle + toolbar, TabView, NavigationStack | Scaffold(topBar, bottomBar), TabRow, ModalNavigationDrawer, NavHost |
+| Mise en page | Row, Column, Stack (frames en auto-layout), SafeArea, Spacer | Row / Column / Stack, SafeArea, Spacer | flexbox, SafeAreaView | HStack / VStack / ZStack, Spacer | Row / Column / Box, safeDrawingPadding, Spacer(weight) |
+| Overlays | Dialog, BottomSheet, Snackbar | AlertDialog, BottomSheet, Material | Modal, View | `.alert`, `.sheet` + détents, vue | AlertDialog, ModalBottomSheet, Snackbar |
+
+Icônes : un jeu commun de 30 pictogrammes, mappé vers Material Icons
+(Flutter, React Native), SF Symbols (SwiftUI) et `Icons.Default.*` de
+`material-icons-core` (Compose). Couleurs : sans choix explicite, celles du
+thème Material 3 de la cible.
+
+Dans le modèle, un composant est un nœud `component` (`kind` + `props`
+validées par `kind`, jamais d'enfants) ; un conteneur est une `frame` qui porte
+`container` (carte, liste, grille, zone défilante, zone sûre, feuille basse,
+tiroir) — l'arbre, l'historique et le reparentage n'ont donc qu'un type de
+conteneur. La mise en page automatique (Row, Column, grille) est matérialisée
+dans le document, dans la même entrée d'historique que la commande qui la
+provoque : le canevas montre ce que l'export génère. Le catalogue unique
+(`packages/core/src/components/catalog.ts`) alimente la palette, l'inspecteur,
+les valeurs par défaut et le prompt de l'assistant.
+
+Un projet d'exemple contenant TOUS les composants (3 écrans reliés, barre,
+tiroir, barre basse, dialogue...) est livré dans
+`exemples/tous-les-composants.calque`.
+
 ## Export
 
 | Cible | Identifiant | Maturité |
@@ -114,10 +161,21 @@ interface.
 | SwiftUI | `swiftui` | aperçu (`preview`) |
 | Jetpack Compose | `compose` | aperçu (`preview`) |
 
-Chaque export écrit un fichier par écran (`Page`) plus un fichier de
-thème issu des tokens de couleurs/typographie/espacements du document, et
-rend un rapport (fichiers écrits, avertissements) affiché dans le
-dialogue d'export.
+Chaque export écrit un fichier par écran, un fichier de thème issu des
+tokens, et — dès que le document a des écrans — les fichiers de **navigation** :
+TOUS les écrans sont exportés (l'écran actif ne fait que choisir l'écran de
+départ). Un écran devient un `Scaffold` (ou son équivalent) quand il contient
+une barre d'application, une barre basse, un bouton flottant ou un tiroir.
+
+| Cible | Point d'entrée et routes | Dépendances à ajouter |
+|---|---|---|
+| Flutter | `lib/main.dart` : `MaterialApp(routes:, initialRoute:)` ; `Navigator.pushNamed` | Flutter ≥ 3.35 (`RadioGroup`) |
+| React Native | `App.tsx` (pile native), `src/navigation.ts` (types de routes) ; `navigation.navigate()` | `@react-navigation/native`, `native-stack`, `react-native-screens`, `react-native-safe-area-context`, `react-native-vector-icons`, `@react-native-community/slider`, `@react-native-picker/picker`, `@react-native-community/datetimepicker` |
+| SwiftUI | `Sources/App.swift` (`NavigationStack`), `Sources/Navigation.swift` (`Route`, `Navigator`) | iOS 17 / macOS 14 |
+| Compose | `AppNavigation.kt` (`NavHost`), `MainActivity.kt` | Compose BOM récent (material3 ≥ 1.3), `navigation-compose`, Coil |
+
+Un rapport (fichiers écrits, avertissements) est affiché dans le dialogue
+d'export.
 
 Flutter et React Native couvrent l'ensemble des **types** de nœud du
 modèle de document (mises en page absolues et automatiques, formes,
@@ -127,13 +185,21 @@ pour ce qu'elle ne garantit pas.
 
 SwiftUI et Jetpack Compose partagent la même interface `Exporter` et le
 même arbre parcouru que les deux générateurs complets, mais leur
-couverture d'« aperçu » se limite précisément à **cinq types de nœud**
-(`frame`, `text`, `rect`, `ellipse`, `image`) : tout autre type rencontré
+couverture d'« aperçu » se limite aux **types de nœud** `frame`, `text`,
+`rect`, `ellipse`, `image` et `component` (tous les composants ci-dessus) :
+tout autre type rencontré (`line` aujourd'hui)
 n'est jamais rendu en silence — il produit l'avertissement `"<type> non
 pris en charge par l export <id> (apercu)"`, identique au mot près entre
 les deux générateurs. Ils existent dès la v1 pour que l'interface
 `Exporter` soit validée par quatre implémentations réelles, pas une
 seule.
+
+Le code généré est **compilé pour de vrai** sur le projet d'exemple : Dart par
+`flutter analyze` (0 remontée, `flutter_lints` compris) et `dart format` ;
+Swift par `swiftc -typecheck` ; TypeScript par `tsc --strict` avec
+`react-native`, `@types/react` et React Navigation ; Kotlin par Gradle
+(`compileDebugKotlin`). Voir `test/verif/README.md` (`CALQUE_VERIF_FULL=1` pour
+React Native et Compose, qui installent des dépendances volumineuses).
 
 Le Dart généré par l'export Flutter est vérifié par `flutter analyze`
 dans la suite de tests d'intégration (`test/integration/flutter-analyze.test.ts`) :
@@ -186,7 +252,8 @@ Un document Calque est un fichier `.calque` : du JSON versionné
 (`{ version, id, name, pages, tokens }`), sérialisé avec une
 indentation lisible plutôt que minifié. Chaque page porte un appareil
 cible (iPhone 15, Pixel 8, iPad mini) et un arbre de nœuds (`Frame`,
-`Text`, `Rect`, `Ellipse`, `Image`, `Line`). Un document d'une version
+`Text`, `Rect`, `Ellipse`, `Image`, `Line`, `Component`). Version 3 :
+les documents v1 et v2 s'ouvrent et sont migrés (additif). Un document d'une version
 plus récente que celle supportée n'est jamais lu partiellement — il est
 refusé avec une erreur explicite plutôt que corrompu silencieusement.
 Pensé pour être relu en revue de code à côté de l'interface qu'il décrit.
@@ -279,9 +346,9 @@ assumé, à reprendre plus tard) :
 - le champ `constraints` du §5.1 de la spec n'existe pas dans le modèle
   de document (`packages/core/src/model/types.ts`) — un objet qui en
   porte un est rejeté par le schéma de validation ;
-- le générateur Flutter n'émet pas de `Scaffold` et produit une classe
-  par page plutôt qu'un widget par frame nommée, contrairement à ce que
-  décrit le §7 de la spec ;
+- le générateur Flutter produit une classe par écran plutôt qu'un widget
+  par frame nommée, contrairement à ce que décrit le §7 de la spec
+  (le `Scaffold` et les routes sont désormais émis) ;
 - la première édition d'un nœud réordonne ses clés dans le fichier
   `.calque` (vérifié : un nœud fraîchement créé conserve l'ordre littéral
   de ses champs, une fois passé par une commande de modification ses
