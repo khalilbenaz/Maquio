@@ -42,7 +42,7 @@ npm test
 npm run dev
 ```
 
-`npm test` lance toute la suite (636 tests au moment de l'écriture, sans
+`npm test` lance toute la suite (664 tests au moment de l'écriture, sans
 écran, sans réseau et sans le binaire `claude` — voir plus bas pour le
 test bout-en-bout opt-in qui, lui, appelle le vrai binaire). `npm run dev` ouvre une
 fenêtre Electron en mode développement — non lancé ici, à essayer en
@@ -217,8 +217,16 @@ niveaux :
 - **architecture** (`test/architecture.test.ts`) — la règle de dépendance
   entre paquets.
 
-Les tests bout-en-bout Electron (Playwright) sont hors périmètre de la
-v1 ; leur absence est assumée, pas un oubli.
+- **parcours réel** (`npm run test:e2e`, après `npm run build`) — pilote
+  l'application Electron avec Playwright (`_electron`) : créer un écran,
+  tracer, déplacer, redimensionner, multi-sélection, propriétés,
+  annuler/rétablir, enregistrer puis rouvrir un `.calque`, exporter vers
+  les quatre cibles, compiler le Swift généré, vérifier qu'un document
+  hostile est refusé. Les dialogues natifs sont simulés côté processus
+  principal. Les captures vont dans `OUT=<dossier>`.
+
+La CI (`.github/workflows/ci.yml`) rejoue typecheck, tests, build, audit des
+dépendances livrées, `flutter analyze` et ce parcours réel.
 
 ### Test bout-en-bout avec le vrai binaire `claude`
 
