@@ -21,7 +21,7 @@
 // (decision 4), pour qu'un seul "annuler" desfasse toute l'edition.
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
-import { clearLinkCommand, compositeCommand, findNode, isScreenNode, screenContaining, setLinkCommand, updateNodeCommand } from '@calque/core'
+import { clearLinkCommand, compositeCommand, findNode, isScreenNode, screenContaining, setLinkCommand, setTextCommand, updateNodeCommand } from '@calque/core'
 import type {
   Color,
   Command,
@@ -485,6 +485,15 @@ function TextSection({ nodes, pageId, execute }: { nodes: TextNode[]; pageId: st
   return (
     <section className="inspector-section">
       <h2>Texte</h2>
+      <TextField
+        label="Contenu"
+        value={commonOf(nodes, (n) => n.characters)}
+        onCommit={(v) => {
+          const commands = nodes.filter((n) => n.characters !== v).map((n) => setTextCommand(pageId, n.id, v))
+          if (commands.length === 0) return
+          execute(commands.length === 1 ? commands[0]! : compositeCommand('Modifier le texte', commands))
+        }}
+      />
       <TextField
         label="Famille de police"
         value={commonOf(nodes, (n) => n.style.fontFamily)}
