@@ -35,6 +35,15 @@ export class SecretStorageUnavailableError extends Error {
   }
 }
 
+export class StoredSecretUnreadableError extends Error {
+  constructor() {
+    super(
+      "Le jeton Figma enregistré est illisible (fichier corrompu ou trousseau système modifié). Saisissez-le à nouveau dans les réglages.",
+    )
+    this.name = 'StoredSecretUnreadableError'
+  }
+}
+
 export type SecretStore = {
   hasToken(): Promise<boolean>
   getToken(): Promise<string | null>
@@ -51,8 +60,14 @@ export function createSecretStore(opts: { safeStorage: SafeStorageLike; filePath
 
     async getToken() {
       if (!(await fs.pathExists(filePath))) return null
-      const encrypted = await fs.readFile(filePath)
-      return safeStorage.decryptString(encrypted)
+      // Fichier illisible, corrompu ou chiffre par un autre trousseau :
+      // erreur nommee et actionnable, jamais l'exception brute du systeme.
+      try {
+        const encrypted = await fs.readFile(filePath)
+        return safeStorage.decryptString(encrypted)
+      } catch {
+        throw new StoredSecretUnreadableError()
+      }
     },
 
     async setToken(token: string) {

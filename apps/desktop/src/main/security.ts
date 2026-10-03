@@ -23,3 +23,23 @@ export function installNavigationGuards(contents: WebContents, devServerUrl: str
     if (!isAllowedNavigation(url, devServerUrl)) event.preventDefault()
   })
 }
+
+// Controle de l'appelant IPC (audit P2) : un canal ne repond qu'a la FENETRE
+// de l'application -- cadre principal, charge depuis l'origine autorisee --
+// jamais a un sous-cadre, ni a une page quelconque qui aurait reussi a
+// charger le pont.
+export type IpcSender = { senderFrame?: { url: string } | null; sender?: { mainFrame?: unknown } }
+
+export function isTrustedSender(event: { senderFrame?: unknown; sender?: { mainFrame?: unknown } }, devServerUrl: string | null): boolean {
+  const frame = event.senderFrame as { url: string } | null | undefined
+  if (frame === null || frame === undefined || typeof frame.url !== 'string') return false
+  if (event.sender?.mainFrame !== undefined && event.sender.mainFrame !== frame) return false
+  return isAllowedNavigation(frame.url, devServerUrl)
+}
+
+export class UntrustedSenderError extends Error {
+  constructor(channel: string) {
+    super(`Appel refusé sur le canal « ${channel} » : origine non autorisée`)
+    this.name = 'UntrustedSenderError'
+  }
+}

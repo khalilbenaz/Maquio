@@ -13,7 +13,13 @@ describe('frontiere preload', () => {
 
   it('le main enregistre un handler par canal', () => {
     const src = lire('src/main/main.ts')
-    for (const c of API_CHANNELS) expect(src).toMatch(new RegExp(`ipcMain\\.handle\\(\\s*'${c}'`))
+    for (const c of API_CHANNELS) expect(src).toMatch(new RegExp(`\\bhandle\\(\\s*'${c}'`))
+  })
+
+  it('aucun canal n est enregistre en contournant le controle de l appelant (senderFrame)', () => {
+    const src = lire('src/main/main.ts')
+    expect(src.match(/ipcMain\.handle\(/g)).toHaveLength(1) // uniquement dans handle()
+    expect(src).toContain('isTrustedSender(event')
   })
 
   it('la fenetre est creee avec l isolation de contexte et sans integration node', () => {

@@ -77,3 +77,33 @@ describe('secretStore (jeton Figma)', () => {
     expect(await store.getToken()).toBe('abc123')
   })
 })
+
+describe('secretStore : jeton illisible', () => {
+  it('getToken leve une erreur nommee et actionnable quand le dechiffrement echoue', async () => {
+    const { StoredSecretUnreadableError } = await import('../src/main/adapters/secretStore')
+    const store = createSecretStore({
+      safeStorage: {
+        isEncryptionAvailable: () => true,
+        encryptString: (p) => Buffer.from(p),
+        decryptString: () => {
+          throw new Error('Error while decrypting the ciphertext provided to safeStorage.decryptString')
+        },
+      },
+      filePath: '/tmp/figma-token.enc',
+      fs: { readFile: async () => Buffer.from('corrompu'), writeFile: vi.fn(), pathExists: async () => true },
+    })
+    const err = await store.getToken().catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(StoredSecretUnreadableError)
+    expect((err as Error).message).toContain('réglages')
+    expect((err as Error).message).not.toContain('safeStorage')
+  })
+  it('getToken leve la meme erreur quand la lecture du fichier echoue', async () => {
+    const { StoredSecretUnreadableError } = await import('../src/main/adapters/secretStore')
+    const store = createSecretStore({
+      safeStorage: { isEncryptionAvailable: () => true, encryptString: (p) => Buffer.from(p), decryptString: () => 'x' },
+      filePath: '/tmp/figma-token.enc',
+      fs: { readFile: async () => { throw new Error('EACCES') }, writeFile: vi.fn(), pathExists: async () => true },
+    })
+    await expect(store.getToken()).rejects.toBeInstanceOf(StoredSecretUnreadableError)
+  })
+})
