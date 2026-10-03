@@ -199,7 +199,21 @@ export class ProcessClaudeRunner implements ClaudeRunner {
     const combinedSignal = AbortSignal.any(signal ? [signal, timeoutController.signal] : [timeoutController.signal])
 
     try {
-      const proc = this.spawn(bin, ['-p', prompt, '--output-format', 'json'], {
+      const proc = this.spawn(bin, [
+          '-p',
+          prompt,
+          '--output-format',
+          'json',
+          // Aucun outil : le prompt embarque le contenu du document (texte
+          // importe de Figma compris), non fiable. Sans outil, une injection
+          // ne peut ni lancer de commande, ni lire/ecrire un fichier, ni
+          // appeler le reseau ; seule la sortie JSON, validee par schema,
+          // compte. dontAsk refuse tout ce qui demanderait une approbation.
+          '--tools',
+          '',
+          '--permission-mode',
+          'dontAsk',
+        ], {
         signal: combinedSignal,
         ...(workingDir ? { cwd: workingDir.path } : {}),
       })

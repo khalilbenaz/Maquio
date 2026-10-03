@@ -21,9 +21,22 @@ describe('ProcessClaudeRunner', () => {
     await r.run('salut')
     expect(spawn).toHaveBeenCalledWith(
       '/usr/local/bin/claude',
-      ['-p', 'salut', '--output-format', 'json'],
+      ['-p', 'salut', '--output-format', 'json', '--tools', '', '--permission-mode', 'dontAsk'],
       expect.anything(),
     )
+  })
+
+  // Securite (audit P1) : le document, donc le texte importe de Figma, est
+  // injecte dans le prompt. Claude ne doit disposer d'aucun outil (ni Bash,
+  // ni lecture/ecriture de fichier, ni reseau) : sa seule sortie est le patch.
+  it('ne donne aucun outil a claude et ne lui laisse rien a approuver', async () => {
+    const spawn = fauxSpawn(JSON.stringify({ result: '{}' }))
+    const r = new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude' })
+    await r.run('x')
+    const args = (spawn as unknown as { mock: { calls: [string, string[]][] } }).mock.calls[0]![1]
+    expect(args[args.indexOf('--tools') + 1]).toBe('')
+    expect(args[args.indexOf('--permission-mode') + 1]).toBe('dontAsk')
+    expect(args).not.toContain('bypassPermissions')
   })
 
   it('rend le champ result de la sortie json', async () => {
