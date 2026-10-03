@@ -37,7 +37,7 @@ import type {
 import { layoutPage } from '@calque/core'
 import { formatNumber } from '../shared/format-number'
 import { pad } from '../shared/indent'
-import { toPascalCase } from '../shared/naming'
+import { createPageNamer } from '../shared/naming'
 import { unsupportedPropertyWarning } from '../shared/lost-property-warning'
 import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl, selectActiveScreen } from '../shared/node-helpers'
 import { PREVIEW_SUPPORTED_NODE_TYPES, unsupportedNodeWarning } from '../shared/preview-coverage'
@@ -447,7 +447,7 @@ function renderNode(node: Node, ctx: RenderContext, depth: number, extraMods: st
   }
 }
 
-function renderPage(page: Page, tokens: DesignTokens, warnings: string[]): ExportedFile {
+function renderPage(page: Page, tokens: DesignTokens, warnings: string[], functionName: string): ExportedFile {
   const ctx: RenderContext = {
     tokens,
     warnings,
@@ -456,10 +456,10 @@ function renderPage(page: Page, tokens: DesignTokens, warnings: string[]): Expor
 
   const topLevel = page.nodes.map((n) => renderNode(n, ctx, 1, [])).filter((l): l is string[] => l !== null)
 
+  if (topLevel.length !== 1) ctx.imports.add('androidx.compose.foundation.layout.Column')
   const bodyLines =
     topLevel.length === 1 ? topLevel[0]! : ['    Column {', ...topLevel.flat(), '    }']
 
-  const functionName = toPascalCase(page.name)
   const sortedImports = Array.from(ctx.imports).sort()
 
   const lines = [
@@ -480,6 +480,7 @@ function renderPage(page: Page, tokens: DesignTokens, warnings: string[]): Expor
 function exportCompose(doc: CalqueDocument, opts: ExportOptions): ExportResult {
   const warnings: string[] = []
   const files: ExportedFile[] = []
+  const nameFor = createPageNamer()
 
   for (const page of doc.pages) {
     // v2 (addendum navigation §7) : n'exporte que l'ecran actif d'une page
@@ -489,7 +490,7 @@ function exportCompose(doc: CalqueDocument, opts: ExportOptions): ExportResult {
     warnings.push(...screenWarnings)
 
     const laidOutPage = layoutPage(activePage)
-    files.push(renderPage(laidOutPage, doc.tokens, warnings))
+    files.push(renderPage(laidOutPage, doc.tokens, warnings, nameFor(laidOutPage.name).pascal))
   }
 
   return { files, warnings }

@@ -1,3 +1,4 @@
+import { stripAccents } from './naming'
 // Regles communes de fabrication d'un identifiant valide (camelCase) a
 // partir d'une chaine arbitraire -- id de noeud Figma ('1:1'), nom de
 // token de design ('Brand/Primary 500')... -- partagees par tous les
@@ -15,7 +16,7 @@
 const WORD_SEPARATORS = /[^a-zA-Z0-9]+/
 
 function words(input: string): string[] {
-  return input.split(WORD_SEPARATORS).filter((part) => part.length > 0)
+  return stripAccents(input).split(WORD_SEPARATORS).filter((part) => part.length > 0)
 }
 
 function capitalize(word: string): string {

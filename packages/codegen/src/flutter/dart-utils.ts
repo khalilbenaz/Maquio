@@ -9,18 +9,12 @@
 import type { Color, DesignTokens } from '@calque/core'
 import { colorHexARGB } from '../shared/color-hex'
 import { formatNumber as sharedFormatNumber } from '../shared/format-number'
-import { toPascalCase as sharedToPascalCase } from '../shared/naming'
+import { toPascalCase as sharedToPascalCase, toSnakeCase as sharedToSnakeCase } from '../shared/naming'
 import { tokenIdentifier } from '../shared/token-identifiers'
 import { findColorToken } from '../shared/tokens'
 
 // snake_case : utilise pour les noms de fichiers Dart (login_screen.dart).
-export function toSnakeCase(input: string): string {
-  const withSeparators = input.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/[^a-zA-Z0-9]+/g, '_')
-  return withSeparators
-    .toLowerCase()
-    .replace(/_+/g, '_')
-    .replace(/^_+|_+$/g, '')
-}
+export const toSnakeCase = sharedToSnakeCase
 
 // PascalCase : utilise pour les noms de classe (StatelessWidget).
 export const toPascalCase = sharedToPascalCase

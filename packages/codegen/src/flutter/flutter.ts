@@ -42,9 +42,8 @@ import {
   formatNumber,
   mainAxisAlignmentExpr,
   textAlignExpr,
-  toPascalCase,
-  toSnakeCase,
 } from './dart-utils'
+import { createPageNamer } from '../shared/naming'
 import { generateThemeFile } from './theme'
 
 // `usesTheme` (D4 du rapport dart-correctness) : mis a `true` des qu'une
@@ -359,13 +358,13 @@ function renderNode(node: Node, ctx: RenderContext): Block | null {
   return block
 }
 
-function renderPage(page: Page, ctx: RenderContext): ExportedFile {
+function renderPage(page: Page, ctx: RenderContext, names: { pascal: string; snake: string }): ExportedFile {
   const blocks = page.nodes.map((n) => renderNode(n, ctx)).filter((b): b is Block => b !== null)
   const rootBlock: Block =
     blocks.length === 1 ? blocks[0]! : call('Stack', [{ key: 'children', block: list(blocks) }])
 
-  const className = toPascalCase(page.name)
-  const fileName = toSnakeCase(page.name)
+  const className = names.pascal
+  const fileName = names.snake
 
   // D4 (rapport dart-correctness) : `import '../theme.dart';` seulement si
   // l'ecran reference au moins un `AppColors.*` (`ctx.usesTheme`, mis a
@@ -395,6 +394,7 @@ function renderPage(page: Page, ctx: RenderContext): ExportedFile {
 function exportFlutter(doc: CalqueDocument, opts: ExportOptions): ExportResult {
   const warnings: string[] = []
   const files: ExportedFile[] = []
+  const nameFor = createPageNamer()
 
   for (const page of doc.pages) {
     // v2 (addendum navigation §7) : n'exporte que l'ecran actif d'une page
@@ -405,7 +405,7 @@ function exportFlutter(doc: CalqueDocument, opts: ExportOptions): ExportResult {
 
     const laidOutPage = layoutPage(activePage)
     const ctx: RenderContext = { tokens: doc.tokens, warnings, usesTheme: false }
-    files.push(renderPage(laidOutPage, ctx))
+    files.push(renderPage(laidOutPage, ctx, nameFor(laidOutPage.name)))
   }
 
   files.push(generateThemeFile(doc.tokens))

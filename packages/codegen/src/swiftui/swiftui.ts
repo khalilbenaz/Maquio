@@ -39,7 +39,7 @@ import { layoutPage } from '@calque/core'
 import { formatNumber } from '../shared/format-number'
 import { pad } from '../shared/indent'
 import { unsupportedPropertyWarning } from '../shared/lost-property-warning'
-import { toPascalCase } from '../shared/naming'
+import { createPageNamer } from '../shared/naming'
 import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl, selectActiveScreen } from '../shared/node-helpers'
 import { PREVIEW_SUPPORTED_NODE_TYPES, unsupportedNodeWarning } from '../shared/preview-coverage'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
@@ -265,7 +265,7 @@ function renderNode(node: Node, ctx: RenderContext, depth: number, extraMods: st
   }
 }
 
-function renderPage(page: Page, tokens: DesignTokens, warnings: string[]): ExportedFile {
+function renderPage(page: Page, tokens: DesignTokens, warnings: string[], structName: string): ExportedFile {
   const ctx: RenderContext = { tokens, warnings }
 
   const topLevel = page.nodes
@@ -276,8 +276,6 @@ function renderPage(page: Page, tokens: DesignTokens, warnings: string[]): Expor
     topLevel.length === 1
       ? topLevel[0]!
       : ['        VStack {', ...topLevel.flat(), '        }']
-
-  const structName = toPascalCase(page.name)
 
   const lines = [
     'import SwiftUI',
@@ -296,6 +294,7 @@ function renderPage(page: Page, tokens: DesignTokens, warnings: string[]): Expor
 function exportSwiftUI(doc: CalqueDocument, opts: ExportOptions): ExportResult {
   const warnings: string[] = []
   const files: ExportedFile[] = []
+  const nameFor = createPageNamer()
 
   for (const page of doc.pages) {
     // v2 (addendum navigation §7) : n'exporte que l'ecran actif d'une page
@@ -305,7 +304,7 @@ function exportSwiftUI(doc: CalqueDocument, opts: ExportOptions): ExportResult {
     warnings.push(...screenWarnings)
 
     const laidOutPage = layoutPage(activePage)
-    files.push(renderPage(laidOutPage, doc.tokens, warnings))
+    files.push(renderPage(laidOutPage, doc.tokens, warnings, nameFor(laidOutPage.name).pascal))
   }
 
   return { files, warnings }

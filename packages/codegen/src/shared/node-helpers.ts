@@ -74,5 +74,9 @@ export function selectActiveScreen(
       `écran "${s.name}" non exporté par ${exporterId} : la navigation entre écrans n'est pas encore prise en charge par cet exportateur`,
   )
 
-  return { page: { ...page, name: active.name, nodes: active.children }, warnings }
+  // L'ecran reste la RACINE du rendu (et non la liste de ses enfants) : c'est
+  // lui qui porte la taille de l'appareil, le fond et la mise en page, donc
+  // la position absolue de chaque enfant. Rendre seulement les enfants les
+  // empilait tous en haut a gauche, sans taille d'ecran ni fond.
+  return { page: { ...page, name: active.name, nodes: [{ ...active, frame: { ...active.frame, x: 0, y: 0 } }] }, warnings }
 }
