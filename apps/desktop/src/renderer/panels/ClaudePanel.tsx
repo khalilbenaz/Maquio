@@ -19,7 +19,7 @@ import { useEditorStore } from '../state/editorStore'
 import { useClaudeStatusStore } from '../state/claudeStatusStore'
 import { useUiPrefs } from '../state/uiPrefsStore'
 import type { CalqueApi } from '../../shared/api'
-import { translateUnknownError } from '../../shared/errors'
+import { translateUnknownError, messageOfError } from '../../shared/errors'
 import './ClaudePanel.css'
 
 type Statut = 'idle' | 'loading' | 'done' | 'error' | 'perime'
@@ -126,7 +126,7 @@ export function ClaudePanel({ api, onOpenSettings }: { api: CalqueApi; onOpenSet
         pageId,
       })
     } catch (err) {
-      setErreur(err instanceof Error ? err.message : String(err))
+      setErreur(messageOfError(err))
       setStatut('error')
       return
     }

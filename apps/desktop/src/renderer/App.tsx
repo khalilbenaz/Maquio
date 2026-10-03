@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { createDocument, parseDocument, serializeDocument } from '@calque/core'
 import type { CalqueApi } from '../shared/api'
+import { messageOfError } from '../shared/errors'
 import { useEditorStore } from './state/editorStore'
 import { useUiPrefs } from './state/uiPrefsStore'
 import { useClaudeStatusStore } from './state/claudeStatusStore'
@@ -97,8 +98,7 @@ function Editeur({ api }: { api: CalqueApi }) {
       setErreurFichier(null)
       await action()
     } catch (err) {
-      const brut = err instanceof Error ? err.message : String(err)
-      setErreurFichier(brut.replace(/^Error invoking remote method '[^']*': (Error: )?/, ''))
+      setErreurFichier(messageOfError(err))
     }
   }
 

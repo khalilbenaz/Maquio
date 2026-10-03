@@ -93,3 +93,11 @@ export function translateUnknownError(err: unknown, contexte: string): Error {
   }
   return new Error(`${contexte} : erreur inconnue`)
 }
+
+// Message affichable d'une erreur recue du processus principal : Electron
+// prefixe les erreurs IPC (« Error invoking remote method 'canal': Error: »),
+// bruit technique que l'utilisateur ne doit jamais lire.
+export function messageOfError(err: unknown): string {
+  const brut = err instanceof Error ? err.message : String(err)
+  return brut.replace(/^Error invoking remote method '[^']*': (Error: )?/, '')
+}

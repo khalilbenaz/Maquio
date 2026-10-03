@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { serializeDocument } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import type { CalqueApi, ExporterId } from '../../shared/api'
+import { messageOfError } from '../../shared/errors'
 import './Dialog.css'
 
 type Statut = 'idle' | 'loading' | 'error' | 'succes' | 'annule'
@@ -66,7 +67,7 @@ export function ExportDialog({
       setAvertissements(resultat.warnings)
       setStatut('succes')
     } catch (err) {
-      setErreur(err instanceof Error ? err.message : String(err))
+      setErreur(messageOfError(err))
       setStatut('error')
     }
   }
