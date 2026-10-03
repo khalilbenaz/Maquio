@@ -172,6 +172,7 @@ describe('saveDocument', () => {
       chooseSavePath: vi.fn(),
       copyImageFile,
       ensureDir,
+      isApprovedImagePath: () => true,
     })
 
     const result = await saveDocument({ path: '/tmp/Mon document.calque', json })
@@ -217,5 +218,54 @@ describe('saveDocument', () => {
     await saveDocument({ path: '/tmp/Mon document.calque', json })
     expect(copyImageFile).not.toHaveBeenCalled()
     expect(ensureDir).not.toHaveBeenCalled()
+  })
+
+  // Securite (audit P0) : un .calque malveillant (ou un patch de Claude)
+  // pouvait viser /Users/x/.ssh/id_rsa ; l'enregistrement le copiait alors
+  // a cote du document, pret a etre partage. Seuls les chemins choisis par
+  // l'utilisateur dans le selecteur d'image, ET d'extension image, sont copies.
+  function documentAvecSrc(...srcs: string[]) {
+    const doc = createDocument('Mon document')
+    const images: ImageNode[] = srcs.map((src, i) => ({
+      id: `img${i}`, name: `Photo ${i}`, type: 'image', frame: { x: 0, y: 0, w: 10, h: 10 },
+      visible: true, locked: false, opacity: 1, rotation: 0, src, fit: 'cover',
+    }))
+    return serializeDocument({ ...doc, pages: [{ ...doc.pages[0]!, nodes: images }] })
+  }
+  function gestionnaire(over: { approved: (p: string) => boolean }) {
+    const writeFile = vi.fn(async (_p: string, _c: string) => {})
+    const copyImageFile = vi.fn(async (_s: string, _d: string) => {})
+    const handler = createDocumentHandler({
+      readFile: vi.fn(), writeFile, chooseOpenPath: vi.fn(), chooseSavePath: vi.fn(),
+      copyImageFile, ensureDir: vi.fn(async () => {}), isApprovedImagePath: over.approved,
+    })
+    return { handler, writeFile, copyImageFile }
+  }
+
+  it('refuse un src absolu que l utilisateur n a pas choisi (ex. ~/.ssh/id_rsa) : rien copie, rien ecrit', async () => {
+    const { handler, writeFile, copyImageFile } = gestionnaire({ approved: () => false })
+    await expect(
+      handler.saveDocument({ path: '/tmp/d.calque', json: documentAvecSrc('/Users/x/.ssh/id_rsa') }),
+    ).rejects.toThrow(/image/i)
+    expect(copyImageFile).not.toHaveBeenCalled()
+    expect(writeFile).not.toHaveBeenCalled()
+  })
+
+  it('refuse un fichier qui n a pas une extension d image, meme choisi', async () => {
+    const { handler, copyImageFile } = gestionnaire({ approved: () => true })
+    await expect(
+      handler.saveDocument({ path: '/tmp/d.calque', json: documentAvecSrc('/Users/x/.ssh/id_rsa') }),
+    ).rejects.toThrow(/image/i)
+    expect(copyImageFile).not.toHaveBeenCalled()
+  })
+
+  it('deux images de dossiers differents et de meme nom ne s ecrasent pas', async () => {
+    const { handler, writeFile, copyImageFile } = gestionnaire({ approved: () => true })
+    await handler.saveDocument({ path: '/tmp/d.calque', json: documentAvecSrc('/a/logo.png', '/b/logo.png') })
+    const destinations = copyImageFile.mock.calls.map((c) => c[1])
+    expect(new Set(destinations).size).toBe(2)
+    const ecrit = JSON.parse(writeFile.mock.calls[0]![1]) as { pages: { nodes: { src: string }[] }[] }
+    const srcs = ecrit.pages[0]!.nodes.map((n) => n.src)
+    expect(new Set(srcs).size).toBe(2)
   })
 })

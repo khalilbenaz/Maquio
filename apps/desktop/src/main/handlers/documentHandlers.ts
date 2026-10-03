@@ -10,7 +10,7 @@
 // invalide) ne se retrouve jamais charge tel quel dans l'editeur, et ce
 // qui est ecrit sur disque est toujours la forme normalisee (memes cles,
 // meme indentation) rendue par serializeDocument.
-import { basename, dirname, isAbsolute, join } from 'node:path'
+import { basename, dirname, extname, isAbsolute, join } from 'node:path'
 import { DocumentVersionError, parseDocument, serializeDocument } from '@calque/core'
 import type { CalqueDocument, Node as CalqueNode } from '@calque/core'
 import { translateUnknownError } from '../../shared/errors'
@@ -33,57 +33,101 @@ function resourcesDirFor(documentPath: string): string {
   return join(dirname(documentPath), `${basename(documentPath, '.calque')}.ressources`)
 }
 
-// Parcours immuable de l'arbre (frame.children compris) qui ne touche
-// QUE les nœuds image dont le src est un chemin absolu -- tout le reste
-// (texte, formes, image déjà relative ou vide) traverse inchangé.
-async function relocateNode(
-  node: CalqueNode,
-  resourcesDir: string,
-  ensureDirOnce: () => Promise<void>,
-  copyImageFile: (source: string, dest: string) => Promise<void>,
-): Promise<CalqueNode> {
+const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'])
+
+// Etat partage du relogement d'un enregistrement : evite deux fichiers de
+// meme nom (photo.png de deux dossiers) qui s'ecraseraient, et copie une
+// seule fois une source reutilisee par plusieurs noeuds.
+type RelocationContext = {
+  resourcesDir: string
+  ensureDirOnce: () => Promise<void>
+  copyImageFile: (source: string, dest: string) => Promise<void>
+  isApprovedImagePath: (source: string) => boolean
+  usedNames: Set<string>
+  bySource: Map<string, string>
+}
+
+function uniqueFileName(source: string, used: Set<string>): string {
+  const ext = extname(source)
+  const stem = basename(source, ext)
+  let candidate = `${stem}${ext}`
+  for (let n = 2; used.has(candidate.toLowerCase()); n += 1) candidate = `${stem}-${n}${ext}`
+  used.add(candidate.toLowerCase())
+  return candidate
+}
+
+// Securite (audit P0, OWASP A01) : le `src` vient du document, donc d'un
+// tiers possible (.calque recu, patch de Claude, import Figma). Copier un
+// chemin absolu quelconque a cote du document permettait d'exfiltrer
+// ~/.ssh/id_rsa dans un depot partage. Deux conditions cumulatives : le
+// chemin a ete choisi par l'utilisateur dans le selecteur d'image de CETTE
+// session, et c'est une image (extension). Sinon l'enregistrement est
+// refuse, avec un message qui nomme le noeud, plutot que de laisser filer.
+function assertCopiable(node: { name: string; src: string }, ctx: RelocationContext): void {
+  const extension = extname(node.src).toLowerCase()
+  if (!IMAGE_EXTENSIONS.has(extension) || !ctx.isApprovedImagePath(node.src)) {
+    throw new Error(
+      `Enregistrement refusé : l'image « ${node.name} » pointe vers un fichier local (${node.src}) qui n'a pas été choisi avec le sélecteur d'image ou n'est pas une image. Rechoisissez l'image.`,
+    )
+  }
+}
+
+// Parcours de l'arbre (frame.children compris) qui ne touche QUE les
+// nœuds image dont le src est un chemin absolu -- tout le reste (texte,
+// formes, image déjà relative ou vide) traverse inchangé.
+async function relocateNode(node: CalqueNode, ctx: RelocationContext): Promise<CalqueNode> {
   if (node.type === 'image') {
     if (node.src === '' || !isAbsolute(node.src)) return node
-    await ensureDirOnce()
-    const fileName = basename(node.src)
-    await copyImageFile(node.src, join(resourcesDir, fileName))
+    let fileName = ctx.bySource.get(node.src)
+    if (fileName === undefined) {
+      assertCopiable(node, ctx)
+      fileName = uniqueFileName(node.src, ctx.usedNames)
+      ctx.bySource.set(node.src, fileName)
+      await ctx.ensureDirOnce()
+      await ctx.copyImageFile(node.src, join(ctx.resourcesDir, fileName))
+    }
     return { ...node, src: fileName }
   }
   if (node.type === 'frame') {
-    const children = await Promise.all(
-      node.children.map((child) => relocateNode(child, resourcesDir, ensureDirOnce, copyImageFile)),
-    )
+    const children: CalqueNode[] = []
+    for (const child of node.children) children.push(await relocateNode(child, ctx))
     return { ...node, children }
   }
   return node
 }
 
-// Optionnelle (voir createDocumentHandler ci-dessous) : quand les deux
-// dépendances ne sont pas fournies, rend le document tel quel -- un
-// appelant qui ne les fournit pas (tests existants, documents sans nœud
-// image absolu) ne les voit jamais invoquées.
+// Optionnelle (voir createDocumentHandler ci-dessous) : quand les
+// dépendances de copie ne sont pas fournies, rend le document tel quel.
 async function relocateAbsoluteImageSources(
   document: CalqueDocument,
   documentPath: string,
   deps: {
     copyImageFile?: (source: string, dest: string) => Promise<void>
     ensureDir?: (dirPath: string) => Promise<void>
+    isApprovedImagePath?: (source: string) => boolean
   },
 ): Promise<CalqueDocument> {
   if (!deps.copyImageFile || !deps.ensureDir) return document
 
   const resourcesDir = resourcesDirFor(documentPath)
-  const copyImageFile = deps.copyImageFile
   const ensureDir = deps.ensureDir
   let dirEnsured: Promise<void> | null = null
-  const ensureDirOnce = () => (dirEnsured ??= ensureDir(resourcesDir))
+  const ctx: RelocationContext = {
+    resourcesDir,
+    ensureDirOnce: () => (dirEnsured ??= ensureDir(resourcesDir)),
+    copyImageFile: deps.copyImageFile,
+    // Refus par defaut : sans liste d'approbation, rien n'est copiable.
+    isApprovedImagePath: deps.isApprovedImagePath ?? (() => false),
+    usedNames: new Set(),
+    bySource: new Map(),
+  }
 
-  const pages = await Promise.all(
-    document.pages.map(async (page) => ({
-      ...page,
-      nodes: await Promise.all(page.nodes.map((n) => relocateNode(n, resourcesDir, ensureDirOnce, copyImageFile))),
-    })),
-  )
+  const pages = []
+  for (const page of document.pages) {
+    const nodes: CalqueNode[] = []
+    for (const n of page.nodes) nodes.push(await relocateNode(n, ctx))
+    pages.push({ ...page, nodes })
+  }
   return { ...document, pages }
 }
 
@@ -109,6 +153,9 @@ export function createDocumentHandler(deps: {
   // absolue, la plupart des tests) ne les déclenche jamais.
   copyImageFile?: (source: string, dest: string) => Promise<void>
   ensureDir?: (dirPath: string) => Promise<void>
+  // Chemins que l'utilisateur a choisis avec le selecteur d'image (voir
+  // main.ts) : seuls ceux-la peuvent etre copies a l'enregistrement.
+  isApprovedImagePath?: (source: string) => boolean
 }): {
   openDocument: () => Promise<OpenDocumentResult>
   saveDocument: (input: SaveDocumentInput) => Promise<SaveDocumentResult>

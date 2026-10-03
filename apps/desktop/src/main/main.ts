@@ -137,6 +137,12 @@ async function pathExists(p: string): Promise<boolean> {
   }
 }
 
+// Chemins d'images choisis par l'utilisateur avec le selecteur natif
+// pendant cette session : seuls ceux-la peuvent etre copies a cote du
+// document a l'enregistrement (voir documentHandlers.ts, audit P0 : un
+// document tiers ne doit pas pouvoir faire copier ~/.ssh/id_rsa).
+const cheminsImagesApprouves = new Set<string>()
+
 function fenetreDepuisEvenement(event: Electron.IpcMainInvokeEvent): BrowserWindow | null {
   return BrowserWindow.fromWebContents(event.sender)
 }
@@ -163,10 +169,15 @@ function enregistrerLesGestionnaires(): void {
       ensureDir: async (dirPath) => {
         await mkdir(dirPath, { recursive: true })
       },
+      isApprovedImagePath: (p) => cheminsImagesApprouves.has(p),
     }).saveDocument(input)
   })
 
-  ipcMain.handle('chooseImage', (event) => chooseImageFile(fenetreDepuisEvenement(event))())
+  ipcMain.handle('chooseImage', async (event) => {
+    const chemin = await chooseImageFile(fenetreDepuisEvenement(event))()
+    if (chemin !== null) cheminsImagesApprouves.add(chemin)
+    return chemin
+  })
 
   ipcMain.handle('importFigma', async (event, input) => {
     const win = fenetreDepuisEvenement(event)
