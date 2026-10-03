@@ -292,6 +292,10 @@ export function renderComposeComponent(node: ComponentNode, env: CEnv, depth: nu
         imp(env, 'coil.compose.AsyncImage', 'androidx.compose.ui.layout.ContentScale')
         return call(depth, 'AsyncImage', [`model = ${kotlinString(p.src)}`, 'contentDescription = null', 'contentScale = ContentScale.Crop', `modifier = ${modifier}.clip(CircleShape)`])
       }
+      if (p.src !== '') {
+        imp(env, 'androidx.compose.foundation.Image', 'androidx.compose.ui.res.painterResource', 'androidx.compose.ui.layout.ContentScale', `${env.ctx.plan.androidPackage ?? 'com.example.app'}.R`)
+        return call(depth, 'Image', [`painter = painterResource(id = R.drawable.${p.src})`, 'contentDescription = null', 'contentScale = ContentScale.Crop', `modifier = ${modifier}.clip(CircleShape)`])
+      }
       imp(env, 'androidx.compose.foundation.background')
       const fill = p.color ? color(env, p.color) : 'MaterialTheme.colorScheme.primaryContainer'
       if (!p.color) imp(env, 'androidx.compose.material3.MaterialTheme')

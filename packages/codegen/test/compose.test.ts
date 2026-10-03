@@ -123,7 +123,7 @@ describe('composeExporter', () => {
   // importe de Figma) : prouve que ce chemin d'avertissement est bien
   // atteint pour une vraie ressource nommee, pas seulement l'espace
   // reserve vide.
-  it('avertit pour une image locale au lieu d emettre un painterResource(R....) non resolu', () => {
+  it('emet une image locale en painterResource(R.drawable.<nom>) avec l import de R du paquet applicatif', () => {
     const doc = docWithNodes([
       {
         id: 'image-b',
@@ -138,10 +138,12 @@ describe('composeExporter', () => {
         fit: 'contain',
       },
     ])
-    const out = composeExporter.export(doc, { projectName: 'demo' })
-    expect(out.files[0]!.contents).not.toContain('painterResource(')
-    expect(out.files[0]!.contents).not.toContain('R.drawable')
-    expect(out.warnings.some((w) => w.includes('assets/Icon@2x.png'))).toBe(true)
+    const out = composeExporter.export(doc, { projectName: 'demo', androidPackage: 'fr.demo.app' })
+    const code = out.files[0]!.contents
+    expect(code).toContain('painter = painterResource(id = R.drawable.icon_2x)')
+    expect(code).toContain('import fr.demo.app.R')
+    expect(code).toContain('import androidx.compose.ui.res.painterResource')
+    expect(out.assets).toEqual([{ source: 'assets/Icon@2x.png', path: 'src/main/res/drawable/icon_2x.png' }])
   })
 
   // Ecart connu ferme (README, « Écarts connus ») : Compose avertissait

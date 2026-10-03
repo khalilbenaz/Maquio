@@ -55,6 +55,7 @@ export function ExportDialog({
         // L'ecran actif du plan de travail est l'ecran de depart de la
         // navigation generee ; tous les ecrans sont exportes.
         activeScreenId: useEditorStore.getState().activeScreenId ?? undefined,
+        documentPath: useEditorStore.getState().documentPath,
       })
       if (resultat === null) {
         setStatut('annule')

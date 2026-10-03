@@ -34,7 +34,9 @@ import { layoutPage } from '@calque/core'
 import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
 import { hasScaffoldParts, linkTargetOf, planExport, splitScreen } from '../shared/screens'
 import type { ExportPlan, ScreenParts } from '../shared/screens'
-import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
+import type { Exporter, ExportAsset, ExportedFile, ExportOptions, ExportResult } from '../types'
+import { planAssets } from '../shared/assets'
+import type { AssetTarget } from '../shared/assets'
 import { type Arg, type Block, attach, call, collapseShortCalls, lit, list } from './dart-writer'
 import {
   boxFitExpr,
@@ -46,7 +48,7 @@ import {
   mainAxisAlignmentExpr,
   textAlignExpr,
 } from './dart-utils'
-import { toPascalCase } from '../shared/naming'
+import { toPascalCase, toSnakeCase } from '../shared/naming'
 import { generateThemeFile } from './theme'
 import { navigateExpr, renderComponent } from './components'
 
@@ -720,8 +722,53 @@ function generateMain(plan: ExportPlan, projectName: string): ExportedFile {
   return { path: 'lib/main.dart', contents: lines.join('\n') }
 }
 
-function exportFlutter(doc: CalqueDocument, opts: ExportOptions): ExportResult {
-  const warnings: string[] = []
+// Package Dart valide : snake_case, commence par une lettre, pas un mot reserve.
+function dartPackageName(projectName: string): string {
+  const snake = toSnakeCase(projectName).replace(/[^a-z0-9_]/g, '_')
+  const base = /^[a-z]/.test(snake) ? snake : `app_${snake}`
+  return base === '' || ['assert', 'class', 'const', 'default', 'enum', 'extends', 'new', 'null', 'switch', 'this', 'var', 'void', 'with'].includes(base) ? `${base || 'app'}_app` : base
+}
+
+// pubspec.yaml du projet exporte : sans lui le dossier n'est pas un paquet
+// Flutter et les images ne seraient jamais declarees. Les dossiers
+// android/ ios/ sont a creer par `flutter create .` (sans toucher a lib/).
+function generatePubspec(projectName: string, assets: ExportAsset[]): ExportedFile {
+  const lines = [
+    `name: ${dartPackageName(projectName)}`,
+    `description: Projet genere par Calque.`,
+    `publish_to: 'none'`,
+    'version: 1.0.0+1',
+    '',
+    'environment:',
+    "  sdk: '>=3.9.0 <4.0.0'",
+    '',
+    'dependencies:',
+    '  flutter:',
+    '    sdk: flutter',
+    '',
+    'dev_dependencies:',
+    '  flutter_lints: ^6.0.0',
+    '',
+    'flutter:',
+    '  uses-material-design: true',
+  ]
+  if (assets.length > 0) {
+    lines.push('  assets:', ...assets.map((a) => `    - ${a.path}`))
+  }
+  lines.push('')
+  return { path: 'pubspec.yaml', contents: lines.join('\n') }
+}
+
+const FLUTTER_ASSETS: AssetTarget = {
+  fileName: (stem, ext) => `${stem}${ext}`,
+  path: (fileName) => `assets/images/${fileName}`,
+  reference: (fileName) => `assets/images/${fileName}`,
+}
+
+function exportFlutter(source: CalqueDocument, opts: ExportOptions): ExportResult {
+  const assetPlan = planAssets(source, FLUTTER_ASSETS)
+  const doc = assetPlan.doc
+  const warnings: string[] = [...assetPlan.warnings]
   const files: ExportedFile[] = []
   const plan = planExport(doc, opts.activeScreenId)
 
@@ -752,8 +799,9 @@ function exportFlutter(doc: CalqueDocument, opts: ExportOptions): ExportResult {
   if (plan.initial !== null) {
     files.push(generateMain(plan, opts.projectName))
   }
+  files.push(generatePubspec(opts.projectName, assetPlan.assets))
 
-  return { files, warnings }
+  return { files, warnings, assets: assetPlan.assets }
 }
 
 export const flutterExporter: Exporter = {

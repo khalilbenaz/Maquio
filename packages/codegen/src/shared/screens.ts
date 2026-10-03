@@ -28,6 +28,8 @@ export type ExportPlan = {
   byId: Map<string, ScreenRef>
   // Ecran de depart : l'ecran actif demande, a defaut le premier.
   initial: ScreenRef | null
+  // Compose : paquet de l'application (pour `R.drawable`).
+  androidPackage?: string
 }
 
 export function isScreen(node: Node): node is FrameNode {

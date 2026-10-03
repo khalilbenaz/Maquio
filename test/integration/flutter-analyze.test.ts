@@ -182,7 +182,7 @@ describe('garde-fou flutter analyze (preuve de compilation reelle)', () => {
     for (const fixture of FIGMA_FIXTURES) {
       const { document } = figmaToDocument(fixture.file)
       const result = flutterExporter.export(document, { projectName: 'demo' })
-      for (const file of result.files) {
+      for (const file of result.files.filter((f) => f.path.startsWith('lib/'))) {
         // file.path est deja relatif a la racine d'un paquet Flutter
         // ('lib/screens/x.dart', 'lib/theme.dart') -- namespace par
         // fixture SOUS lib/ pour que deux documents ne s'ecrasent jamais,
@@ -209,7 +209,7 @@ describe('garde-fou flutter analyze (preuve de compilation reelle)', () => {
       ['multi-screen-content-ecran2', exportEcran2],
       ['exemple-complet', exempleComplet],
     ] as const) {
-      for (const file of result.files) {
+      for (const file of result.files.filter((f) => f.path.startsWith('lib/'))) {
         const relative = file.path.replace(/^lib\//, '')
         const target = join(packageDir, 'lib', namespace, relative)
         mkdirSync(dirname(target), { recursive: true })

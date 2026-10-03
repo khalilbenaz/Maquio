@@ -9,11 +9,35 @@
 // n'importe quelle etape (dossier ou confirmation), aucun fichier n'est
 // ecrit : chooseDirectory/confirmOverwrite sont toujours resolus avant le
 // premier appel a writeFile.
-import { dirname, join } from 'node:path'
+import { basename, dirname, extname, isAbsolute, join, relative, sep } from 'node:path'
 import { getExporter } from '@calque/codegen'
 import type { ExporterId, ExportResult } from '@calque/codegen'
 import { DocumentVersionError, parseDocument } from '@calque/core'
 import { translateUnknownError } from '../../shared/errors'
+
+const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'])
+
+// Source reelle d'une image a copier, ou la raison du refus. Le `src` vient
+// du document (donc possiblement d'un tiers) : un chemin relatif ne sort
+// jamais de `<document>.ressources/`, un chemin absolu n'est copie que s'il
+// a ete choisi avec le selecteur d'image de cette session ; dans tous les
+// cas c'est une image (extension).
+export function resolveAssetSource(
+  src: string,
+  documentPath: string | null,
+  isApproved: (p: string) => boolean,
+): { path: string } | { reason: string } {
+  if (!IMAGE_EXTENSIONS.has(extname(src).toLowerCase())) return { reason: "ce n'est pas une image" }
+  if (isAbsolute(src)) {
+    return isApproved(src) ? { path: src } : { reason: "fichier local non choisi avec le sélecteur d'image" }
+  }
+  if (documentPath === null) return { reason: "le document n'est pas enregistré, ses ressources sont introuvables" }
+  const resources = join(dirname(documentPath), `${basename(documentPath, '.calque')}.ressources`)
+  const full = join(resources, src)
+  const rel = relative(resources, full)
+  if (rel === '' || rel.startsWith('..') || isAbsolute(rel) || rel.split(sep).includes('..')) return { reason: 'chemin hors du dossier de ressources' }
+  return { path: full }
+}
 
 export type ExportOutcome = { directory: string; files: string[]; warnings: string[] } | null
 
@@ -34,12 +58,16 @@ export function createExportHandler(deps: {
   // de confirmation n'est fournie, le choix le plus sur est de refuser
   // l'ecrasement (jamais d'ecrasement silencieux par defaut).
   confirmOverwrite?: (existingFiles: string[]) => Promise<boolean>
+  // Copie des images locales dans le projet exporte.
+  copyFile?: (source: string, dest: string) => Promise<void>
+  isApprovedImagePath?: (path: string) => boolean
 }) {
   return async (input: {
     exporterId: ExporterId
     json: string
     projectName: string
     activeScreenId?: string
+    documentPath?: string | null
   }): Promise<ExportOutcome> => {
     const exporter = getExporter(input.exporterId)
 
@@ -65,8 +93,25 @@ export function createExportHandler(deps: {
 
     const targets = result.files.map((f) => ({ path: f.path, contents: f.contents, fullPath: join(directory, f.path) }))
 
+    // Images : sources verifiees AVANT toute ecriture ; une image refusee ou
+    // introuvable n'arrete pas l'export, elle est signalee.
+    const warnings = [...result.warnings]
+    const copies: { path: string; from: string; fullPath: string }[] = []
+    for (const asset of result.assets ?? []) {
+      const resolved = resolveAssetSource(asset.source, input.documentPath ?? null, deps.isApprovedImagePath ?? (() => false))
+      if ('reason' in resolved) {
+        warnings.push(`image « ${asset.source} » non copiée : ${resolved.reason}`)
+        continue
+      }
+      if (!(await deps.pathExists(resolved.path)) || deps.copyFile === undefined) {
+        warnings.push(`image « ${asset.source} » non copiée : fichier introuvable (${resolved.path})`)
+        continue
+      }
+      copies.push({ path: asset.path, from: resolved.path, fullPath: join(directory, asset.path) })
+    }
+
     const existing: string[] = []
-    for (const target of targets) {
+    for (const target of [...targets, ...copies]) {
       if (await deps.pathExists(target.fullPath)) existing.push(target.path)
     }
 
@@ -84,7 +129,15 @@ export function createExportHandler(deps: {
       }
       await deps.writeFile(target.fullPath, target.contents, 'utf8')
     }
+    for (const copy of copies) {
+      const dir = dirname(copy.fullPath)
+      if (!dirsCreated.has(dir)) {
+        await deps.mkdir(dir)
+        dirsCreated.add(dir)
+      }
+      await deps.copyFile!(copy.from, copy.fullPath)
+    }
 
-    return { directory, files: targets.map((t) => t.path), warnings: result.warnings }
+    return { directory, files: [...targets.map((t) => t.path), ...copies.map((c) => c.path)], warnings }
   }
 }

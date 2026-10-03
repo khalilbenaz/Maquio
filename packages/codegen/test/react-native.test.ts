@@ -99,7 +99,7 @@ describe('reactNativeExporter', () => {
     ])
     const out = reactNativeExporter.export(doc, { projectName: 'demo' })
     const file = out.files.find((f) => f.path.endsWith('.tsx'))!
-    expect(file.contents).toContain("source={require('./assets/logo.png')}")
+    expect(file.contents).toContain("source={require('../../assets/images/logo.png')}")
   })
 
   // Ecart connu ferme (README, « Écarts connus ») : un src vide (espace

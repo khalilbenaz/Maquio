@@ -39,6 +39,9 @@ export type CalqueApi = {
     // navigation generee (route initiale). Tous les ecrans sont exportes.
     // Absent = le premier ecran.
     activeScreenId?: string
+    // Chemin du .calque courant (null si jamais enregistre) : sert a retrouver
+    // les images relatives dans `<nom>.ressources/` pour les copier.
+    documentPath?: string | null
   }): Promise<{ directory: string; files: string[]; warnings: string[] } | null>
   listExporters(): Promise<ExportTargetInfo[]>
   // Tache 17 : rend aussi documentJson (le document apres application de la

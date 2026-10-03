@@ -12,7 +12,7 @@ describe('flutterExporter', () => {
 
   it('produit un fichier par page plus le theme', () => {
     expect(result.files.map((f) => f.path).sort())
-      .toEqual(['lib/screens/login_screen.dart', 'lib/theme.dart'])
+      .toEqual(['lib/screens/login_screen.dart', 'lib/theme.dart', 'pubspec.yaml'])
   })
 
   it('correspond au fichier temoin de l ecran', () => {

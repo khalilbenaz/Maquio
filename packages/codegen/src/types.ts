@@ -8,12 +8,17 @@ import type { CalqueDocument } from '@calque/core'
 
 export type ExportedFile = { path: string; contents: string }
 
-export type ExportResult = { files: ExportedFile[]; warnings: string[] }
+// Fichier a COPIER dans le projet exporte (image locale). `source` est le
+// `src` du document (relatif aux ressources du document, ou absolu) ;
+// `path` la destination relative a la racine du projet exporte.
+export type ExportAsset = { source: string; path: string }
+
+export type ExportResult = { files: ExportedFile[]; warnings: string[]; assets?: ExportAsset[] }
 
 // `activeScreenId` : ecran de depart de la navigation generee (route
 // initiale, `startDestination`, racine de la pile). TOUS les ecrans sont
 // exportes ; absent ou inconnu, le premier ecran est l'ecran de depart.
-export type ExportOptions = { projectName: string; nullSafety?: boolean; activeScreenId?: string }
+export type ExportOptions = { projectName: string; nullSafety?: boolean; activeScreenId?: string; androidPackage?: string }
 
 export type ExporterId = 'flutter' | 'react-native' | 'swiftui' | 'compose'
 

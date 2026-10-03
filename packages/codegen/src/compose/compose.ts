@@ -45,6 +45,8 @@ import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl 
 import { linkTargetOf, planExport, splitScreen } from '../shared/screens'
 import type { ExportPlan, ScreenParts } from '../shared/screens'
 import { PREVIEW_SUPPORTED_NODE_TYPES, unsupportedNodeWarning } from '../shared/preview-coverage'
+import { planAssets } from '../shared/assets'
+import type { AssetTarget } from '../shared/assets'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
 import {
   colorTokenComment,
@@ -273,26 +275,20 @@ function renderImage(node: ImageNode, ctx: RenderContext, depth: number, extraMo
     ]
   }
 
-  // Correction Critical 2 (corollaire, re-corrige apres re-revue) :
-  // `painterResource` attend une ressource `@DrawableRes Int`
-  // (`R.drawable.<nom>`), jamais une `String` -- `painterResource(
-  // kotlinString(node.src))` ne compilait pas. Un premier correctif
-  // emettait `R.drawable.<nom derive du chemin>`, mais `R` n'est JAMAIS
-  // importe par ce fichier (son en-tete ne contient que `package screens`
-  // et des `import androidx.*` : aucun nom de paquet applicatif n'est
-  // connu de ce generateur) -- on avait remplace un appel qui ne compile
-  // pas par un symbole non resolu. Tant que ce nom de paquet n'est pas
-  // connu, toute image LOCALE (contrairement a une URL distante, qui ne
-  // passe jamais par `R`) est signalee plutot qu'emise : le noeud n'est
-  // pas rendu, comme pour tout autre defaut d'emission dans ce
-  // generateur. Couvert par un test avec `src` non vide (ex.
-  // 'assets/Icon@2x.png') : le cas `src: ''` (systematique pour tout
-  // espace reserve `image` importe de Figma) ne suffit pas a lui seul a
-  // prouver que CE chemin est bien atteint.
-  ctx.warnings.push(
-    `image non exportee par l export compose (apercu) : ressource locale "${node.src}" nécessiterait un import R du paquet applicatif, inconnu de ce generateur (noeud ${node.id})`,
-  )
-  return null
+  // Ressource locale : copiee dans `res/drawable` (voir COMPOSE_ASSETS), `src`
+  // est deja le nom de la ressource. `R` est celui du paquet de l'application
+  // (`androidPackage`, par defaut com.example.app).
+  ctx.imports.add('androidx.compose.foundation.Image')
+  ctx.imports.add('androidx.compose.ui.res.painterResource')
+  ctx.imports.add(`${ctx.plan.androidPackage ?? DEFAULT_ANDROID_PACKAGE}.R`)
+  return [
+    `${pad(depth)}Image(`,
+    `${pad(depth + 1)}painter = painterResource(id = R.drawable.${node.src}),`,
+    `${pad(depth + 1)}contentDescription = null,`,
+    `${pad(depth + 1)}contentScale = ${fitToContentScale(node.fit)},`,
+    ...modifierLines,
+    `${pad(depth)})`,
+  ]
 }
 
 function mainArrangementExpr(
@@ -825,10 +821,26 @@ function generateActivity(): ExportedFile {
   return { path: 'src/main/kotlin/MainActivity.kt', contents: lines.join('\n') }
 }
 
-function exportCompose(doc: CalqueDocument, opts: ExportOptions): ExportResult {
-  const warnings: string[] = []
+export const DEFAULT_ANDROID_PACKAGE = 'com.example.app'
+
+// Android n'accepte en `res/drawable` que [a-z0-9_], commencant par une lettre.
+const COMPOSE_ASSETS: AssetTarget = {
+  fileName: (stem, ext) => {
+    const snake = stem.replace(/[^A-Za-z0-9]+/g, '_').replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase().replace(/^_+|_+$/g, '')
+    return `${/^[a-z]/.test(snake) ? snake : `img_${snake}`}${ext}`
+  },
+  uniqueKey: (fileName) => fileName.replace(/\.[^.]+$/, ''),
+  path: (fileName) => `src/main/res/drawable/${fileName}`,
+  reference: (fileName) => fileName.replace(/\.[^.]+$/, ''),
+}
+
+function exportCompose(source: CalqueDocument, opts: ExportOptions): ExportResult {
+  const assetPlan = planAssets(source, COMPOSE_ASSETS, ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp'])
+  const doc = assetPlan.doc
+  const warnings: string[] = [...assetPlan.warnings]
   const files: ExportedFile[] = []
   const plan = planExport(doc, opts.activeScreenId)
+  plan.androidPackage = opts.androidPackage ?? DEFAULT_ANDROID_PACKAGE
 
   for (const unit of plan.units) {
     if (unit.kind === 'page') {
@@ -841,7 +853,7 @@ function exportCompose(doc: CalqueDocument, opts: ExportOptions): ExportResult {
 
   if (plan.initial !== null) files.push(generateNavigation(plan), generateActivity())
 
-  return { files, warnings }
+  return { files, warnings, assets: assetPlan.assets }
 }
 
 export const composeExporter: Exporter = {
