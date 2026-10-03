@@ -141,6 +141,67 @@ await contenu.fill('Bonjour Éric'); await contenu.press('Enter')
 await win.waitForTimeout(150)
 check('editer le contenu du texte', (await win.getByTestId(`node-${textId}`).innerText()).includes('Bonjour Éric'))
 
+// 5c. palette de composants : recherche, glisser-deposer, edition des proprietes, annulation
+await win.getByRole('tab', { name: 'Composants' }).click()
+const recherche = win.getByRole('searchbox', { name: /rechercher un composant/i })
+await recherche.fill('toggle')
+check('palette : la recherche filtre (toggle -> interrupteur)',
+  (await win.locator('[data-testid^="palette-item-"]').count()) === 1 && await win.getByTestId('palette-item-switch').isVisible())
+await recherche.fill('')
+check('palette : sept familles', (await win.locator('.palette-category').count()) === 7)
+const scene = win.getByTestId('canvas-scene')
+// Depose un element de palette a une position relative a l'ecran (fractions de
+// sa boite MESUREE : aucune echelle supposee) ; rend l'id du noeud cree.
+const deposer = async (itemId, fx, fy) => {
+  const avant = new Set(await state())
+  const s = await nodeBox(ids0[0])
+  const sc = await scene.boundingBox()
+  await win.getByTestId(`palette-item-${itemId}`).dragTo(scene, { targetPosition: { x: s.x - sc.x + s.width * fx, y: s.y - sc.y + s.height * fy } })
+  await win.waitForTimeout(250)
+  return (await state()).find((i) => !avant.has(i))
+}
+const typeOf = (id) => win.getByTestId(`node-${id}`).getAttribute('data-node-type')
+const boutonId = await deposer('button', 0.5, 0.62)
+check('palette : glisser un bouton cree un composant', boutonId !== undefined && (await typeOf(boutonId)) === 'button')
+check('palette : le composant depose est selectionne (inspecteur)', await win.getByRole('heading', { name: 'Bouton', exact: true }).isVisible())
+const libelle = win.getByLabel('Libellé', { exact: true })
+await libelle.fill('Valider'); await libelle.press('Enter')
+await win.waitForTimeout(150)
+check('inspecteur : libelle du bouton', (await win.getByTestId(`node-${boutonId}`).innerText()).includes('Valider'))
+await win.getByLabel('Variante', { exact: true }).selectOption('secondary')
+await win.waitForTimeout(150)
+const bordure = await win.getByTestId(`node-${boutonId}`).locator('[data-component] > div').evaluate((e) => getComputedStyle(e).borderTopWidth)
+check('inspecteur : variante secondaire (contour)', bordure === '1px', bordure)
+await win.getByRole('button', { name: 'Annuler' }).click()
+await win.getByRole('button', { name: 'Annuler' }).click()
+check('annuler remet le bouton a son etat initial',
+  (await win.getByTestId(`node-${boutonId}`).innerText()).includes('Bouton') && (await win.getByTestId(`node-${boutonId}`).locator('[data-component] > div').evaluate((e) => getComputedStyle(e).borderTopWidth)) === '0px')
+await win.getByRole('button', { name: 'Rétablir' }).click()
+await win.getByRole('button', { name: 'Rétablir' }).click()
+// d'autres familles : saisie, navigation (collees a leur place), carte
+const switchId = await deposer('switch', 0.5, 0.45)
+const barreId = await deposer('appBar', 0.5, 0.8)
+const navId = await deposer('bottomNav', 0.5, 0.1)
+const carteId = await deposer('card', 0.5, 0.3)
+check('palette : interrupteur, barre, navigation basse, carte',
+  (await typeOf(switchId)) === 'switch' && (await typeOf(barreId)) === 'appBar' && (await typeOf(navId)) === 'bottomNav' && (await typeOf(carteId)) === 'card')
+const ecranBox = await nodeBox(ids0[0])
+const barreBox = await nodeBox(barreId)
+const navBox = await nodeBox(navId)
+check('palette : la barre d application se colle en haut, pleine largeur',
+  Math.abs(barreBox.y - ecranBox.y) < 3 && Math.abs(barreBox.width - ecranBox.width) < 3, `dy=${barreBox.y - ecranBox.y}`)
+check('palette : la barre basse se colle en bas, pleine largeur',
+  Math.abs(navBox.y + navBox.height - (ecranBox.y + ecranBox.height)) < 3 && Math.abs(navBox.width - ecranBox.width) < 3)
+// lien « au clic, aller a l'ecran X » sur le bouton
+await win.getByRole('button', { name: 'Nouvel écran' }).click()
+await win.waitForTimeout(200)
+await win.getByTestId(`node-${boutonId}`).click({ position: { x: 5, y: 5 } })
+await win.getByLabel('Au clic →', { exact: true }).selectOption({ index: 1 })
+await win.waitForTimeout(150)
+check('lien de navigation pose sur le bouton', (await win.getByLabel('Au clic →', { exact: true }).inputValue()) !== '')
+await win.getByRole('tab', { name: 'Calques' }).click()
+await shot('15-composants')
+
 // 6. enregistrer / rouvrir
 const docPath = path.join(work, 'projet.calque')
 await setNext({ save: docPath })
@@ -179,12 +240,25 @@ for (const [label, dirName] of [['Flutter', 'flutter'], ['React Native', 'rn'], 
   await shot(`20-export-${dirName}`)
   await win.getByRole('button', { name: "Fermer l'export" }).click()
 }
+// 7a. les composants sont exportes vers le widget natif, avec Scaffold et routes (tous les ecrans)
+const lire = (rel) => readFileSync(path.join(work, rel), 'utf8')
+const flutterEcran = lire('export-flutter/lib/screens/ecran_1.dart')
+check('Flutter : OutlinedButton (variante secondaire) / Scaffold / AppBar / BottomNavigationBar / Switch / Card',
+  ['OutlinedButton', 'Scaffold(', 'AppBar(', 'BottomNavigationBar(', 'Switch(', 'Card('].every((m) => flutterEcran.includes(m)))
+check('Flutter : navigation vers l ecran 2 et routes de tous les ecrans',
+  flutterEcran.includes("pushNamed('/ecran_2')") && /'\/ecran_1'/.test(lire('export-flutter/lib/main.dart')) && /'\/ecran_2'/.test(lire('export-flutter/lib/main.dart')))
+check('React Native : Pressable / Switch / navigation', /Pressable/.test(lire('export-rn/src/screens/Ecran1.tsx')) && /navigation\.navigate\('Ecran2'\)/.test(lire('export-rn/src/screens/Ecran1.tsx')) && existsSync(path.join(work, 'export-rn/App.tsx')))
+check('SwiftUI : Button / Toggle / TabView / NavigationStack', /Toggle\(/.test(lire('export-swift/Sources/Screens/Ecran1.swift')) && /TabView/.test(lire('export-swift/Sources/Screens/Ecran1.swift')) && /NavigationStack/.test(lire('export-swift/Sources/App.swift')))
+check('Compose : Scaffold / NavigationBar / Switch / NavHost', /Scaffold\(/.test(lire('export-compose/src/main/kotlin/screens/Ecran1.kt')) && /NavigationBar\(/.test(lire('export-compose/src/main/kotlin/screens/Ecran1.kt')) && /NavHost/.test(lire('export-compose/src/main/kotlin/AppNavigation.kt')))
 // 7b. le Swift genere compile (macOS uniquement)
 if (process.platform === 'darwin') {
   try {
-    execFileSync('xcrun', ['swiftc', '-typecheck', '-parse-as-library', path.join(work, 'export-swift/Sources/Screens/Ecran1.swift')], { stdio: 'pipe' })
-    check('SwiftUI genere : swiftc -typecheck', true)
-  } catch (e) { check('SwiftUI genere : swiftc -typecheck', false, String(e.stderr ?? e)) }
+    // Analyse syntaxique de TOUS les fichiers generes (le typage complet, avec
+    // le shim de @State sans Xcode, est dans test/integration/exports-compilables).
+    const swiftFiles = readdirSync(path.join(work, 'export-swift'), { recursive: true }).filter((f) => f.endsWith('.swift')).map((f) => path.join(work, 'export-swift', f))
+    execFileSync('xcrun', ['swiftc', '-parse', '-parse-as-library', ...swiftFiles], { stdio: 'pipe' })
+    check('SwiftUI genere : swiftc -parse (tous les fichiers)', swiftFiles.length >= 4, `${swiftFiles.length} fichiers`)
+  } catch (e) { check('SwiftUI genere : swiftc -parse', false, String(e.stderr ?? e)) }
 }
 
 // 8. securite : un .calque hostile ne peut pas faire copier un fichier local
