@@ -147,6 +147,8 @@ function Editeur({ api }: { api: CalqueApi }) {
       detacherEnregistrer()
       detacherEnregistrerSous()
     }
+    // Les actions lues ici ne dependent que de documentPath (reabonnement a chaque changement).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentPath])
 
   useEffect(() => {

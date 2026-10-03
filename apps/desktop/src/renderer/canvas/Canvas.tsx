@@ -36,7 +36,7 @@
 // document (window), pas sur un element focusable du canevas.
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react'
-import { PALETTE_ITEMS, compositeCommand, deleteNodeCommand, findNode, isScreenNode, unionRects } from '@calque/core'
+import { PALETTE_ITEMS, isScreenNode, unionRects } from '@calque/core'
 import type { FrameNode, Node as CalqueNode } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import type { Tool } from '../state/editorStore'
@@ -228,6 +228,8 @@ export function Canvas({ api }: { api: CalqueApi }) {
     )
     useEditorStore.getState().setZoom(zoomAjuste)
     useEditorStore.getState().setPan(panAjuste)
+    // Volontairement limite : l'ajustement ne se rejoue qu'a l'ouverture d'un document, a la demande (jeton) ou au changement du nombre d'ecrans (voir le commentaire ci-dessus).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageId, device?.width, device?.height, fitToWindowToken, screens.length])
 
   // Zoom (Ctrl/Cmd + molette) et panoramique (molette seule) : les deux

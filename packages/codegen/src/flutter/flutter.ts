@@ -25,7 +25,6 @@ import type {
   ImageNode,
   LineNode,
   Node,
-  Page,
   RectNode,
   Stroke,
   TextNode,

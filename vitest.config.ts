@@ -13,6 +13,15 @@ const setupFiles = ['apps/desktop/test/setup.ts']
 
 export default defineConfig({
   test: {
+    // Couverture (`npm run test:coverage`) : le seuil est un PLANCHER de non-
+    // regression, releve par paliers quand la couverture progresse.
+    coverage: {
+      provider: 'v8',
+      include: ['packages/*/src/**/*.ts', 'apps/desktop/src/**/*.{ts,tsx}'],
+      exclude: ['**/*.d.ts', 'apps/desktop/src/main/main.ts', 'apps/desktop/src/preload/preload.ts', 'apps/desktop/src/main/window.ts', 'apps/desktop/src/renderer/main.tsx'],
+      reporter: ['text-summary', 'json-summary', 'lcov'],
+      thresholds: { lines: 88, statements: 86, functions: 84, branches: 76 },
+    },
     projects: [
       {
         extends: true,

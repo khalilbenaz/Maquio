@@ -513,7 +513,10 @@ function renderContainer(frame: FrameNode, ctx: RenderContext, depth: number, ex
         `shape = RoundedCornerShape(${dp(frame.cornerRadius)})`,
         `elevation = CardDefaults.cardElevation(defaultElevation = ${dp(spec.elevation)})`,
       ]
-      if (fill) args.push(`colors = CardDefaults.cardColors(containerColor = ${composeColorExpr(fill, ctx.tokens, ctx)})`), ctx.imports.add('androidx.compose.ui.graphics.Color')
+      if (fill) {
+        args.push(`colors = CardDefaults.cardColors(containerColor = ${composeColorExpr(fill, ctx.tokens, ctx)})`)
+        ctx.imports.add('androidx.compose.ui.graphics.Color')
+      }
       if (stroke) {
         ctx.imports.add('androidx.compose.foundation.BorderStroke')
         ctx.imports.add('androidx.compose.ui.graphics.Color')

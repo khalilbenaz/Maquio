@@ -298,6 +298,9 @@ function endGesture(cleanup: () => void): void {
 function useGestureCleanupRef() {
   const cleanupRef = useRef<() => void>(() => {})
   useEffect(() => {
+    // La ref est volontairement relue au demontage : elle porte le nettoyage du
+    // geste EN COURS a cet instant, pas celui d'un geste passe.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     return () => cleanupRef.current()
   }, [])
   return cleanupRef
@@ -827,6 +830,6 @@ export function useCreateInteraction(canvasRef: RefObject<HTMLElement | null>, a
       window.addEventListener('pointermove', handleMove)
       window.addEventListener('pointerup', handleUp)
     },
-    [canvasRef, cleanupRef],
+    [canvasRef, cleanupRef, api],
   )
 }

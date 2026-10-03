@@ -24,7 +24,6 @@
 // identifiant aleatoire.
 import type {
   CalqueDocument,
-  ComponentNode,
   DesignTokens,
   EllipseNode,
   Fill,
