@@ -23,6 +23,7 @@
 // `// nom` quand la couleur correspond exactement a un token du document.
 import type {
   CalqueDocument,
+  ComponentNode,
   DesignTokens,
   EllipseNode,
   Fill,
@@ -35,11 +36,14 @@ import type {
   TextNode,
 } from '@calque/core'
 import { layoutPage } from '@calque/core'
+import { navigateExpr, renderComposeComponent, renderTopAppBar } from './components'
+import type { CEnv } from './components'
 import { formatNumber } from '../shared/format-number'
 import { pad } from '../shared/indent'
-import { createPageNamer } from '../shared/naming'
 import { unsupportedPropertyWarning } from '../shared/lost-property-warning'
-import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl, selectActiveScreen } from '../shared/node-helpers'
+import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
+import { linkTargetOf, planExport, splitScreen } from '../shared/screens'
+import type { ExportPlan, ScreenParts } from '../shared/screens'
 import { PREVIEW_SUPPORTED_NODE_TYPES, unsupportedNodeWarning } from '../shared/preview-coverage'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
 import {
@@ -51,7 +55,34 @@ import {
 
 const EXPORTER_ID = 'compose'
 
-type RenderContext = { tokens: DesignTokens; warnings: string[]; imports: Set<string> }
+type RenderContext = {
+  tokens: DesignTokens
+  warnings: string[]
+  imports: Set<string>
+  plan: ExportPlan
+  counter: number
+  usesNavigation: boolean
+  // Une API experimentale de Material 3 est utilisee : @OptIn sur l'ecran.
+  experimental: boolean
+}
+
+function envOf(ctx: RenderContext, inFlex: boolean): CEnv {
+  return {
+    inFlex,
+    ctx: {
+      tokens: ctx.tokens,
+      plan: ctx.plan,
+      imports: ctx.imports,
+      nextIndex: () => ++ctx.counter,
+      markNavigation: () => {
+        ctx.usesNavigation = true
+      },
+      markExperimental: () => {
+        ctx.experimental = true
+      },
+    },
+  }
+}
 
 function dp(value: number): string {
   return `${formatNumber(value)}.dp`
@@ -376,7 +407,7 @@ function renderFrame(frame: FrameNode, ctx: RenderContext, depth: number, extraM
     for (const child of frame.children) {
       if (!child.visible) continue
       const childExtra = [`.offset(x = ${dp(child.frame.x)}, y = ${dp(child.frame.y)})`]
-      const rendered = renderNode(child, ctx, depth + 1, childExtra)
+      const rendered = renderNode(child, ctx, depth + 1, childExtra, false)
       if (rendered) childLines.push(...rendered)
     }
     if (childLines.length === 0) return [`${pad(depth)}Box(`, ...modLines, `${pad(depth)})`]
@@ -410,15 +441,183 @@ function renderFrame(frame: FrameNode, ctx: RenderContext, depth: number, extraM
   const childLines: string[] = []
   for (const child of frame.children) {
     if (!child.visible) continue
-    const rendered = renderNode(child, ctx, depth + 1, [])
+    const rendered = renderNode(child, ctx, depth + 1, [], true)
     if (rendered) childLines.push(...rendered)
   }
 
   return [...header, ...childLines, `${pad(depth)}}`]
 }
 
-function renderNode(node: Node, ctx: RenderContext, depth: number, extraMods: string[]): string[] | null {
+const SIZE_IMPORTS = ['androidx.compose.ui.Modifier', 'androidx.compose.foundation.layout.size', 'androidx.compose.ui.unit.dp']
+
+// Chaine de modificateurs d'un composant : taille, decalage eventuel,
+// opacite, rotation, clic de navigation.
+function componentModifier(node: ComponentNode, ctx: RenderContext, extraMods: string[], selfLinking: boolean): string {
+  for (const i of SIZE_IMPORTS) ctx.imports.add(i)
+  let chain = `Modifier.size(width = ${dp(node.frame.w)}, height = ${dp(node.frame.h)})`
+  for (const mod of extraMods) chain += mod
+  if (node.opacity < 1) {
+    ctx.imports.add('androidx.compose.ui.draw.alpha')
+    chain += `.alpha(${formatNumber(node.opacity)}f)`
+  }
+  if (node.rotation !== 0) {
+    ctx.imports.add('androidx.compose.ui.draw.rotate')
+    chain += `.rotate(${formatNumber(node.rotation)}f)`
+  }
+  const target = linkTargetOf(node, ctx.plan)
+  if (target !== null && !selfLinking) {
+    ctx.imports.add('androidx.compose.foundation.clickable')
+    chain += `.clickable { ${navigateExpr(envOf(ctx, false), target)} }`
+  }
+  return chain
+}
+
+// Clic de navigation d'un noeud ordinaire (frame, texte, forme, image).
+function linkMods(node: Node, ctx: RenderContext): string[] {
+  const target = linkTargetOf(node, ctx.plan)
+  if (target === null) return []
+  ctx.imports.add('androidx.compose.foundation.clickable')
+  return [`.clickable { ${navigateExpr(envOf(ctx, false), target)} }`]
+}
+
+const SELF_LINKING = new Set(['button', 'iconButton', 'fab', 'chip', 'listTile'])
+
+// Widget natif d'un conteneur semantique.
+function renderContainer(frame: FrameNode, ctx: RenderContext, depth: number, extraMods: string[]): string[] {
+  const spec = frame.container!
+  const p1 = pad(depth + 1)
+  const sizeLine = `Modifier.size(width = ${dp(frame.frame.w)}, height = ${dp(frame.frame.h)})${extraMods.join('')}`
+  for (const i of SIZE_IMPORTS) ctx.imports.add(i)
+  const fill = firstSolidFillColor(frame.fills)
+  const plain: FrameNode = { ...frame, fills: [], strokes: [], cornerRadius: 0, clipsContent: false, container: undefined }
+  const padding = frame.layout.padding
+  const paddingValues = `PaddingValues(start = ${dp(padding.left)}, top = ${dp(padding.top)}, end = ${dp(padding.right)}, bottom = ${dp(padding.bottom)})`
+  const gap = frame.layout.gap
+  const items = (children: Node[], inner: number, divider: boolean): string[] => {
+    const lines: string[] = []
+    children.filter((c) => c.visible).forEach((child, index, all) => {
+      const rendered = renderNode(child, ctx, inner + 1, [], false)
+      lines.push(`${pad(inner)}item {`, ...(rendered ?? []), `${pad(inner)}}`)
+      if (divider && index < all.length - 1) {
+        ctx.imports.add('androidx.compose.material3.HorizontalDivider')
+        lines.push(`${pad(inner)}item { HorizontalDivider() }`)
+      }
+    })
+    return lines
+  }
+
+  switch (spec.kind) {
+    case 'card': {
+      ctx.imports.add('androidx.compose.material3.Card')
+      ctx.imports.add('androidx.compose.material3.CardDefaults')
+      ctx.imports.add('androidx.compose.foundation.shape.RoundedCornerShape')
+      const stroke = firstStroke(frame.strokes)
+      const args = [
+        `modifier = ${sizeLine}`,
+        `shape = RoundedCornerShape(${dp(frame.cornerRadius)})`,
+        `elevation = CardDefaults.cardElevation(defaultElevation = ${dp(spec.elevation)})`,
+      ]
+      if (fill) args.push(`colors = CardDefaults.cardColors(containerColor = ${composeColorExpr(fill, ctx.tokens, ctx)})`), ctx.imports.add('androidx.compose.ui.graphics.Color')
+      if (stroke) {
+        ctx.imports.add('androidx.compose.foundation.BorderStroke')
+        ctx.imports.add('androidx.compose.ui.graphics.Color')
+        args.push(`border = BorderStroke(${dp(stroke.width)}, ${composeColorExpr(stroke.color, ctx.tokens, ctx)})`)
+      }
+      return [`${pad(depth)}Card(`, ...args.map((a) => `${p1}${a},`), `${pad(depth)}) {`, ...renderFrame(plain, ctx, depth + 1, []), `${pad(depth)}}`]
+    }
+    case 'listView': {
+      const horizontal = spec.axis === 'horizontal'
+      const widget = horizontal ? 'LazyRow' : 'LazyColumn'
+      ctx.imports.add(`androidx.compose.foundation.lazy.${widget}`)
+      ctx.imports.add('androidx.compose.foundation.layout.Arrangement')
+      ctx.imports.add('androidx.compose.foundation.layout.PaddingValues')
+      return [
+        `${pad(depth)}${widget}(`,
+        `${p1}modifier = ${sizeLine},`,
+        `${p1}${horizontal ? 'horizontalArrangement' : 'verticalArrangement'} = Arrangement.spacedBy(${dp(gap)}),`,
+        `${p1}contentPadding = ${paddingValues},`,
+        `${pad(depth)}) {`,
+        ...items(frame.children, depth + 1, spec.dividers && !horizontal),
+        `${pad(depth)}}`,
+      ]
+    }
+    case 'grid': {
+      ctx.imports.add('androidx.compose.foundation.lazy.grid.LazyVerticalGrid')
+      ctx.imports.add('androidx.compose.foundation.lazy.grid.GridCells')
+      ctx.imports.add('androidx.compose.foundation.layout.Arrangement')
+      ctx.imports.add('androidx.compose.foundation.layout.PaddingValues')
+      return [
+        `${pad(depth)}LazyVerticalGrid(`,
+        `${p1}columns = GridCells.Fixed(${spec.columns}),`,
+        `${p1}modifier = ${sizeLine},`,
+        `${p1}verticalArrangement = Arrangement.spacedBy(${dp(gap)}),`,
+        `${p1}horizontalArrangement = Arrangement.spacedBy(${dp(gap)}),`,
+        `${p1}contentPadding = ${paddingValues},`,
+        `${pad(depth)}) {`,
+        ...items(frame.children, depth + 1, false),
+        `${pad(depth)}}`,
+      ]
+    }
+    case 'scrollView': {
+      const horizontal = spec.axis === 'horizontal'
+      ctx.imports.add('androidx.compose.foundation.layout.Box')
+      ctx.imports.add('androidx.compose.foundation.rememberScrollState')
+      ctx.imports.add(horizontal ? 'androidx.compose.foundation.horizontalScroll' : 'androidx.compose.foundation.verticalScroll')
+      // Le contenu prend la taille de ses enfants (au moins celle de la zone) :
+      // c'est ce qui permet le defilement.
+      const kids = frame.children.filter((c) => c.visible)
+      const abs = frame.layout.mode === 'absolute'
+      const along = (n: Node) => (horizontal ? n.frame.w : n.frame.h)
+      const extent = abs
+        ? Math.max(...kids.map((c) => (horizontal ? c.frame.x + c.frame.w : c.frame.y + c.frame.h)), 0)
+        : kids.reduce((sum, c) => sum + along(c), 0) + gap * Math.max(kids.length - 1, 0) + (horizontal ? padding.left + padding.right : padding.top + padding.bottom)
+      const content: FrameNode = {
+        ...plain,
+        frame: horizontal ? { ...frame.frame, w: Math.max(frame.frame.w, extent) } : { ...frame.frame, h: Math.max(frame.frame.h, extent) },
+      }
+      return [
+        `${pad(depth)}Box(`,
+        `${p1}modifier = ${sizeLine}.${horizontal ? 'horizontalScroll' : 'verticalScroll'}(rememberScrollState()),`,
+        `${pad(depth)}) {`,
+        ...renderFrame(content, ctx, depth + 1, []),
+        `${pad(depth)}}`,
+      ]
+    }
+    case 'safeArea': {
+      ctx.imports.add('androidx.compose.foundation.layout.Box')
+      ctx.imports.add('androidx.compose.foundation.layout.safeDrawingPadding')
+      return [`${pad(depth)}Box(modifier = ${sizeLine}.safeDrawingPadding()) {`, ...renderFrame(plain, ctx, depth + 1, []), `${pad(depth)}}`]
+    }
+    case 'bottomSheet': {
+      ctx.experimental = true
+      for (const i of ['androidx.compose.material3.ModalBottomSheet', 'androidx.compose.runtime.getValue', 'androidx.compose.runtime.mutableStateOf', 'androidx.compose.runtime.remember', 'androidx.compose.runtime.setValue']) ctx.imports.add(i)
+      const i = ++ctx.counter
+      return [
+        `${pad(depth)}var showSheet${i} by remember { mutableStateOf(true) }`,
+        `${pad(depth)}if (showSheet${i}) {`,
+        `${p1}ModalBottomSheet(onDismissRequest = { showSheet${i} = false }) {`,
+        ...renderFrame(plain, ctx, depth + 2, []),
+        `${p1}}`,
+        `${pad(depth)}}`,
+      ]
+    }
+    case 'drawer': {
+      ctx.imports.add('androidx.compose.material3.ModalDrawerSheet')
+      return [`${pad(depth)}ModalDrawerSheet(modifier = ${sizeLine}) {`, ...renderFrame({ ...plain, fills: [] }, ctx, depth + 1, []), `${pad(depth)}}`]
+    }
+  }
+}
+
+function renderNode(node: Node, ctx: RenderContext, depth: number, extraMods: string[], inFlex = false): string[] | null {
   if (!node.visible) return null
+
+  if (node.type === 'component') {
+    const modifier = componentModifier(node, ctx, extraMods, SELF_LINKING.has(node.kind))
+    return renderComposeComponent(node, envOf(ctx, inFlex), depth, modifier)
+  }
+  if (node.type === 'frame' && node.container !== undefined) {
+    return renderContainer(node, ctx, depth, [...extraMods, ...linkMods(node, ctx)])
+  }
 
   if (!PREVIEW_SUPPORTED_NODE_TYPES.has(node.type)) {
     ctx.warnings.push(unsupportedNodeWarning(node.type, EXPORTER_ID))
@@ -431,28 +630,42 @@ function renderNode(node: Node, ctx: RenderContext, depth: number, extraMods: st
   if (node.opacity < 1) ctx.warnings.push(unsupportedPropertyWarning('opacity', node.id, EXPORTER_ID))
   if (node.rotation !== 0) ctx.warnings.push(unsupportedPropertyWarning('rotation', node.id, EXPORTER_ID))
 
+  const mods = [...extraMods, ...linkMods(node, ctx)]
   switch (node.type) {
     case 'frame':
-      return renderFrame(node, ctx, depth, extraMods)
+      return renderFrame(node, ctx, depth, mods)
     case 'text':
-      return renderText(node, ctx, depth, extraMods)
+      return renderText(node, ctx, depth, mods)
     case 'rect':
-      return renderRect(node, ctx, depth, extraMods)
+      return renderRect(node, ctx, depth, mods)
     case 'ellipse':
-      return renderEllipse(node, ctx, depth, extraMods)
+      return renderEllipse(node, ctx, depth, mods)
     case 'image':
-      return renderImage(node, ctx, depth, extraMods)
+      return renderImage(node, ctx, depth, mods)
     default:
       return null
   }
 }
 
-function renderPage(page: Page, tokens: DesignTokens, warnings: string[], functionName: string): ExportedFile {
-  const ctx: RenderContext = {
+function newContext(tokens: DesignTokens, warnings: string[], plan: ExportPlan): RenderContext {
+  return {
     tokens,
     warnings,
     imports: new Set(['androidx.compose.runtime.Composable']),
+    plan,
+    counter: 0,
+    usesNavigation: false,
+    experimental: false,
   }
+}
+
+function fileHeader(ctx: RenderContext, packageName: string | null): string[] {
+  const sortedImports = Array.from(ctx.imports).sort()
+  return [...(packageName ? [`package ${packageName}`, ''] : []), ...sortedImports.map((i) => `import ${i}`), '']
+}
+
+function renderPage(page: Page, tokens: DesignTokens, warnings: string[], functionName: string, plan: ExportPlan): ExportedFile {
+  const ctx = newContext(tokens, warnings, plan)
 
   const topLevel = page.nodes.map((n) => renderNode(n, ctx, 1, [])).filter((l): l is string[] => l !== null)
 
@@ -460,13 +673,8 @@ function renderPage(page: Page, tokens: DesignTokens, warnings: string[], functi
   const bodyLines =
     topLevel.length === 1 ? topLevel[0]! : ['    Column {', ...topLevel.flat(), '    }']
 
-  const sortedImports = Array.from(ctx.imports).sort()
-
   const lines = [
-    'package screens',
-    '',
-    ...sortedImports.map((i) => `import ${i}`),
-    '',
+    ...fileHeader(ctx, 'screens'),
     '@Composable',
     `fun ${functionName}() {`,
     ...bodyLines,
@@ -477,21 +685,161 @@ function renderPage(page: Page, tokens: DesignTokens, warnings: string[], functi
   return { path: `src/main/kotlin/screens/${functionName}.kt`, contents: lines.join('\n') }
 }
 
+// Un ecran Compose : un Scaffold (topBar, bottomBar, floatingActionButton),
+// enveloppe d'un ModalNavigationDrawer quand le design a un tiroir. Le corps
+// est positionne depuis le bas de la barre d'application (innerPadding).
+function renderScreen(screen: FrameNode, tokens: DesignTokens, warnings: string[], functionName: string, plan: ExportPlan): ExportedFile {
+  const ctx = newContext(tokens, warnings, plan)
+  const parts: ScreenParts = splitScreen(screen)
+  const env = envOf(ctx, false)
+  for (const i of ['androidx.compose.material3.Scaffold', 'androidx.compose.ui.Modifier', 'androidx.compose.foundation.layout.fillMaxSize', 'androidx.compose.foundation.layout.padding', 'androidx.navigation.NavController']) ctx.imports.add(i)
+  ctx.usesNavigation = true // le NavController est un parametre de tout ecran
+
+  const hasDrawer = parts.drawer !== null
+  const drawerOpen = hasDrawer ? 'scope.launch { drawerState.open() }' : null
+  const baseDepth = hasDrawer ? 2 : 1
+  const pa = pad(baseDepth)
+  const pb = pad(baseDepth + 1)
+
+  const scaffoldArgs: string[] = []
+  if (parts.appBar) scaffoldArgs.push(`topBar = {\n${renderTopAppBar(parts.appBar, env, baseDepth + 2, null, drawerOpen).join('\n')}\n${pb}}`)
+  if (parts.bottomNav) {
+    scaffoldArgs.push(`bottomBar = {\n${renderComposeComponent(parts.bottomNav, env, baseDepth + 2, 'Modifier').join('\n')}\n${pb}}`)
+  }
+  if (parts.fab) {
+    scaffoldArgs.push(`floatingActionButton = {\n${renderComposeComponent(parts.fab, env, baseDepth + 2, 'Modifier').join('\n')}\n${pb}}`)
+    if (Math.abs(parts.fab.frame.x + parts.fab.frame.w / 2 - screen.frame.w / 2) < 24) {
+      ctx.imports.add('androidx.compose.material3.FabPosition')
+      scaffoldArgs.push('floatingActionButtonPosition = FabPosition.Center')
+    }
+  }
+  const fill = firstSolidFillColor(screen.fills)
+  if (fill) {
+    ctx.imports.add('androidx.compose.ui.graphics.Color')
+    scaffoldArgs.push(`containerColor = ${composeColorExpr(fill, tokens, ctx)}`)
+  }
+
+  // Corps.
+  const bodyChildren = parts.body
+  const bodyLines: string[] = []
+  if (screen.layout.mode === 'absolute') {
+    ctx.imports.add('androidx.compose.foundation.layout.Box')
+    ctx.imports.add('androidx.compose.foundation.layout.offset')
+    ctx.imports.add('androidx.compose.ui.unit.dp')
+    bodyLines.push(`${pb}Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {`)
+    for (const child of bodyChildren) {
+      const offset = `.offset(x = ${dp(child.frame.x)}, y = ${dp(child.frame.y - parts.topInset)})`
+      bodyLines.push(...(renderNode(child, ctx, baseDepth + 2, [offset]) ?? []))
+    }
+    bodyLines.push(`${pb}}`)
+  } else {
+    const content: FrameNode = { ...screen, fills: [], children: bodyChildren }
+    bodyLines.push(...renderFrame(content, ctx, baseDepth + 1, ['.padding(innerPadding)']))
+  }
+
+  const scaffold = [
+    `${pa}Scaffold(`,
+    ...scaffoldArgs.map((a) => `${pb}${a},`),
+    `${pa}) { innerPadding ->`,
+    ...bodyLines,
+    `${pa}}`,
+  ]
+
+  let body: string[]
+  if (hasDrawer) {
+    for (const i of ['androidx.compose.material3.ModalNavigationDrawer', 'androidx.compose.material3.DrawerValue', 'androidx.compose.material3.rememberDrawerState', 'androidx.compose.runtime.rememberCoroutineScope', 'kotlinx.coroutines.launch']) ctx.imports.add(i)
+    const drawerContent = renderFrame({ ...parts.drawer!, fills: [], strokes: [], cornerRadius: 0, container: undefined }, ctx, 3, [])
+    ctx.imports.add('androidx.compose.material3.ModalDrawerSheet')
+    body = [
+      '    val drawerState = rememberDrawerState(DrawerValue.Closed)',
+      '    val scope = rememberCoroutineScope()',
+      '    ModalNavigationDrawer(',
+      '        drawerState = drawerState,',
+      '        drawerContent = {',
+      '            ModalDrawerSheet {',
+      ...drawerContent.map((l) => pad(1) + l),
+      '            }',
+      '        },',
+      '    ) {',
+      ...scaffold,
+      '    }',
+    ]
+  } else {
+    body = scaffold
+  }
+
+  if (ctx.experimental) ctx.imports.add('androidx.compose.material3.ExperimentalMaterial3Api')
+  const lines = [
+    ...fileHeader(ctx, 'screens'),
+    ...(ctx.experimental ? ['@OptIn(ExperimentalMaterial3Api::class)'] : []),
+    '@Composable',
+    `fun ${functionName}(navController: NavController) {`,
+    ...body,
+    '}',
+    '',
+  ]
+  return { path: `src/main/kotlin/screens/${functionName}.kt`, contents: lines.join('\n') }
+}
+
+// Navigation Compose : un NavHost, une destination par ecran (nom de fichier
+// en snake_case), l'ecran actif (ou le premier) en destination de depart.
+function generateNavigation(plan: ExportPlan): ExportedFile {
+  const lines = [
+    'import androidx.compose.runtime.Composable',
+    'import androidx.navigation.compose.NavHost',
+    'import androidx.navigation.compose.composable',
+    'import androidx.navigation.compose.rememberNavController',
+    ...plan.screens.map((s) => `import screens.${s.pascal}`),
+    '',
+    '@Composable',
+    'fun AppNavigation() {',
+    '    val navController = rememberNavController()',
+    `    NavHost(navController = navController, startDestination = ${kotlinString(plan.initial!.snake)}) {`,
+    ...plan.screens.map((s) => `        composable(${kotlinString(s.snake)}) { ${s.pascal}(navController) }`),
+    '    }',
+    '}',
+    '',
+  ]
+  return { path: 'src/main/kotlin/AppNavigation.kt', contents: lines.join('\n') }
+}
+
+function generateActivity(): ExportedFile {
+  const lines = [
+    'import android.os.Bundle',
+    'import androidx.activity.ComponentActivity',
+    'import androidx.activity.compose.setContent',
+    'import androidx.compose.material3.MaterialTheme',
+    '',
+    'class MainActivity : ComponentActivity() {',
+    '    override fun onCreate(savedInstanceState: Bundle?) {',
+    '        super.onCreate(savedInstanceState)',
+    '        setContent {',
+    '            MaterialTheme {',
+    '                AppNavigation()',
+    '            }',
+    '        }',
+    '    }',
+    '}',
+    '',
+  ]
+  return { path: 'src/main/kotlin/MainActivity.kt', contents: lines.join('\n') }
+}
+
 function exportCompose(doc: CalqueDocument, opts: ExportOptions): ExportResult {
   const warnings: string[] = []
   const files: ExportedFile[] = []
-  const nameFor = createPageNamer()
+  const plan = planExport(doc, opts.activeScreenId)
 
-  for (const page of doc.pages) {
-    // v2 (addendum navigation §7) : n'exporte que l'ecran actif d'une page
-    // a plusieurs ecrans (voir selectActiveScreen), avec un avertissement
-    // nomme pour chacun des autres. Sans effet sur une page sans ecran.
-    const { page: activePage, warnings: screenWarnings } = selectActiveScreen(page, opts.activeScreenId, 'compose')
-    warnings.push(...screenWarnings)
-
-    const laidOutPage = layoutPage(activePage)
-    files.push(renderPage(laidOutPage, doc.tokens, warnings, nameFor(laidOutPage.name).pascal))
+  for (const unit of plan.units) {
+    if (unit.kind === 'page') {
+      files.push(renderPage(layoutPage(unit.page), doc.tokens, warnings, unit.names.pascal, plan))
+      continue
+    }
+    const laidOut = layoutPage({ ...unit.page, nodes: [unit.screen] }).nodes[0] as FrameNode
+    files.push(renderScreen(laidOut, doc.tokens, warnings, unit.ref.pascal, plan))
   }
+
+  if (plan.initial !== null) files.push(generateNavigation(plan), generateActivity())
 
   return { files, warnings }
 }
