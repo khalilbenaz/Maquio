@@ -206,3 +206,28 @@
   align-items: center;
   gap: 8px;
 }
+
+/* Section Agencement */
+.arrange-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.arrange-button {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 0;
+  font-size: 12px;
+  color: var(--calque-text);
+  background: var(--calque-surface-2, transparent);
+  border: 1px solid var(--calque-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.arrange-button:hover:not(:disabled) {
+  border-color: var(--calque-accent);
+}
+.arrange-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}

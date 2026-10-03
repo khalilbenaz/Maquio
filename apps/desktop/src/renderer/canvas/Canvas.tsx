@@ -44,6 +44,17 @@ import type { CalqueApi } from '../../shared/api'
 import { NodeView } from './NodeView'
 import { SelectionOverlay } from './SelectionOverlay'
 import { LinksLayer } from './LinksLayer'
+import {
+  copySelection,
+  cutSelection,
+  deleteSelection,
+  duplicateSelection,
+  groupSelection,
+  nudgeSelection,
+  pasteClipboard,
+  reorderSelection,
+  ungroupSelection,
+} from '../state/arrangeActions'
 import { PALETTE_MIME, insertPaletteItemAt } from './paletteInsert'
 import { pageNodesOf, screenToPage, startMarquee, useCreateInteraction, useNodeInteraction } from './useDragInteraction'
 import { computeFitTransform, computeFitTransformToBounds, computeWheelZoom } from './viewport'
@@ -309,17 +320,33 @@ export function Canvas({ api }: { api: CalqueApi }) {
 
       if ((e.key === 'Delete' || e.key === 'Backspace') && state.selection.length > 0) {
         e.preventDefault()
-        const nodes = pageNodesOf(state.document, state.pageId)
-        const idsToDelete = state.selection.filter((id) => findNode(nodes, id) !== null)
-        // Round de correction 1 : une seule commande composite pour toute
-        // la selection, pour qu'un seul "annuler" restaure tous les noeuds
-        // supprimes -- l'utilisateur percoit "supprimer ma selection" comme
-        // un geste unique, pas comme N suppressions independantes.
-        if (idsToDelete.length > 0) {
-          const commands = idsToDelete.map((id) => deleteNodeCommand(state.pageId, id))
-          state.execute(compositeCommand('Supprimer la sélection', commands))
-        }
-        state.select([])
+        // Une seule commande composite pour toute la selection : un seul
+        // « annuler » restaure tous les noeuds supprimes.
+        deleteSelection()
+        return
+      }
+
+      if (isMod && !e.shiftKey && e.key.toLowerCase() === 'd') {
+        e.preventDefault()
+        duplicateSelection()
+        return
+      }
+      if (isMod && e.key.toLowerCase() === 'g') {
+        e.preventDefault()
+        if (e.shiftKey) ungroupSelection()
+        else groupSelection()
+        return
+      }
+      if (isMod && (e.key === ']' || e.key === '[')) {
+        e.preventDefault()
+        reorderSelection(e.key === ']' ? (e.shiftKey ? 'front' : 'forward') : e.shiftKey ? 'back' : 'backward')
+        return
+      }
+      // Fleches : deplacement de 1 px (10 avec Maj).
+      if (!isMod && state.selection.length > 0 && e.key.startsWith('Arrow')) {
+        e.preventDefault()
+        const step = e.shiftKey ? 10 : 1
+        nudgeSelection(e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0, e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0)
         return
       }
 
@@ -353,8 +380,32 @@ export function Canvas({ api }: { api: CalqueApi }) {
       }
     }
 
+    // Copier / couper / coller : evenements DOM (le menu natif Edition les
+    // declenche via ses roles ; un keydown Cmd+C n'arrive jamais ici).
+    function onCopy(e: ClipboardEvent) {
+      if (isTextInput(window.document.activeElement)) return
+      if (copySelection()) e.preventDefault()
+    }
+    function onCut(e: ClipboardEvent) {
+      if (isTextInput(window.document.activeElement)) return
+      if (cutSelection()) e.preventDefault()
+    }
+    function onPaste(e: ClipboardEvent) {
+      if (isTextInput(window.document.activeElement)) return
+      e.preventDefault()
+      pasteClipboard()
+    }
+
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    window.addEventListener('copy', onCopy)
+    window.addEventListener('cut', onCut)
+    window.addEventListener('paste', onPaste)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('copy', onCopy)
+      window.removeEventListener('cut', onCut)
+      window.removeEventListener('paste', onPaste)
+    }
   }, [])
 
   // Clic sur la zone sombre (hors plan de travail) : desselectionne.

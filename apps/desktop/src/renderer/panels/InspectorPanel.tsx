@@ -35,6 +35,7 @@ import type {
 } from '@calque/core'
 import { CheckboxField, ColorField, NumberField, SelectField, TextField, colorToHex, commitToSelection, commonOf, hexToColor } from './inspectorFields'
 import { ComponentSection, ContainerSection } from './ComponentSection'
+import { ArrangeSection } from './ArrangeSection'
 import { useEditorStore } from '../state/editorStore'
 import { pageNodesOf } from '../canvas/useDragInteraction'
 import type { CalqueApi } from '../../shared/api'
@@ -580,6 +581,20 @@ export function InspectorPanel({ api }: { api: CalqueApi }) {
 
   return (
     <aside className="inspector-panel" aria-label="Inspecteur">
+      {singleSelectedNode ? (
+        <section className="inspector-section">
+          <h2>Nom</h2>
+          <TextField
+            label="Nom du calque"
+            value={singleSelectedNode.name}
+            onCommit={(v) => {
+              const name = v.trim()
+              if (name !== '' && name !== singleSelectedNode.name) execute(updateNodeCommand(pageId, singleSelectedNode.id, { name }))
+            }}
+          />
+        </section>
+      ) : null}
+      <ArrangeSection count={selectedNodes.length} />
       <section className="inspector-section">
         <h2>Position et taille</h2>
         <div className="inspector-grid">
