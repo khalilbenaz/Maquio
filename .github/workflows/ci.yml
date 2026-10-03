@@ -26,7 +26,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
-      - run: npm test
+      # ESLint (TypeScript + react-hooks) : 0 erreur exigee.
+      - run: npm run lint -- --max-warnings 0
+      # Suite complete + couverture : le plancher est dans vitest.config.ts.
+      - run: npm run test:coverage
       - run: npm run build
       # Dependances livrees : tout niveau haut ou critique fait echouer.
       # Les outils de build (electron-builder) sont exclus : leur chaine
@@ -51,6 +54,8 @@ jobs:
           cache: true
       - run: npm ci
       - run: npx vitest run test/integration/flutter-analyze.test.ts test/integration/flutter-dart-format.test.ts
+      # Vrai `flutter build web` (exemple complet + projet avec images copiees et declarees).
+      - run: CALQUE_VERIF_FULL=1 npx vitest run test/integration/flutter-build.test.ts
 
   # Parcours reel de l'application Electron (Playwright _electron), puis
   # compilation du code Swift genere.
@@ -67,3 +72,40 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run test:e2e
+      # Typage complet du Swift genere (exemple complet + projet avec images).
+      - run: npx vitest run test/integration/exports-compilables.test.ts -t SwiftUI
+
+  # React Native : `tsc --strict` avec react-native, @types/react et React
+  # Navigation sur l'exemple complet ET le projet avec images.
+  react-native:
+    name: code React Native genere (tsc --strict)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: CALQUE_VERIF_FULL=1 npx vitest run test/integration/exports-compilables.test.ts -t "React Native"
+
+  # Jetpack Compose : Gradle `compileDebugKotlin` (Compose BOM, material3,
+  # navigation) sur l'exemple complet ET le projet avec images (res/drawable).
+  compose:
+    name: code Compose genere (Gradle compileDebugKotlin)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: npm ci
+      # Le SDK Android est preinstalle sur les runners ubuntu (ANDROID_HOME).
+      - run: CALQUE_VERIF_FULL=1 JAVA_HOME_17="$JAVA_HOME" npx vitest run test/integration/exports-compilables.test.ts -t "Compose"
