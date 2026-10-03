@@ -36,6 +36,8 @@ export type DragPreview =
   | {
       kind: 'move'
       nodeId: string
+      // Deplacement de groupe : tous les noeuds a apercevoir deplaces.
+      nodeIds?: string[]
       dx: number
       dy: number
       guides: { x: number[]; y: number[] }

@@ -22,6 +22,7 @@ import {
   createNodeCommand,
   findNode,
   hitTest,
+  compositeCommand,
   isScreenNode,
   moveNodeCommand,
   removeNode,
@@ -43,6 +44,19 @@ import type { CalqueApi } from '../../shared/api'
 
 export function pageNodesOf(doc: CalqueDocument, pageId: string): Node[] {
   return doc.pages.find((p) => p.id === pageId)?.nodes ?? []
+}
+
+// Parmi les noeuds selectionnes, ceux dont aucun ancetre n'est lui-meme
+// selectionne : deplacer un cadre deplace deja ses enfants, les deplacer
+// aussi les ferait avancer deux fois.
+export function outermostSelection(nodes: Node[], ids: string[]): string[] {
+  return ids.filter((id) =>
+    !ids.some((other) => {
+      if (other === id) return false
+      const parent = findNode(nodes, other)
+      return parent !== null && parent.type === 'frame' && findNode(parent.children, id) !== null
+    }),
+  )
 }
 
 // Conversion coordonnees ecran -> coordonnees de page (decision 10) : tient
@@ -99,7 +113,7 @@ export function roundRect(r: Rect): Rect {
 // et SelectionOverlay (cadre de selection, poignees).
 export function resolvePreviewAbsoluteFrame(nodes: Node[], id: string, preview: DragPreview): Rect {
   const abs = absoluteFrame(nodes, id)
-  if (preview !== null && preview.kind === 'move' && preview.nodeId === id) {
+  if (preview !== null && preview.kind === 'move' && (preview.nodeId === id || preview.nodeIds?.includes(id))) {
     return { ...abs, x: abs.x + preview.dx, y: abs.y + preview.dy }
   }
   if (preview !== null && preview.kind === 'resize' && preview.nodeId === id) {
@@ -184,7 +198,7 @@ function defaultNameFor(tool: Exclude<Tool, 'select'>): string {
 // l'image ? ») : le src choisi via le selecteur de fichier (voir
 // useCreateInteraction ci-dessous) -- vide par defaut pour les autres
 // outils, ou si aucun appelant ne le fournit.
-function createDefaultNode(tool: Exclude<Tool, 'select'>, frame: Rect, imageSrc = ''): Node {
+export function createDefaultNode(tool: Exclude<Tool, 'select'>, frame: Rect, imageSrc = ''): Node {
   const base = {
     id: crypto.randomUUID(),
     name: defaultNameFor(tool),
@@ -227,7 +241,8 @@ function createDefaultNode(tool: Exclude<Tool, 'select'>, frame: Rect, imageSrc 
           fontFamily: 'Inter',
           fontSize: 16,
           fontWeight: 400,
-          lineHeight: 1.2,
+          // Pixels (voir TextStyle.lineHeight) : 1,2 x la taille de police.
+          lineHeight: 19,
           letterSpacing: 0,
           color: { r: 0, g: 0, b: 0, a: 1 },
           align: 'left',
@@ -283,6 +298,66 @@ function useGestureCleanupRef() {
   return cleanupRef
 }
 
+// Deplacement d'une multi-selection : un seul geste, une seule commande
+// composite (donc un seul Annuler). Pas de reparentage ni d'accroche
+// magnetique en groupe : le groupe reste dans ses parents actuels.
+function startGroupMove(
+  e: ReactPointerEvent,
+  targetId: string,
+  movingIds: string[],
+  cleanupRef: { current: () => void },
+): void {
+  const startX = e.clientX
+  const startY = e.clientY
+  let dx = 0
+  let dy = 0
+  let moved = false
+
+  const handleMove = (ev: PointerEvent) => {
+    const current = useEditorStore.getState()
+    dx = (ev.clientX - startX) / current.zoom
+    dy = (ev.clientY - startY) / current.zoom
+    moved = true
+    current.setDragPreview({
+      kind: 'move',
+      nodeId: targetId,
+      nodeIds: movingIds,
+      dx,
+      dy,
+      guides: { x: [], y: [] },
+      targetScreenId: null,
+    })
+  }
+  const cleanup = () => {
+    window.removeEventListener('pointermove', handleMove)
+    window.removeEventListener('pointerup', handleUp)
+    endGesture(cleanup)
+    cleanupRef.current = () => {}
+  }
+  const handleUp = () => {
+    cleanup()
+    const current = useEditorStore.getState()
+    current.setDragPreview(null)
+    if (!moved) {
+      current.select([targetId])
+      return
+    }
+    const rx = Math.round(dx)
+    const ry = Math.round(dy)
+    if (rx === 0 && ry === 0) return
+    current.execute(
+      compositeCommand(
+        'Déplacer la sélection',
+        movingIds.map((id) => moveNodeCommand(current.pageId, id, rx, ry)),
+      ),
+    )
+  }
+  cleanupRef.current = cleanup
+  beginGesture(cleanup)
+  window.addEventListener('pointermove', handleMove)
+  window.addEventListener('pointerup', handleUp)
+}
+
 // Poignee sur un NodeView : resout la selection (clic simple / Maj+clic) via
 // hitTest, puis demarre un glissement de deplacement.
 export function useNodeInteraction(nodeId: string) {
@@ -307,6 +382,14 @@ export function useNodeInteraction(nodeId: string) {
           : [...current, targetId]
         state.select(next)
         // Un Maj+clic bascule la selection, il ne demarre pas de glissement.
+        return
+      }
+
+      // Glisser un noeud qui fait deja partie d'une multi-selection deplace
+      // TOUTE la selection (comportement Figma) ; un simple clic sans
+      // mouvement la reduit a ce noeud au relachement.
+      if (state.selection.length > 1 && state.selection.includes(targetId)) {
+        startGroupMove(e, targetId, outermostSelection(nodes, state.selection), cleanupRef)
         return
       }
 

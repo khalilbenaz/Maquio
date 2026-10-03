@@ -72,7 +72,27 @@ describe('Canvas - selection (decision 8)', () => {
     fireEvent.pointerDown(screen.getByTestId('node-rect2'), { shiftKey: true })
     expect(useEditorStore.getState().selection).toEqual(['rect1', 'rect2'])
     fireEvent.pointerDown(screen.getByTestId('node-rect2'))
+    fireEvent.pointerUp(window)
     expect(useEditorStore.getState().selection).toEqual(['rect2'])
+  })
+
+  it('glisser un noeud d une multi-selection deplace toute la selection, en une seule commande annulable', () => {
+    render(<Canvas api={apiFactice} />)
+    fireEvent.pointerDown(screen.getByTestId('node-rect1'))
+    fireEvent.pointerDown(screen.getByTestId('node-rect2'), { shiftKey: true })
+    const avant = useEditorStore.getState().document.pages[0]!.nodes.map((n) => ({ x: n.frame.x, y: n.frame.y }))
+    fireEvent.pointerDown(screen.getByTestId('node-rect2'), { clientX: 0, clientY: 0 })
+    fireEvent.pointerMove(window, { clientX: 10, clientY: 10 })
+    fireEvent.pointerMove(window, { clientX: 20, clientY: 30 })
+    fireEvent.pointerUp(window, { clientX: 20, clientY: 30 })
+    const state = useEditorStore.getState()
+    expect(state.selection).toEqual(['rect1', 'rect2'])
+    const apres = state.document.pages[0]!.nodes
+    expect(apres[0]!.frame).toMatchObject({ x: avant[0]!.x + 20, y: avant[0]!.y + 30 })
+    expect(apres[1]!.frame).toMatchObject({ x: avant[1]!.x + 20, y: avant[1]!.y + 30 })
+    state.history.undo()
+    const annule = state.history.document.pages[0]!.nodes.map((n) => ({ x: n.frame.x, y: n.frame.y }))
+    expect(annule).toEqual(avant)
   })
 
   it('Maj+clic sur un noeud deja selectionne le retire (bascule)', () => {
