@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { createDocument } from '@calque/core'
 import type { CalqueDocument } from '@calque/core'
 import { flutterExporter } from '../src/flutter/flutter'
 import { loginScreenDocument } from './fixtures/login-screen'
@@ -274,5 +275,17 @@ describe('flutterExporter', () => {
     const rotatedResult = flutterExporter.export(doc, { projectName: 'demo' })
     const file = rotatedResult.files.find((f) => f.path.endsWith('rotated_screen.dart'))!
     expect(file.contents).toBe(golden('rotated_screen.dart'))
+  })
+})
+
+describe('flutterExporter : page v1 a plusieurs racines', () => {
+  it('positionne chaque racine dans le Stack (Positioned) au lieu de les empiler en haut a gauche', () => {
+    const d = createDocument('v1')
+    const rect = (id: string, x: number, y: number) => ({ id, name: id, type: 'rect' as const, frame: { x, y, w: 50, h: 40 }, visible: true, locked: false, opacity: 1, rotation: 0, fills: [], strokes: [], cornerRadius: 0 })
+    const doc = { ...d, pages: [{ ...d.pages[0]!, nodes: [rect('a', 10, 20), rect('b', 100, 200)] }] }
+    const code = flutterExporter.export(doc, { projectName: 'demo' }).files.find((f) => f.path.startsWith('lib/screens/'))!.contents
+    expect(code).toContain('Stack(')
+    expect(code.match(/Positioned\(/g)).toHaveLength(2)
+    expect(code).toMatch(/left: 100,\s*top: 200/)
   })
 })
