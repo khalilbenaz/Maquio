@@ -35,7 +35,7 @@
 // Les raccourcis clavier (decision 7) restent geres ici, au niveau du
 // document (window), pas sur un element focusable du canevas.
 import { useEffect, useLayoutEffect, useRef } from 'react'
-import type { DragEvent, PointerEvent as ReactPointerEvent } from 'react'
+import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react'
 import { PALETTE_ITEMS, compositeCommand, deleteNodeCommand, findNode, isScreenNode, unionRects } from '@calque/core'
 import type { FrameNode, Node as CalqueNode } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
@@ -45,7 +45,7 @@ import { NodeView } from './NodeView'
 import { SelectionOverlay } from './SelectionOverlay'
 import { LinksLayer } from './LinksLayer'
 import { PALETTE_MIME, insertPaletteItemAt } from './paletteInsert'
-import { pageNodesOf, screenToPage, useCreateInteraction } from './useDragInteraction'
+import { pageNodesOf, screenToPage, startMarquee, useCreateInteraction, useNodeInteraction } from './useDragInteraction'
 import { computeFitTransform, computeFitTransformToBounds, computeWheelZoom } from './viewport'
 import './Canvas.css'
 
@@ -122,6 +122,22 @@ function ToolIcon({ tool }: { tool: Exclude<Tool, 'select'> }) {
         </svg>
       )
   }
+}
+
+// Etiquette d'un ecran : elle sert de POIGNEE de deplacement de l'ecran
+// (le corps de l'ecran est une zone de selection par rectangle).
+function ScreenLabel({ screen, active, style }: { screen: FrameNode; active: boolean; style: CSSProperties }) {
+  const onPointerDown = useNodeInteraction(screen.id)
+  return (
+    <div
+      data-testid={`screen-label-${screen.id}`}
+      className={active ? 'calque-canvas-label calque-canvas-label-active' : 'calque-canvas-label'}
+      style={{ ...style, pointerEvents: screen.locked ? 'none' : 'auto', cursor: 'grab' }}
+      onPointerDown={screen.locked ? undefined : onPointerDown}
+    >
+      {screen.name} — {screen.device!.label}
+    </div>
+  )
 }
 
 export function Canvas({ api }: { api: CalqueApi }) {
@@ -348,7 +364,8 @@ export function Canvas({ api }: { api: CalqueApi }) {
   // zone ne reagit qu'a un clic qui la touche elle, directement.
   function onScenePointerDown(e: ReactPointerEvent) {
     if (e.target !== e.currentTarget) return
-    useEditorStore.getState().select([])
+    if (useEditorStore.getState().tool === 'select') startMarquee(e)
+    else useEditorStore.getState().select([])
   }
 
   // Glisser-deposer depuis la palette : le depot cree le composant sous le
@@ -484,14 +501,12 @@ export function Canvas({ api }: { api: CalqueApi }) {
         ? screens.map((s) => {
             const rect = screenScreenRect(s)
             return (
-              <div
+              <ScreenLabel
                 key={s.id}
-                data-testid={`screen-label-${s.id}`}
-                className={s.id === activeScreenId ? 'calque-canvas-label calque-canvas-label-active' : 'calque-canvas-label'}
-                style={{ left: rect.left, top: rect.top - 26, width: rect.width, pointerEvents: 'none' }}
-              >
-                {s.name} — {s.device!.label}
-              </div>
+                screen={s}
+                active={s.id === activeScreenId}
+                style={{ left: rect.left, top: rect.top - 26, width: rect.width }}
+              />
             )
           })
         : device && artboardScreen ? (

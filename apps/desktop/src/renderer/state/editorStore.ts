@@ -46,6 +46,8 @@ export type DragPreview =
   | { kind: 'resize'; nodeId: string; handle: HandleId; frame: Rect }
   | { kind: 'create'; tool: Tool; frame: Rect }
   | { kind: 'link'; nodeId: string; point: { x: number; y: number } }
+  // Selection par rectangle : cadre en coordonnees de PAGE.
+  | { kind: 'marquee'; frame: Rect }
   | null
 
 export type EditorState = {
@@ -95,6 +97,8 @@ export type EditorState = {
   // d'outils. Ephemere comme zoom/pan (pas persiste dans le document ; une
   // simple preference d'affichage courante).
   linksVisible: boolean
+  // Noeud dont le texte est en cours d'edition sur le canevas (double-clic).
+  editingTextId: string | null
 
   load(doc: CalqueDocument): void
   select(ids: string[]): void
@@ -109,6 +113,7 @@ export type EditorState = {
   setDocumentPath(path: string | null): void
   setActiveScreenId(id: string | null): void
   toggleLinksVisible(): void
+  setEditingTextId(id: string | null): void
 }
 
 // L'ecran (au sens screenContaining de @calque/core) du premier noeud d'une
@@ -153,6 +158,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     fitToWindowToken: 0,
     activeScreenId: firstScreenOf(doc, doc.pages[0]!.id),
     linksVisible: false,
+    editingTextId: null,
 
     load(nextDoc) {
       const history = new History(nextDoc)
@@ -167,6 +173,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
         pan: { x: 0, y: 0 },
         dragPreview: null,
         activeScreenId: firstScreenOf(nextDoc, pageId),
+        editingTextId: null,
       })
     },
 
@@ -229,6 +236,10 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
     setActiveScreenId(id) {
       set({ activeScreenId: id })
+    },
+
+    setEditingTextId(id) {
+      set({ editingTextId: id })
     },
 
     toggleLinksVisible() {

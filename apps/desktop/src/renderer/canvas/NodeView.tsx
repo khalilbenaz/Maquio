@@ -6,11 +6,14 @@
 // la regle du modele "hitTest ignore les noeuds verrouilles et leurs
 // descendants" (aucun de leurs descendants ne peut recevoir de clic non
 // plus, puisqu'ils sont visuellement et logiquement a l'interieur).
-import type { ImageNode, Node as CalqueNode, Rect } from '@calque/core'
+import { useEffect, useRef } from 'react'
+import type { CSSProperties } from 'react'
+import type { Color, ImageNode, Node as CalqueNode, Rect, Stroke, TextNode } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import { resolvePreviewAbsoluteFrame, useNodeInteraction } from './useDragInteraction'
 import { resolveImageSrc } from './imageSource'
 import { ComponentContent } from './ComponentView'
+import { inlineTextCommand, inlineTextOf, isInlineEditable } from './inlineText'
 import { ContainerDecor, containerShadow } from './ContainerView'
 
 type Props = {
@@ -18,7 +21,7 @@ type Props = {
   nodes: CalqueNode[]
 }
 
-function colorToCss(c: { r: number; g: number; b: number; a: number }): string {
+export function colorToCss(c: Color): string {
   return `rgba(${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}, ${c.a})`
 }
 
@@ -77,16 +80,117 @@ function ImageContent({ node }: { node: ImageNode }) {
   )
 }
 
+// Trait d'un noeud : bordure interieure (les noeuds du canevas sont des
+// elements freres a plat, une bordure ne decale donc aucun enfant).
+function strokeOf(node: CalqueNode): Stroke | undefined {
+  if ((node.type === 'frame' || node.type === 'rect' || node.type === 'ellipse') && node.strokes.length > 0) return node.strokes[0]
+  return undefined
+}
+
+export function textCss(node: TextNode): CSSProperties {
+  const st = node.style
+  return {
+    color: colorToCss(st.color),
+    fontFamily: `'${st.fontFamily}', system-ui, sans-serif`,
+    fontSize: st.fontSize,
+    fontWeight: st.fontWeight,
+    lineHeight: `${st.lineHeight}px`,
+    letterSpacing: st.letterSpacing,
+    textAlign: st.align,
+    whiteSpace: 'pre-wrap',
+    overflow: 'hidden',
+  }
+}
+
+function LineContent({ node }: { node: Extract<CalqueNode, { type: 'line' }> }) {
+  return (
+    <svg width="100%" height="100%" viewBox={`0 0 ${node.frame.w} ${node.frame.h}`} preserveAspectRatio="none" style={{ overflow: 'visible', pointerEvents: 'none' }}>
+      <line x1={0} y1={0} x2={node.frame.w} y2={node.frame.h} stroke={colorToCss(node.stroke.color)} strokeWidth={node.stroke.width} />
+    </svg>
+  )
+}
+
+// Editeur en ligne (double-clic) : Entree valide, Maj+Entree saute une
+// ligne, Echap annule, perdre le focus valide.
+function InlineEditor({ node }: { node: CalqueNode }) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  const done = useRef(false)
+  useEffect(() => {
+    ref.current?.focus()
+    ref.current?.select()
+  }, [])
+
+  function finish(commit: boolean) {
+    if (done.current) return
+    done.current = true
+    const state = useEditorStore.getState()
+    if (commit) {
+      const cmd = inlineTextCommand(state.pageId, node, ref.current?.value ?? '')
+      if (cmd !== null) state.execute(cmd)
+    }
+    state.setEditingTextId(null)
+  }
+
+  const textStyle: CSSProperties = node.type === 'text' ? textCss(node) : { fontSize: 14, textAlign: 'center', color: 'inherit' }
+  return (
+    <textarea
+      ref={ref}
+      aria-label="Modifier le texte"
+      data-testid="inline-text-editor"
+      defaultValue={inlineTextOf(node)}
+      onPointerDown={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      onBlur={() => finish(true)}
+      onKeyDown={(e) => {
+        e.stopPropagation()
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          finish(false)
+        } else if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault()
+          finish(true)
+        }
+      }}
+      style={{
+        ...textStyle,
+        position: 'absolute',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        resize: 'none',
+        border: '1px solid var(--calque-accent, #e2714a)',
+        outline: 'none',
+        background: 'rgba(255,255,255,0.92)',
+        color: node.type === 'text' ? colorToCss(node.style.color) : '#111',
+        boxSizing: 'border-box',
+        padding: 0,
+        margin: 0,
+        zIndex: 5,
+      }}
+    />
+  )
+}
+
 export function NodeView({ node, nodes }: Props) {
   const dragPreview = useEditorStore((s) => s.dragPreview)
-  const onPointerDown = useNodeInteraction(node.id)
+  const onPointerDown = useNodeInteraction(node.id, { screenBodyIsMarquee: true })
   const abs: Rect = resolvePreviewAbsoluteFrame(nodes, node.id, dragPreview)
+  const editing = useEditorStore((s) => s.editingTextId === node.id)
+  const stroke = strokeOf(node)
 
   return (
     <div
       data-testid={`node-${node.id}`}
       data-node-type={node.type === 'component' ? node.kind : node.type === 'frame' && node.container ? node.container.kind : node.type}
       onPointerDown={node.locked ? undefined : onPointerDown}
+      onDoubleClick={
+        node.locked || !isInlineEditable(node)
+          ? undefined
+          : (e) => {
+              e.stopPropagation()
+              useEditorStore.getState().setEditingTextId(node.id)
+            }
+      }
       style={{
         position: 'absolute',
         left: abs.x,
@@ -98,12 +202,16 @@ export function NodeView({ node, nodes }: Props) {
         pointerEvents: node.locked ? 'none' : 'auto',
         background: backgroundOf(node),
         borderRadius: node.type === 'ellipse' ? '50%' : node.type === 'rect' || node.type === 'frame' ? node.cornerRadius : undefined,
+        border: stroke !== undefined && stroke.width > 0 ? `${stroke.width}px solid ${colorToCss(stroke.color)}` : undefined,
+        ...(node.type === 'text' ? textCss(node) : {}),
         boxShadow: node.type === 'frame' ? containerShadow(node) : undefined,
         boxSizing: 'border-box',
         userSelect: 'none',
       }}
     >
-      {node.type === 'text' ? node.characters : null}
+      {node.type === 'text' && !editing ? node.characters : null}
+      {node.type === 'line' ? <LineContent node={node} /> : null}
+      {editing ? <InlineEditor node={node} /> : null}
       {node.type === 'image' ? <ImageContent node={node} /> : null}
       {node.type === 'component' ? <ComponentContent node={node} /> : null}
       {node.type === 'frame' && node.container !== undefined ? <ContainerDecor node={node} /> : null}

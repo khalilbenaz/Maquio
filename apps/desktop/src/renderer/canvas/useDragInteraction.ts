@@ -24,6 +24,7 @@ import {
   hitTest,
   compositeCommand,
   isScreenNode,
+  marqueeSelect,
   moveNodeCommand,
   removeNode,
   reparentNodeCommand,
@@ -41,6 +42,10 @@ import type { DragPreview, Tool } from '../state/editorStore'
 import type { CalqueApi } from '../../shared/api'
 
 // --- Utilitaires purs (testes directement, sans rendu) ---
+
+function depthIsTop(nodes: Node[], id: string): boolean {
+  return nodes.some((n) => n.id === id)
+}
 
 export function pageNodesOf(doc: CalqueDocument, pageId: string): Node[] {
   return doc.pages.find((p) => p.id === pageId)?.nodes ?? []
@@ -298,6 +303,53 @@ function useGestureCleanupRef() {
   return cleanupRef
 }
 
+
+// Selection par rectangle (marquee). Demarre sur le fond du canevas ou sur
+// le corps d'un ecran, avec l'outil Selection. Comme les autres gestes :
+// aucune commande, un `dragPreview` ephemere pendant le trace ; la selection
+// est posee au relachement. Sans mouvement (simple clic) : la selection est
+// videe -- ou, si `clickSelects` est fourni (clic sur un ecran), reduite a
+// ce noeud. Maj : ajoute a la selection existante.
+const MARQUEE_THRESHOLD = 3
+
+export function startMarquee(e: ReactPointerEvent, clickSelects: string | null = null): void {
+  const state = useEditorStore.getState()
+  const sceneEl = (e.target as Element | null)?.closest?.('[data-testid="canvas-scene"]') ?? null
+  const r = sceneEl?.getBoundingClientRect()
+  const origin = r ? { x: r.left, y: r.top } : { x: 0, y: 0 }
+  const base = e.shiftKey ? state.selection : []
+  const start = screenToPage({ x: e.clientX, y: e.clientY }, origin, state.zoom, state.pan)
+  const startX = e.clientX
+  const startY = e.clientY
+  let frame: Rect = { x: start.x, y: start.y, w: 0, h: 0 }
+  let moved = false
+
+  if (!e.shiftKey) state.select(clickSelects === null ? [] : [clickSelects])
+
+  const handleMove = (ev: PointerEvent) => {
+    if (!moved && Math.hypot(ev.clientX - startX, ev.clientY - startY) < MARQUEE_THRESHOLD) return
+    moved = true
+    const current = useEditorStore.getState()
+    const point = screenToPage({ x: ev.clientX, y: ev.clientY }, origin, current.zoom, current.pan)
+    frame = rectFromPoints(start, point)
+    current.setDragPreview({ kind: 'marquee', frame })
+    const nodes = pageNodesOf(current.document, current.pageId)
+    current.select([...new Set([...base, ...marqueeSelect(nodes, frame)])])
+  }
+  const cleanup = () => {
+    window.removeEventListener('pointermove', handleMove)
+    window.removeEventListener('pointerup', handleUp)
+    endGesture(cleanup)
+  }
+  const handleUp = () => {
+    cleanup()
+    useEditorStore.getState().setDragPreview(null)
+  }
+  beginGesture(cleanup)
+  window.addEventListener('pointermove', handleMove)
+  window.addEventListener('pointerup', handleUp)
+}
+
 // Deplacement d'une multi-selection : un seul geste, une seule commande
 // composite (donc un seul Annuler). Pas de reparentage ni d'accroche
 // magnetique en groupe : le groupe reste dans ses parents actuels.
@@ -360,7 +412,8 @@ function startGroupMove(
 
 // Poignee sur un NodeView : resout la selection (clic simple / Maj+clic) via
 // hitTest, puis demarre un glissement de deplacement.
-export function useNodeInteraction(nodeId: string) {
+export function useNodeInteraction(nodeId: string, options: { screenBodyIsMarquee?: boolean } = {}) {
+  const screenBodyIsMarquee = options.screenBodyIsMarquee ?? false
   const cleanupRef = useGestureCleanupRef()
 
   return useCallback(
@@ -374,6 +427,18 @@ export function useNodeInteraction(nodeId: string) {
       const center = { x: abs.x + abs.w / 2, y: abs.y + abs.h / 2 }
       const hit = hitTest(nodes, center)
       const targetId = hit !== null ? hit.id : nodeId
+
+      // Le corps d'un ecran est, comme dans Figma, une zone de selection par
+      // rectangle ; un ecran se deplace par son etiquette (ScreenLabel).
+      // Le noeud touche est l'ecran lui-meme (pas un descendant : chaque
+      // noeud est un element frere, un enfant recoit son propre evenement).
+      if (screenBodyIsMarquee && !e.shiftKey) {
+        const own = findNode(nodes, nodeId)
+        if (own !== null && isScreenNode(own) && depthIsTop(nodes, nodeId)) {
+          startMarquee(e, nodeId)
+          return
+        }
+      }
 
       if (e.shiftKey) {
         const current = state.selection
@@ -513,7 +578,7 @@ export function useNodeInteraction(nodeId: string) {
       window.addEventListener('pointermove', handleMove)
       window.addEventListener('pointerup', handleUp)
     },
-    [nodeId, cleanupRef],
+    [nodeId, cleanupRef, screenBodyIsMarquee],
   )
 }
 
@@ -665,7 +730,7 @@ export function useCreateInteraction(canvasRef: RefObject<HTMLElement | null>, a
       const state = useEditorStore.getState()
 
       if (state.tool === 'select') {
-        state.select([])
+        startMarquee(e)
         return
       }
 
