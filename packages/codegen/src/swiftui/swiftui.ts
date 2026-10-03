@@ -24,6 +24,7 @@
 // identifiant aleatoire.
 import type {
   CalqueDocument,
+  ComponentNode,
   DesignTokens,
   EllipseNode,
   Fill,
@@ -35,19 +36,47 @@ import type {
   Stroke,
   TextNode,
 } from '@calque/core'
-import { layoutPage } from '@calque/core'
+import { ICONS, layoutPage } from '@calque/core'
 import { formatNumber } from '../shared/format-number'
 import { pad } from '../shared/indent'
+import { toPascalCase } from '../shared/naming'
 import { unsupportedPropertyWarning } from '../shared/lost-property-warning'
-import { createPageNamer } from '../shared/naming'
-import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl, selectActiveScreen } from '../shared/node-helpers'
+import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
+import { linkTargetOf, planExport, splitScreen } from '../shared/screens'
+import type { ExportPlan, ScreenParts } from '../shared/screens'
 import { PREVIEW_SUPPORTED_NODE_TYPES, unsupportedNodeWarning } from '../shared/preview-coverage'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
 import { colorTokenComment, swiftColorExpr, swiftFontWeightExpr, swiftString } from './swift-utils'
+import { goExpr, renderSwiftComponent, routeCase } from './components'
+import type { SwiftEnvCtx } from './components'
 
 const EXPORTER_ID = 'swiftui'
 
-type RenderContext = { tokens: DesignTokens; warnings: string[] }
+type RenderContext = {
+  tokens: DesignTokens
+  warnings: string[]
+  plan: ExportPlan
+  // Declarations @State, presentations (alert, sheet) et usage du Navigator
+  // de la vue en cours de rendu.
+  states: string[]
+  presentations: string[][]
+  usesNavigator: boolean
+  counter: number
+}
+
+function envOf(ctx: RenderContext): SwiftEnvCtx {
+  return {
+    tokens: ctx.tokens,
+    plan: ctx.plan,
+    states: ctx.states,
+    presentations: ctx.presentations,
+    markNavigator: () => {
+      ctx.usesNavigator = true
+    },
+    nextIndex: () => ++ctx.counter,
+    renderChildren: () => [],
+  }
+}
 
 function alignmentExpr(align: 'start' | 'center' | 'end' | 'stretch', axis: 'horizontal' | 'vertical'): string {
   // SwiftUI n'a pas d'equivalent direct a `stretch` pour l'alignement
@@ -157,23 +186,18 @@ function renderImage(node: ImageNode, ctx: RenderContext, depth: number, extraMo
   return lines
 }
 
-function renderFrame(frame: FrameNode, ctx: RenderContext, depth: number, extraMods: string[]): string[] {
+// Corps d'une frame (pile ou conteneur natif) a `depth`, SANS les
+// modificateurs de la frame elle-meme (taille, fond, bord, decalage).
+function stackBlock(frame: FrameNode, ctx: RenderContext, depth: number, children: Node[] = frame.children, yOffset = 0): string[] {
   const isAbsolute = frame.layout.mode === 'absolute'
   const isRow = frame.layout.mode === 'row'
-
+  const spec = frame.container
   // SwiftUI n'a pas d'Arrangement.SpaceBetween natif comme Compose : en
   // mode `space-between`, `gap` est ignore (comme partout ailleurs dans le
   // modele — @calque/core l'ignore deja) et l'espacement vient de
   // `Spacer()` interleaves entre les enfants plutot que d'un `spacing:`
   // fixe, qui romprait l'effet de repartition sur tout l'espace libre.
   const isSpaceBetween = frame.layout.alignMain === 'space-between'
-
-  // Important 2 : contrairement a Flutter (`clipBehavior`) et React Native
-  // (`overflow`), ce generateur `preview` ne decoupe pas le contenu qui
-  // deborde -- jamais perdu en silence.
-  if (frame.clipsContent) {
-    ctx.warnings.push(unsupportedPropertyWarning('clipsContent', frame.id, EXPORTER_ID))
-  }
 
   let header: string
   if (isAbsolute) {
@@ -182,7 +206,7 @@ function renderFrame(frame: FrameNode, ctx: RenderContext, depth: number, extraM
     // Important 1 : `stretch` est approxime par le debut de l'axe
     // (alignmentExpr, ci-dessus) faute d'equivalent SwiftUI direct --
     // jamais en silence.
-    if (frame.layout.alignCross === 'stretch') {
+    if (frame.layout.alignCross === 'stretch' && spec === undefined) {
       ctx.warnings.push(unsupportedPropertyWarning("alignCross: 'stretch'", frame.id, EXPORTER_ID))
     }
     const widget = isRow ? 'HStack' : 'VStack'
@@ -191,23 +215,86 @@ function renderFrame(frame: FrameNode, ctx: RenderContext, depth: number, extraM
     header = `${widget}(alignment: ${alignmentExpr(frame.layout.alignCross, axis)}, spacing: ${formatNumber(spacing)})`
   }
 
-  const childLines: string[] = []
-  const visibleChildren = frame.children.filter((c) => c.visible)
-  visibleChildren.forEach((child, index) => {
-    const childExtra = isAbsolute
-      ? [`.offset(x: ${formatNumber(child.frame.x)}, y: ${formatNumber(child.frame.y)})`, `.frame(width: ${formatNumber(child.frame.w)}, height: ${formatNumber(child.frame.h)})`]
+  const childLines = (d: number, flowFrames: boolean): string[] => {
+    const lines: string[] = []
+    const visible = children.filter((c) => c.visible)
+    visible.forEach((child, index) => {
+      const offset = `.offset(x: ${formatNumber(child.frame.x)}, y: ${formatNumber(child.frame.y - yOffset)})`
+      const size = `.frame(width: ${formatNumber(child.frame.w)}, height: ${formatNumber(child.frame.h)})`
+      // Un composant porte lui-meme sa taille.
+      const childExtra = isAbsolute ? (child.type === 'component' ? [offset] : [offset, size]) : []
+      const rendered = renderNode(child, ctx, d, childExtra, flowFrames)
+      if (rendered) lines.push(...rendered)
+      if (isSpaceBetween && !isAbsolute && index < visible.length - 1) lines.push(`${pad(d)}Spacer()`)
+      if (spec?.kind === 'listView' && spec.dividers && index < visible.length - 1) lines.push(`${pad(d)}Divider()`)
+    })
+    return lines
+  }
+
+  if (spec?.kind === 'listView' || spec?.kind === 'scrollView') {
+    const horizontal = spec.axis === 'horizontal'
+    const scroll = `ScrollView(${horizontal ? '.horizontal' : '.vertical'})`
+    if (spec.kind === 'listView') {
+      const stack = horizontal ? 'LazyHStack' : 'LazyVStack'
+      return [
+        `${pad(depth)}${scroll} {`,
+        `${pad(depth + 1)}${stack}(spacing: ${formatNumber(frame.layout.gap)}) {`,
+        ...childLines(depth + 2, true),
+        `${pad(depth + 1)}}`,
+        `${pad(depth)}}`,
+      ]
+    }
+    const extent = isAbsolute
+      ? [
+          `${pad(depth + 1)}.frame(width: ${formatNumber(Math.max(frame.frame.w, ...frame.children.map((c) => c.frame.x + c.frame.w)))}, height: ${formatNumber(Math.max(frame.frame.h, ...frame.children.map((c) => c.frame.y + c.frame.h)))}, alignment: .topLeading)`,
+        ]
       : []
-    const rendered = renderNode(child, ctx, depth + 1, childExtra)
-    if (rendered) childLines.push(...rendered)
-    if (isSpaceBetween && index < visibleChildren.length - 1) childLines.push(`${pad(depth + 1)}Spacer()`)
-  })
+    return [`${pad(depth)}${scroll} {`, `${pad(depth + 1)}${header} {`, ...childLines(depth + 2, !isAbsolute), `${pad(depth + 1)}}`, ...extent.map((l) => l), `${pad(depth)}}`]
+  }
+  if (spec?.kind === 'grid') {
+    return [
+      `${pad(depth)}LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: ${formatNumber(frame.layout.gap)}), count: ${spec.columns}), spacing: ${formatNumber(frame.layout.gap)}) {`,
+      ...childLines(depth + 1, true),
+      `${pad(depth)}}`,
+    ]
+  }
+  return [`${pad(depth)}${header} {`, ...childLines(depth + 1, !isAbsolute), `${pad(depth)}}`]
+}
 
-  const lines = [`${pad(depth)}${header} {`, ...childLines, `${pad(depth)}}`]
+function renderFrame(frame: FrameNode, ctx: RenderContext, depth: number, extraMods: string[]): string[] {
+  const isAbsolute = frame.layout.mode === 'absolute'
+  const spec = frame.container
 
+  // Important 2 : contrairement a Flutter (`clipBehavior`) et React Native
+  // (`overflow`), ce generateur `preview` ne decoupe pas le contenu qui
+  // deborde -- jamais perdu en silence. Les conteneurs, eux, decoupent
+  // nativement (`.clipped()`).
+  if (frame.clipsContent && spec === undefined) {
+    ctx.warnings.push(unsupportedPropertyWarning('clipsContent', frame.id, EXPORTER_ID))
+  }
+
+  // Presentations natives : une feuille basse s'affiche par `.sheet` sur la
+  // vue racine, pas a sa position.
+  if (spec?.kind === 'bottomSheet') {
+    const index = ++ctx.counter
+    ctx.states.push(`@State private var showSheet${index} = true`)
+    const content = stackBlock(frame, ctx, 1)
+    ctx.presentations.push([
+      `.sheet(isPresented: $showSheet${index}) {`,
+      ...content,
+      `    .padding(${formatNumber(frame.layout.padding.top)})`,
+      `    .presentationDetents([.height(${formatNumber(frame.frame.h)})])`,
+      `    .presentationDragIndicator(${spec.handle ? '.visible' : '.hidden'})`,
+      '}',
+    ])
+    return []
+  }
+
+  const lines = stackBlock(frame, ctx, depth)
   const fillColor = firstSolidFillColor(frame.fills)
   const stroke = firstStroke(frame.strokes)
 
-  if (!isAbsolute) {
+  if (!isAbsolute && spec?.kind !== 'grid' && spec?.kind !== 'listView') {
     const { top, right, bottom, left } = frame.layout.padding
     if (top === right && right === bottom && bottom === left && top > 0) {
       lines.push(`${pad(depth)}.padding(${formatNumber(top)})`)
@@ -215,6 +302,11 @@ function renderFrame(frame: FrameNode, ctx: RenderContext, depth: number, extraM
       lines.push(
         `${pad(depth)}.padding(EdgeInsets(top: ${formatNumber(top)}, leading: ${formatNumber(left)}, bottom: ${formatNumber(bottom)}, trailing: ${formatNumber(right)}))`,
       )
+    }
+  } else if (spec?.kind === 'grid' || spec?.kind === 'listView') {
+    const { top, right, bottom, left } = frame.layout.padding
+    if (top + right + bottom + left > 0) {
+      lines.push(`${pad(depth)}.padding(EdgeInsets(top: ${formatNumber(top)}, leading: ${formatNumber(left)}, bottom: ${formatNumber(bottom)}, trailing: ${formatNumber(right)}))`)
     }
   }
   lines.push(`${pad(depth)}.frame(width: ${formatNumber(frame.frame.w)}, height: ${formatNumber(frame.frame.h)})`)
@@ -230,13 +322,41 @@ function renderFrame(frame: FrameNode, ctx: RenderContext, depth: number, extraM
     )
     lines.push(`${pad(depth)})`)
   }
+  if (spec !== undefined && frame.clipsContent) lines.push(`${pad(depth)}.clipped()`)
+  if (spec?.kind === 'card' && spec.elevation > 0) {
+    lines.push(`${pad(depth)}.shadow(color: Color.black.opacity(0.2), radius: ${formatNumber(spec.elevation * 1.5)}, x: 0, y: ${formatNumber(spec.elevation / 2)})`)
+  }
+  if (spec?.kind === 'drawer') lines.push(`${pad(depth)}.shadow(radius: 8)`)
   for (const mod of extraMods) lines.push(`${pad(depth)}${mod}`)
 
   return lines
 }
 
-function renderNode(node: Node, ctx: RenderContext, depth: number, extraMods: string[]): string[] | null {
+// Navigation : un noeud lie devient cliquable. Les composants qui gerent
+// eux-memes un bouton (Button) l'ont deja branche.
+function linkMods(node: Node, ctx: RenderContext): string[] {
+  const target = linkTargetOf(node, ctx.plan)
+  if (target === null) return []
+  ctx.usesNavigator = true
+  return [`.onTapGesture { ${goExpr({ ctx: envOf(ctx) }, target)} }`]
+}
+
+const SELF_LINKING = new Set(['button', 'iconButton', 'fab', 'chip', 'listTile'])
+
+function renderNode(node: Node, ctx: RenderContext, depth: number, extraMods: string[], inFlow = false): string[] | null {
   if (!node.visible) return null
+  void inFlow
+
+  if (node.type === 'component') {
+    const lines = renderSwiftComponent(node, { ctx: envOf(ctx) }, depth)
+    if (lines.length === 0) return lines
+    const mods = [...extraMods]
+    if (node.opacity < 1) mods.push(`.opacity(${formatNumber(node.opacity)})`)
+    if (node.rotation !== 0) mods.push(`.rotationEffect(.degrees(${formatNumber(node.rotation)}))`)
+    if (!SELF_LINKING.has(node.kind)) mods.push(...linkMods(node, ctx))
+    for (const mod of mods) lines.push(`${pad(depth + 1)}${mod}`)
+    return lines
+  }
 
   if (!PREVIEW_SUPPORTED_NODE_TYPES.has(node.type)) {
     ctx.warnings.push(unsupportedNodeWarning(node.type, EXPORTER_ID))
@@ -249,24 +369,29 @@ function renderNode(node: Node, ctx: RenderContext, depth: number, extraMods: st
   if (node.opacity < 1) ctx.warnings.push(unsupportedPropertyWarning('opacity', node.id, EXPORTER_ID))
   if (node.rotation !== 0) ctx.warnings.push(unsupportedPropertyWarning('rotation', node.id, EXPORTER_ID))
 
+  const mods = [...extraMods, ...linkMods(node, ctx)]
   switch (node.type) {
     case 'frame':
-      return renderFrame(node, ctx, depth, extraMods)
+      return renderFrame(node, ctx, depth, mods)
     case 'text':
-      return renderText(node, ctx, depth, extraMods)
+      return renderText(node, ctx, depth, mods)
     case 'rect':
-      return renderRect(node, ctx, depth, extraMods)
+      return renderRect(node, ctx, depth, mods)
     case 'ellipse':
-      return renderEllipse(node, ctx, depth, extraMods)
+      return renderEllipse(node, ctx, depth, mods)
     case 'image':
-      return renderImage(node, ctx, depth, extraMods)
+      return renderImage(node, ctx, depth, mods)
     default:
       return null
   }
 }
 
-function renderPage(page: Page, tokens: DesignTokens, warnings: string[], structName: string): ExportedFile {
-  const ctx: RenderContext = { tokens, warnings }
+function newContext(tokens: DesignTokens, warnings: string[], plan: ExportPlan): RenderContext {
+  return { tokens, warnings, plan, states: [], presentations: [], usesNavigator: false, counter: 0 }
+}
+
+function renderPage(page: Page, tokens: DesignTokens, warnings: string[], structName: string, plan: ExportPlan): ExportedFile {
+  const ctx = newContext(tokens, warnings, plan)
 
   const topLevel = page.nodes
     .map((n) => renderNode(n, ctx, 2, []))
@@ -291,21 +416,169 @@ function renderPage(page: Page, tokens: DesignTokens, warnings: string[], struct
   return { path: `Sources/Screens/${structName}.swift`, contents: lines.join('\n') }
 }
 
+// Un ecran SwiftUI : le contenu dans un ZStack plein ecran, la barre
+// d'application en `navigationTitle` + `toolbar` (le NavigationStack est
+// pose par App.swift), la barre de navigation basse en TabView, le tiroir en
+// superposition, les dialogues et feuilles en presentations natives.
+function renderScreen(screen: FrameNode, tokens: DesignTokens, warnings: string[], structName: string, plan: ExportPlan): ExportedFile {
+  const ctx = newContext(tokens, warnings, plan)
+  const parts: ScreenParts = splitScreen(screen)
+  const fill = firstSolidFillColor(screen.fills)
+
+  // Dialogues et feuilles : rendus (donc enregistres) avant le reste, hors du
+  // corps, sans position.
+  const body: string[] = []
+  // Le bouton flottant reste un enfant du corps (le dernier : au-dessus).
+  const bodyChildren = [...parts.body.filter((n) => !(n.type === 'component' && n.kind === 'dialog')), ...(parts.fab ? [parts.fab] : [])]
+  const dialogs = parts.body.filter((n) => n.type === 'component' && n.kind === 'dialog')
+  for (const dialog of dialogs) renderNode(dialog, ctx, 0, [])
+  body.push(...stackBlock(screen, ctx, 2, bodyChildren, parts.topInset))
+  body.push(`${pad(2)}.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)`)
+  if (fill) body.push(`${pad(2)}.background(${swiftColorExpr(fill, tokens)}.ignoresSafeArea())${colorTokenComment(fill, tokens)}`)
+
+  // Barre d'application -> barre de navigation native.
+  if (parts.appBar) {
+    const bar = parts.appBar.props
+    body.push(`${pad(2)}.navigationTitle(${swiftString(bar.title)})`)
+    body.push(`${pad(2)}#if os(iOS)`, `${pad(2)}.navigationBarTitleDisplayMode(${bar.centerTitle ? '.inline' : '.large'})`, `${pad(2)}#endif`)
+    if (bar.leading === 'none') body.push(`${pad(2)}.navigationBarBackButtonHidden(true)`)
+    if (bar.color) {
+      body.push(`${pad(2)}.toolbarBackground(${swiftColorExpr(bar.color, tokens)}, for: .automatic)`, `${pad(2)}.toolbarBackground(.visible, for: .automatic)`)
+    }
+    const items: string[] = []
+    if (bar.leading === 'menu' && parts.drawer !== null) {
+      ctx.states.push('@State private var showDrawer = false')
+      items.push(`${pad(4)}ToolbarItem(placement: .navigation) {`, `${pad(5)}Button { showDrawer.toggle() } label: { Image(systemName: ${swiftString(ICONS.menu.sfSymbol)}) }`, `${pad(4)}}`)
+    } else if (bar.leading === 'menu') {
+      items.push(`${pad(4)}ToolbarItem(placement: .navigation) {`, `${pad(5)}Button {} label: { Image(systemName: ${swiftString(ICONS.menu.sfSymbol)}) }`, `${pad(4)}}`)
+    }
+    for (const action of bar.actions) {
+      items.push(`${pad(4)}ToolbarItem(placement: .primaryAction) {`, `${pad(5)}Button {} label: { Image(systemName: ${swiftString(ICONS[action].sfSymbol)}) }`, `${pad(4)}}`)
+    }
+    if (items.length > 0) body.push(`${pad(2)}.toolbar {`, ...items.map((l) => l), `${pad(2)}}`)
+  }
+
+  // Barre de navigation basse -> TabView natif, ancre au bas de l'ecran.
+  if (parts.bottomNav) {
+    const nav = renderNode(parts.bottomNav, ctx, 4, [])!
+    body.push(`${pad(2)}.safeAreaInset(edge: .bottom, spacing: 0) {`, ...nav, `${pad(2)}}`)
+  }
+
+  // Tiroir -> superposition a gauche, ouverte par le bouton menu.
+  if (parts.drawer) {
+    if (!ctx.states.includes('@State private var showDrawer = false')) ctx.states.push('@State private var showDrawer = false')
+    const panel = renderFrame(parts.drawer, ctx, 4, [])
+    body.push(
+      `${pad(2)}.overlay(alignment: .leading) {`,
+      `${pad(3)}if showDrawer {`,
+      `${pad(4)}ZStack(alignment: .leading) {`,
+      `${pad(5)}Color.black.opacity(0.3)`,
+      `${pad(6)}.ignoresSafeArea()`,
+      `${pad(6)}.onTapGesture { showDrawer = false }`,
+      ...panel.map((l) => pad(1) + l),
+      `${pad(4)}}`,
+      `${pad(3)}}`,
+      `${pad(2)}}`,
+    )
+  }
+
+  for (const presentation of ctx.presentations) body.push(...presentation.map((l) => `${pad(2)}${l}`))
+
+  const declarations: string[] = []
+  if (ctx.usesNavigator) declarations.push('    @EnvironmentObject private var navigator: Navigator')
+  for (const state of ctx.states) declarations.push(`    ${state}`)
+
+  const lines = [
+    'import SwiftUI',
+    '',
+    `struct ${structName}: View {`,
+    ...declarations,
+    ...(declarations.length > 0 ? [''] : []),
+    '    var body: some View {',
+    ...body,
+    '    }',
+    '}',
+    '',
+  ]
+  return { path: `Sources/Screens/${structName}.swift`, contents: lines.join('\n') }
+}
+
+// Routes de navigation : un cas d'enum par ecran, un Navigator partage (pile
+// de la NavigationStack) injecte comme EnvironmentObject.
+function generateNavigation(plan: ExportPlan): ExportedFile {
+  const lines = [
+    'import SwiftUI',
+    '',
+    'enum Route: Hashable {',
+    ...plan.screens.map((s) => `    case ${routeCase(s)}`),
+    '}',
+    '',
+    '// Pile de navigation partagee : `go` empile un ecran, `switchTo` change',
+    "// d'onglet (l'ecran de depart est la racine de la pile), `back` depile.",
+    'final class Navigator: ObservableObject {',
+    '    @Published var path: [Route] = []',
+    `    let root: Route = .${routeCase(plan.initial!)}`,
+    '',
+    '    func go(_ route: Route) {',
+    '        path.append(route)',
+    '    }',
+    '',
+    '    func switchTo(_ route: Route) {',
+    '        path = route == root ? [] : [route]',
+    '    }',
+    '',
+    '    func back() {',
+    '        if !path.isEmpty { path.removeLast() }',
+    '    }',
+    '}',
+    '',
+  ]
+  return { path: 'Sources/Navigation.swift', contents: lines.join('\n') }
+}
+
+function generateApp(plan: ExportPlan, projectName: string): ExportedFile {
+  const appName = `${toPascalCase(projectName)}App`
+  const lines = [
+    'import SwiftUI',
+    '',
+    '@main',
+    `struct ${appName}: App {`,
+    '    @StateObject private var navigator = Navigator()',
+    '',
+    '    var body: some Scene {',
+    '        WindowGroup {',
+    '            NavigationStack(path: $navigator.path) {',
+    `                ${plan.initial!.pascal}()`,
+    '                    .navigationDestination(for: Route.self) { route in',
+    '                        switch route {',
+    ...plan.screens.flatMap((s) => [`                        case .${routeCase(s)}:`, `                            ${s.pascal}()`]),
+    '                        }',
+    '                    }',
+    '            }',
+    '            .environmentObject(navigator)',
+    '        }',
+    '    }',
+    '}',
+    '',
+  ]
+  return { path: 'Sources/App.swift', contents: lines.join('\n') }
+}
+
 function exportSwiftUI(doc: CalqueDocument, opts: ExportOptions): ExportResult {
   const warnings: string[] = []
   const files: ExportedFile[] = []
-  const nameFor = createPageNamer()
+  const plan = planExport(doc, opts.activeScreenId)
 
-  for (const page of doc.pages) {
-    // v2 (addendum navigation §7) : n'exporte que l'ecran actif d'une page
-    // a plusieurs ecrans (voir selectActiveScreen), avec un avertissement
-    // nomme pour chacun des autres. Sans effet sur une page sans ecran.
-    const { page: activePage, warnings: screenWarnings } = selectActiveScreen(page, opts.activeScreenId, 'swiftui')
-    warnings.push(...screenWarnings)
-
-    const laidOutPage = layoutPage(activePage)
-    files.push(renderPage(laidOutPage, doc.tokens, warnings, nameFor(laidOutPage.name).pascal))
+  for (const unit of plan.units) {
+    if (unit.kind === 'page') {
+      files.push(renderPage(layoutPage(unit.page), doc.tokens, warnings, unit.names.pascal, plan))
+      continue
+    }
+    const laidOut = layoutPage({ ...unit.page, nodes: [unit.screen] }).nodes[0] as FrameNode
+    files.push(renderScreen(laidOut, doc.tokens, warnings, unit.ref.pascal, plan))
   }
+
+  if (plan.initial !== null) files.push(generateNavigation(plan), generateApp(plan, opts.projectName))
 
   return { files, warnings }
 }

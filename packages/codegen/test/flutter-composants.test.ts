@@ -258,7 +258,7 @@ describe('Flutter : navigation et tous les ecrans', () => {
 
   it('un noeud ordinaire lie devient cliquable (GestureDetector)', () => {
     const cible = screen('Profil', [], 500)
-    const rect = { ...(make('card') as never) } as Node
+    const rect = make('card')
     const source = screen('Accueil', [linked(rect, cible.id)])
     const code = screenFile(flutterExporter.export(docOf(source, cible), { projectName: 'p' }).files, /accueil\.dart/)
     expect(code).toContain('GestureDetector(')

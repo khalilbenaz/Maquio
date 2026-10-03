@@ -45,10 +45,16 @@ type ImportTrouve = { specificateur: string; extrait: string }
  */
 function listerImports(fichier: string): ImportTrouve[] {
   const contenu = readFileSync(fichier, 'utf8')
-  const regex = /(?:from|import)\s+['"]([^'"]+)['"]/g
+  // Une VRAIE instruction d'import commence la ligne : `import ... from '...'`,
+  // `export ... from '...'` ou la fermeture `} from '...'` d'un import sur
+  // plusieurs lignes. Les generateurs de code (packages/codegen) ecrivent
+  // aussi des imports DANS DES CHAINES (`"import { useState } from 'react';"`) :
+  // ceux-la ne sont pas des dependances du paquet et ne commencent jamais la
+  // ligne (aucun guillemet ne peut preceder le specificateur).
+  const regex = /^[ \t]*(?:(?:import|export)\b[^\n'"`]*?\bfrom[ \t]+|import[ \t]+|\}[ \t]*from[ \t]+)['"]([^'"]+)['"]/gm
   const trouvailles: ImportTrouve[] = []
   for (const correspondance of contenu.matchAll(regex)) {
-    trouvailles.push({ specificateur: correspondance[1]!, extrait: correspondance[0] })
+    trouvailles.push({ specificateur: correspondance[1]!, extrait: correspondance[0].trim() })
   }
   return trouvailles
 }

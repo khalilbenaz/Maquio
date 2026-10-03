@@ -10,6 +10,7 @@ export const PREVIEW_SUPPORTED_NODE_TYPES: ReadonlySet<string> = new Set([
   'rect',
   'ellipse',
   'image',
+  'component',
 ])
 
 // Format impose (brief Tache 9) : "<type> non pris en charge par l export

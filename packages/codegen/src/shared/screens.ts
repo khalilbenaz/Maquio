@@ -66,10 +66,12 @@ export function planExport(doc: CalqueDocument, activeScreenId: string | undefin
 
 // --- Decomposition d'un ecran en Scaffold + corps ---
 
+type OfKind<K extends ComponentNode['kind']> = Extract<ComponentNode, { kind: K }>
+
 export type ScreenParts = {
-  appBar: ComponentNode | null
-  bottomNav: ComponentNode | null
-  fab: ComponentNode | null
+  appBar: OfKind<'appBar'> | null
+  bottomNav: OfKind<'bottomNav'> | null
+  fab: OfKind<'fab'> | null
   drawer: FrameNode | null
   // Tout le reste, dans l'ordre du document.
   body: Node[]
@@ -88,9 +90,9 @@ function isComponent<K extends ComponentNode['kind']>(node: Node, kind: K): node
 // noeuds invisibles sont ignores.
 export function splitScreen(screen: FrameNode): ScreenParts {
   const visible = screen.children.filter((c) => c.visible)
-  const appBar = visible.find((n): n is ComponentNode => isComponent(n, 'appBar')) ?? null
-  const bottomNav = visible.find((n): n is ComponentNode => isComponent(n, 'bottomNav')) ?? null
-  const fab = visible.find((n): n is ComponentNode => isComponent(n, 'fab')) ?? null
+  const appBar = visible.find((n): n is OfKind<'appBar'> => isComponent(n, 'appBar')) ?? null
+  const bottomNav = visible.find((n): n is OfKind<'bottomNav'> => isComponent(n, 'bottomNav')) ?? null
+  const fab = visible.find((n): n is OfKind<'fab'> => isComponent(n, 'fab')) ?? null
   const drawer = visible.find((n): n is FrameNode => n.type === 'frame' && n.container?.kind === 'drawer') ?? null
   const taken = new Set<string>()
   for (const n of [appBar, bottomNav, fab, drawer]) if (n !== null) taken.add(n.id)
