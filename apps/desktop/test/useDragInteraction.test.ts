@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeSnappedMoveDelta, screenToPage, snapThreshold } from '../src/renderer/canvas/useDragInteraction'
+import { computeSnappedMoveDelta, createDefaultNode, screenToPage, snapThreshold } from '../src/renderer/canvas/useDragInteraction'
 import { documentDeTest } from './helpers/documentDeTest'
 
 describe('screenToPage (decision 10)', () => {
@@ -49,5 +49,15 @@ describe('computeSnappedMoveDelta (decision 9)', () => {
     // verifie plutot un ecart hors seuil pour prouver l'absence d'aimant.
     const { dx } = computeSnappedMoveDelta(nodes, 'rect1', 40, 0, 2)
     expect(dx).toBe(40)
+  })
+})
+
+describe('createDefaultNode (texte)', () => {
+  it('interligne par defaut en PIXELS (modele), pas un multiplicateur : 1.2 x 16 px', () => {
+    const node = createDefaultNode('text', { x: 0, y: 0, w: 100, h: 20 })
+    if (node.type !== 'text') throw new Error('texte attendu')
+    // Le modele stocke lineHeight en pixels ; 1.2 donnait « height: 0.075 »
+    // dans le Dart exporte et « lineHeight: 1.2 » (px) en React Native.
+    expect(node.style.lineHeight).toBeGreaterThanOrEqual(node.style.fontSize)
   })
 })
