@@ -252,3 +252,15 @@ describe('LayersPanel - imbrication reelle des ecrans (correctif parentage)', ()
     expect(indentBouton).toBeGreaterThan(indentEcran)
   })
 })
+
+describe('LayersPanel - selection multiple', () => {
+  it('Maj + clic ajoute un calque a la selection, un second Maj + clic le retire', () => {
+    useEditorStore.getState().load(documentDeTest())
+    render(<LayersPanel />)
+    fireEvent.click(screen.getByTestId('layer-rect1'))
+    fireEvent.click(screen.getByTestId('layer-rect2'), { shiftKey: true })
+    expect(useEditorStore.getState().selection).toEqual(['rect1', 'rect2'])
+    fireEvent.click(screen.getByTestId('layer-rect1'), { shiftKey: true })
+    expect(useEditorStore.getState().selection).toEqual(['rect2'])
+  })
+})

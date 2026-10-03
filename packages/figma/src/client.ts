@@ -128,10 +128,15 @@ export function parseFigmaFileKey(input: string): string {
 export class FigmaClient {
   private readonly token: string
   private readonly fetch: FetchLike
+  private readonly baseUrl: string
 
-  constructor(opts: { token: string; fetch: FetchLike }) {
+  // `baseUrl` : uniquement pour pointer vers un serveur local (tests de bout
+  // en bout) ; l'appelant decide de l'autoriser (voir figmaApiBase dans
+  // l'application), le client lui ne valide rien.
+  constructor(opts: { token: string; fetch: FetchLike; baseUrl?: string }) {
     this.token = opts.token
     this.fetch = opts.fetch
+    this.baseUrl = (opts.baseUrl ?? 'https://api.figma.com').replace(/\/+$/, '')
   }
 
   async getFile(key: string): Promise<FigmaFileResponse> {
@@ -142,7 +147,7 @@ export class FigmaClient {
       // sequence '../' changerait reellement la requete envoyee (avec
       // le jeton attache), au lieu d'etre traitee comme une simple
       // valeur d'identifiant.
-      response = await this.fetch(`https://api.figma.com/v1/files/${encodeURIComponent(key)}`, {
+      response = await this.fetch(`${this.baseUrl}/v1/files/${encodeURIComponent(key)}`, {
         headers: { 'X-Figma-Token': this.token },
       })
     } catch {

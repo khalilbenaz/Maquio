@@ -253,3 +253,19 @@ describe('FigmaClient', () => {
     }
   })
 })
+
+describe('FigmaClient : baseUrl', () => {
+  it('utilise l adresse fournie (serveur local), sans double slash', async () => {
+    const urls: string[] = []
+    const client = new FigmaClient({
+      token: 't',
+      baseUrl: 'http://127.0.0.1:4010/',
+      fetch: async (url) => {
+        urls.push(url)
+        return { ok: true, status: 200, json: async () => ({ document: { id: '0:0', name: 'Doc', type: 'DOCUMENT', children: [] } }), text: async () => '' }
+      },
+    })
+    await client.getFile('abc')
+    expect(urls).toEqual(['http://127.0.0.1:4010/v1/files/abc'])
+  })
+})

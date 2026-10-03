@@ -316,6 +316,7 @@ function useGestureCleanupRef() {
 const MARQUEE_THRESHOLD = 3
 
 export function startMarquee(e: ReactPointerEvent, clickSelects: string | null = null): void {
+  const shiftToggleId = e.shiftKey ? clickSelects : null
   const state = useEditorStore.getState()
   const sceneEl = (e.target as Element | null)?.closest?.('[data-testid="canvas-scene"]') ?? null
   const r = sceneEl?.getBoundingClientRect()
@@ -346,7 +347,13 @@ export function startMarquee(e: ReactPointerEvent, clickSelects: string | null =
   }
   const handleUp = () => {
     cleanup()
-    useEditorStore.getState().setDragPreview(null)
+    const current = useEditorStore.getState()
+    current.setDragPreview(null)
+    // Maj + simple clic sur un ecran : bascule sa presence dans la selection.
+    if (!moved && shiftToggleId !== null) {
+      const sel = current.selection
+      current.select(sel.includes(shiftToggleId) ? sel.filter((id) => id !== shiftToggleId) : [...sel, shiftToggleId])
+    }
   }
   beginGesture(cleanup)
   window.addEventListener('pointermove', handleMove)
@@ -435,7 +442,7 @@ export function useNodeInteraction(nodeId: string, options: { screenBodyIsMarque
       // rectangle ; un ecran se deplace par son etiquette (ScreenLabel).
       // Le noeud touche est l'ecran lui-meme (pas un descendant : chaque
       // noeud est un element frere, un enfant recoit son propre evenement).
-      if (screenBodyIsMarquee && !e.shiftKey) {
+      if (screenBodyIsMarquee) {
         const own = findNode(nodes, nodeId)
         if (own !== null && isScreenNode(own) && depthIsTop(nodes, nodeId)) {
           startMarquee(e, nodeId)
@@ -823,6 +830,8 @@ export function useCreateInteraction(canvasRef: RefObject<HTMLElement | null>, a
         current.execute(createNodeCommand(current.pageId, parentId, node))
         current.select([node.id])
         current.setTool('select')
+        // Un texte fraichement trace s'edite aussitot (le contenu est selectionne).
+        if (tool === 'text') current.setEditingTextId(node.id)
       }
 
       cleanupRef.current = cleanup

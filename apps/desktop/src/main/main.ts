@@ -19,6 +19,7 @@ import { creerFenetrePrincipale } from './window'
 import { isTrustedSender, UntrustedSenderError } from './security'
 import { nodeSpawn } from './adapters/nodeSpawn'
 import { nodeFetch } from './adapters/nodeFetch'
+import { figmaApiBase } from './adapters/figmaApiBase'
 import { createSecretStore } from './adapters/secretStore'
 import { createClaudeSettingsStore } from './adapters/claudeSettingsStore'
 import { createClaudeWhich, validateClaudeBinaryPath } from './adapters/claudeDetection'
@@ -192,7 +193,7 @@ function enregistrerLesGestionnaires(): void {
   handle('importFigma', async (event, input) => {
     const win = fenetreDepuisEvenement(event)
     const jeton = magasinSecrets ? await magasinSecrets.getToken() : null
-    const client = jeton !== null ? new FigmaClient({ token: jeton, fetch: nodeFetch }) : null
+    const client = jeton !== null ? new FigmaClient({ token: jeton, fetch: nodeFetch, baseUrl: figmaApiBase(process.env) }) : null
     return createFigmaHandler({
       client,
       chooseFile: chooseFigmaJsonFile(win),
