@@ -200,6 +200,8 @@ function enregistrerLesGestionnaires(): void {
       chooseDirectory: chooseDirectory(win),
       pathExists,
       confirmOverwrite: confirmOverwrite(win),
+      copyFile: (source, dest) => copyFile(source, dest),
+      isApprovedImagePath: (p) => cheminsImagesApprouves.has(p),
     })(input)
   })
 

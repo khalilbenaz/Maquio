@@ -39,6 +39,8 @@ import type {
 import { layoutPage } from '@calque/core'
 import { formatNumber } from '../shared/format-number'
 import { createUniqueIdentifierNamer } from '../shared/identifier'
+import { planAssets } from '../shared/assets'
+import type { AssetTarget } from '../shared/assets'
 import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
 import { linkTargetOf, planExport, splitScreen } from '../shared/screens'
 import type { ExportPlan, ScreenParts } from '../shared/screens'
@@ -659,8 +661,17 @@ function generateApp(plan: ExportPlan): ExportedFile {
   return { path: 'App.tsx', contents: lines.join('\n') }
 }
 
-function exportReactNative(doc: CalqueDocument, opts: ExportOptions): ExportResult {
-  const warnings: string[] = []
+const RN_ASSETS: AssetTarget = {
+  fileName: (stem, ext) => `${stem}${ext}`,
+  path: (fileName) => `assets/images/${fileName}`,
+  // Relatif a src/screens/<Ecran>.tsx.
+  reference: (fileName) => `../../assets/images/${fileName}`,
+}
+
+function exportReactNative(source: CalqueDocument, opts: ExportOptions): ExportResult {
+  const assetPlan = planAssets(source, RN_ASSETS)
+  const doc = assetPlan.doc
+  const warnings: string[] = [...assetPlan.warnings]
   const files: ExportedFile[] = []
   const plan = planExport(doc, opts.activeScreenId)
 
@@ -679,7 +690,7 @@ function exportReactNative(doc: CalqueDocument, opts: ExportOptions): ExportResu
     files.push(generateNavigation(plan), generateApp(plan))
   }
 
-  return { files, warnings }
+  return { files, warnings, assets: assetPlan.assets }
 }
 
 export const reactNativeExporter: Exporter = {

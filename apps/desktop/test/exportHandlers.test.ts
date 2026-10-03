@@ -117,3 +117,65 @@ describe('export vers le disque', () => {
     expect(writeFile).not.toHaveBeenCalled()
   })
 })
+
+// Images locales : copiees dans le projet exporte.
+describe('export : copie des images locales', () => {
+  async function docAvecImage(src: string): Promise<string> {
+    const { createDocument, createScreenNode, DEVICE_PRESETS } = await import('@calque/core')
+    const d = createDocument('Doc')
+    const image = { id: 'i', name: 'i', type: 'image' as const, frame: { x: 0, y: 0, w: 10, h: 10 }, visible: true, locked: false, opacity: 1, rotation: 0, src, fit: 'cover' as const }
+    const ecran = createScreenNode('Accueil', DEVICE_PRESETS.iphone15, { x: 0, y: 0, w: 393, h: 852 }, [image])
+    return serializeDocument({ ...d, pages: [{ ...d.pages[0]!, nodes: [ecran] }] })
+  }
+  function deps(over: Partial<Parameters<typeof createExportHandler>[0]> = {}) {
+    return {
+      writeFile: vi.fn(async () => {}),
+      mkdir: vi.fn(async () => {}),
+      chooseDirectory: async () => '/out',
+      pathExists: async (p: string) => p.includes('.ressources'),
+      copyFile: vi.fn(async () => {}),
+      isApprovedImagePath: () => false,
+      ...over,
+    }
+  }
+
+  it('copie une image relative depuis <document>.ressources/ vers assets/images/ (Flutter)', async () => {
+    const d = deps()
+    const out = await createExportHandler(d)({ exporterId: 'flutter', json: await docAvecImage('logo.png'), projectName: 'demo', documentPath: '/docs/mon.calque' })
+    expect(d.copyFile).toHaveBeenCalledWith('/docs/mon.ressources/logo.png', '/out/assets/images/logo.png')
+    expect(out!.files).toContain('assets/images/logo.png')
+    expect(out!.files).toContain('pubspec.yaml')
+    expect(out!.warnings).toEqual([])
+  })
+  it('copie vers res/drawable pour Compose et un .imageset pour SwiftUI', async () => {
+    const d = deps()
+    await createExportHandler(d)({ exporterId: 'compose', json: await docAvecImage('Mon Logo.png'), projectName: 'demo', documentPath: '/docs/mon.calque' })
+    expect(d.copyFile).toHaveBeenCalledWith('/docs/mon.ressources/Mon Logo.png', '/out/src/main/res/drawable/mon_logo.png')
+    const d2 = deps()
+    await createExportHandler(d2)({ exporterId: 'swiftui', json: await docAvecImage('logo.png'), projectName: 'demo', documentPath: '/docs/mon.calque' })
+    expect(d2.copyFile).toHaveBeenCalledWith('/docs/mon.ressources/logo.png', '/out/Sources/Assets.xcassets/logo.imageset/logo.png')
+  })
+  it('un chemin absolu non choisi avec le selecteur n est jamais copie (avertissement)', async () => {
+    const d = deps({ pathExists: async () => false })
+    const out = await createExportHandler(d)({ exporterId: 'flutter', json: await docAvecImage('/etc/passwd'), projectName: 'demo', documentPath: null })
+    expect(d.copyFile).not.toHaveBeenCalled()
+    expect(out!.warnings.some((w) => w.includes('/etc/passwd'))).toBe(true)
+  })
+  it('un chemin absolu approuve (document pas encore enregistre) est copie', async () => {
+    const d = deps({ pathExists: async (p: string) => p === '/Users/x/photo.png', isApprovedImagePath: (p: string) => p === '/Users/x/photo.png' })
+    await createExportHandler(d)({ exporterId: 'react-native', json: await docAvecImage('/Users/x/photo.png'), projectName: 'demo', documentPath: null })
+    expect(d.copyFile).toHaveBeenCalledWith('/Users/x/photo.png', '/out/assets/images/photo.png')
+  })
+  it('un src relatif qui sort du dossier de ressources est refuse', async () => {
+    const d = deps()
+    const out = await createExportHandler(d)({ exporterId: 'flutter', json: await docAvecImage('../secret.png'), projectName: 'demo', documentPath: '/docs/mon.calque' })
+    expect(d.copyFile).not.toHaveBeenCalled()
+    expect(out!.warnings.some((w) => w.includes('secret.png'))).toBe(true)
+  })
+  it('une image introuvable est signalee sans faire echouer l export', async () => {
+    const d = deps({ pathExists: async () => false })
+    const out = await createExportHandler(d)({ exporterId: 'flutter', json: await docAvecImage('absente.png'), projectName: 'demo', documentPath: '/docs/mon.calque' })
+    expect(d.copyFile).not.toHaveBeenCalled()
+    expect(out!.warnings.some((w) => w.includes('absente.png'))).toBe(true)
+  })
+})

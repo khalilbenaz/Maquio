@@ -62,7 +62,7 @@ describe('garde-fou dart format (spec §7)', () => {
         // imports) -- seul compte que chacun garde son extension `.dart`,
         // et que deux fixtures differentes n'ecrasent jamais le meme
         // chemin temporaire (prefixe par le nom de la fixture).
-        const filePaths = result.files.map((file) => {
+        const filePaths = result.files.filter((file) => file.path.endsWith(".dart")).map((file) => {
           const flatName = `${fixture.name}__${file.path.replace(/\//g, '_')}`
           const filePath = join(dir, flatName)
           writeFileSync(filePath, file.contents, 'utf8')
@@ -87,7 +87,7 @@ describe('garde-fou dart format (spec §7)', () => {
   // coupees apres `=>`).
   runIfDartAvailable('la sortie Flutter pour exemple-complet passe dart format --set-exit-if-changed', () => {
     const result = flutterExporter.export(documentExempleComplet(), { projectName: 'demo' })
-    const filePaths = result.files.map((file) => {
+    const filePaths = result.files.filter((file) => file.path.endsWith(".dart")).map((file) => {
       const filePath = join(dir, `exemple-complet__${file.path.replace(/\//g, '_')}`)
       writeFileSync(filePath, file.contents, 'utf8')
       return filePath

@@ -70,7 +70,7 @@ describe('React Native : image locale', () => {
       opacity: 1, rotation: 0, src: 'logo.png', fit: 'cover',
     })
     const f = reactNativeExporter.export(doc, { projectName: 'p' }).files.find((x) => x.path.includes('screens'))!
-    expect(f.contents).toContain("require('./logo.png')")
+    expect(f.contents).toContain("require('../../assets/images/logo.png')")
   })
 })
 

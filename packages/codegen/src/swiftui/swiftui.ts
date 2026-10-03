@@ -46,6 +46,8 @@ import { linkTargetOf, planExport, splitScreen } from '../shared/screens'
 import type { ExportPlan, ScreenParts } from '../shared/screens'
 import { PREVIEW_SUPPORTED_NODE_TYPES, unsupportedNodeWarning } from '../shared/preview-coverage'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
+import { planAssets } from '../shared/assets'
+import type { AssetTarget } from '../shared/assets'
 import { colorTokenComment, swiftColorExpr, swiftFontWeightExpr, swiftString } from './swift-utils'
 import { goExpr, renderSwiftComponent, routeCase } from './components'
 import type { SwiftEnvCtx } from './components'
@@ -564,8 +566,26 @@ function generateApp(plan: ExportPlan, projectName: string): ExportedFile {
   return { path: 'Sources/App.swift', contents: lines.join('\n') }
 }
 
-function exportSwiftUI(doc: CalqueDocument, opts: ExportOptions): ExportResult {
-  const warnings: string[] = []
+const stemOf = (fileName: string) => fileName.replace(/\.[^.]+$/, '')
+
+// Catalogue d'assets (Image("nom")) : un `.imageset` par image.
+const SWIFT_ASSETS: AssetTarget = {
+  fileName: (stem, ext) => `${stem}${ext}`,
+  uniqueKey: (fileName) => stemOf(fileName).toLowerCase(),
+  path: (fileName) => `Sources/Assets.xcassets/${stemOf(fileName)}.imageset/${fileName}`,
+  reference: (fileName) => stemOf(fileName),
+  extra: (fileName) => [
+    {
+      path: `Sources/Assets.xcassets/${stemOf(fileName)}.imageset/Contents.json`,
+      contents: JSON.stringify({ images: [{ filename: fileName, idiom: 'universal' }], info: { author: 'calque', version: 1 } }, null, 2) + '\n',
+    },
+  ],
+}
+
+function exportSwiftUI(source: CalqueDocument, opts: ExportOptions): ExportResult {
+  const assetPlan = planAssets(source, SWIFT_ASSETS)
+  const doc = assetPlan.doc
+  const warnings: string[] = [...assetPlan.warnings]
   const files: ExportedFile[] = []
   const plan = planExport(doc, opts.activeScreenId)
 
@@ -579,8 +599,14 @@ function exportSwiftUI(doc: CalqueDocument, opts: ExportOptions): ExportResult {
   }
 
   if (plan.initial !== null) files.push(generateNavigation(plan), generateApp(plan, opts.projectName))
+  if (assetPlan.assets.length > 0) {
+    files.push(
+      { path: 'Sources/Assets.xcassets/Contents.json', contents: JSON.stringify({ info: { author: 'calque', version: 1 } }, null, 2) + '\n' },
+      ...assetPlan.extraFiles,
+    )
+  }
 
-  return { files, warnings }
+  return { files, warnings, assets: assetPlan.assets }
 }
 
 export const swiftuiExporter: Exporter = {
