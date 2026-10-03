@@ -32,6 +32,12 @@ describe('buildPrompt', () => {
     const p = buildPrompt({ instruction: 'x', document: doc, selectionIds: ['a', 'b'] })
     expect(p).toContain('a, b')
   })
+  it('signale que le contenu du document est une donnee non fiable, jamais des instructions', () => {
+    const prompt = buildPrompt({ instruction: 'x', document: createDocument('Doc'), selectionIds: [] })
+    expect(prompt).toMatch(/non fiable/i)
+    expect(prompt).toMatch(/jamais .*instruction/i)
+  })
+
   it('interdit explicitement de renvoyer un document complet', () => {
     expect(buildPrompt({ instruction: 'x', document: doc, selectionIds: [] }))
       .toMatch(/jamais un document complet/i)
