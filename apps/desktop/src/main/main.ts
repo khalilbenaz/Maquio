@@ -16,6 +16,7 @@ import { AiService, ProcessClaudeRunner } from '@calque/ai'
 import { FigmaClient } from '@calque/figma'
 import { listExporters } from '@calque/codegen'
 import { creerFenetrePrincipale } from './window'
+import { isTrustedSender, UntrustedSenderError } from './security'
 import { nodeSpawn } from './adapters/nodeSpawn'
 import { nodeFetch } from './adapters/nodeFetch'
 import { createSecretStore } from './adapters/secretStore'
@@ -147,8 +148,17 @@ function fenetreDepuisEvenement(event: Electron.IpcMainInvokeEvent): BrowserWind
   return BrowserWindow.fromWebContents(event.sender)
 }
 
+// Tous les canaux passent par ici : l'appelant (cadre principal charge depuis
+// l'application) est controle avant d'executer quoi que ce soit.
+function handle(channel: string, listener: (event: Electron.IpcMainInvokeEvent, ...args: any[]) => unknown): void {
+  ipcMain.handle(channel, (event, ...args) => {
+    if (!isTrustedSender(event, process.env['VITE_DEV_SERVER_URL'] ?? null)) throw new UntrustedSenderError(channel)
+    return listener(event, ...args)
+  })
+}
+
 function enregistrerLesGestionnaires(): void {
-  ipcMain.handle('openDocument', (event) => {
+  handle('openDocument', (event) => {
     const win = fenetreDepuisEvenement(event)
     return createDocumentHandler({
       readFile: (p) => readFile(p, 'utf8'),
@@ -158,7 +168,7 @@ function enregistrerLesGestionnaires(): void {
     }).openDocument()
   })
 
-  ipcMain.handle('saveDocument', (event, input) => {
+  handle('saveDocument', (event, input) => {
     const win = fenetreDepuisEvenement(event)
     return createDocumentHandler({
       readFile: (p) => readFile(p, 'utf8'),
@@ -173,13 +183,13 @@ function enregistrerLesGestionnaires(): void {
     }).saveDocument(input)
   })
 
-  ipcMain.handle('chooseImage', async (event) => {
+  handle('chooseImage', async (event) => {
     const chemin = await chooseImageFile(fenetreDepuisEvenement(event))()
     if (chemin !== null) cheminsImagesApprouves.add(chemin)
     return chemin
   })
 
-  ipcMain.handle('importFigma', async (event, input) => {
+  handle('importFigma', async (event, input) => {
     const win = fenetreDepuisEvenement(event)
     const jeton = magasinSecrets ? await magasinSecrets.getToken() : null
     const client = jeton !== null ? new FigmaClient({ token: jeton, fetch: nodeFetch }) : null
@@ -190,7 +200,7 @@ function enregistrerLesGestionnaires(): void {
     })(input)
   })
 
-  ipcMain.handle('exportProject', (event, input) => {
+  handle('exportProject', (event, input) => {
     const win = fenetreDepuisEvenement(event)
     return createExportHandler({
       writeFile: (p, contents, encoding) => writeFile(p, contents, encoding),
@@ -205,17 +215,17 @@ function enregistrerLesGestionnaires(): void {
     })(input)
   })
 
-  ipcMain.handle('listExporters', () => listExporters().map(({ id, label, maturity }) => ({ id, label, maturity })))
+  handle('listExporters', () => listExporters().map(({ id, label, maturity }) => ({ id, label, maturity })))
 
-  ipcMain.handle('askClaude', (_event, input) =>
+  handle('askClaude', (_event, input) =>
     createClaudeHandler({ service: serviceClaude, requests: claudeRequests })(input),
   )
 
-  ipcMain.handle('cancelClaude', () => createClaudeCancelHandler({ requests: claudeRequests })())
+  handle('cancelClaude', () => createClaudeCancelHandler({ requests: claudeRequests })())
 
-  ipcMain.handle('claudeAvailable', () => lanceurClaude.isAvailable())
+  handle('claudeAvailable', () => lanceurClaude.isAvailable())
 
-  ipcMain.handle('getSettings', async () => {
+  handle('getSettings', async () => {
     const figma = magasinSecrets ? await createGetSettingsHandler({ secretStore: magasinSecrets })() : { hasFigmaToken: false }
     const claude = magasinReglagesClaude
       ? await createGetClaudeSettingsHandler({ store: magasinReglagesClaude, resolveStatus: resolveClaudeStatus })()
@@ -223,12 +233,12 @@ function enregistrerLesGestionnaires(): void {
     return { ...figma, ...claude }
   })
 
-  ipcMain.handle('setFigmaToken', async (_event, token: string) => {
+  handle('setFigmaToken', async (_event, token: string) => {
     if (!magasinSecrets) throw new Error("Le stockage des reglages n'est pas encore initialise")
     return createSetFigmaTokenHandler({ secretStore: magasinSecrets })(token)
   })
 
-  ipcMain.handle('setClaudeCustomPath', async (_event, rawPath: string) => {
+  handle('setClaudeCustomPath', async (_event, rawPath: string) => {
     if (!magasinReglagesClaude) throw new Error("Le stockage des reglages n'est pas encore initialise")
     return createSetClaudeCustomPathHandler({
       store: magasinReglagesClaude,

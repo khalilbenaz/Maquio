@@ -73,3 +73,24 @@ describe('fenetre principale', () => {
     expect(src).toContain('installNavigationGuards(fenetre.webContents')
   })
 })
+
+describe('controle de l appelant IPC (isTrustedSender)', async () => {
+  const { isTrustedSender } = await import('../src/main/security')
+  const prod = 'file:///Applications/Calque.app/Contents/Resources/app/dist/renderer/index.html'
+  it('accepte le cadre principal charge depuis l application', () => {
+    const frame = { url: prod }
+    expect(isTrustedSender({ senderFrame: frame, sender: { mainFrame: frame } }, null)).toBe(true)
+  })
+  it('accepte le serveur de dev declare, jamais un autre', () => {
+    const frame = { url: 'http://localhost:5173/' }
+    expect(isTrustedSender({ senderFrame: frame, sender: { mainFrame: frame } }, 'http://localhost:5173')).toBe(true)
+    expect(isTrustedSender({ senderFrame: frame, sender: { mainFrame: frame } }, null)).toBe(false)
+  })
+  it('refuse une page externe, un sous-cadre et l absence de cadre', () => {
+    const evil = { url: 'https://evil.example/index.html' }
+    expect(isTrustedSender({ senderFrame: evil, sender: { mainFrame: evil } }, null)).toBe(false)
+    expect(isTrustedSender({ senderFrame: { url: prod }, sender: { mainFrame: { url: prod } } }, null)).toBe(false)
+    expect(isTrustedSender({ senderFrame: null }, null)).toBe(false)
+    expect(isTrustedSender({}, null)).toBe(false)
+  })
+})
