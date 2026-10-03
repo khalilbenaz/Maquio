@@ -150,10 +150,10 @@ function fenetreDepuisEvenement(event: Electron.IpcMainInvokeEvent): BrowserWind
 
 // Tous les canaux passent par ici : l'appelant (cadre principal charge depuis
 // l'application) est controle avant d'executer quoi que ce soit.
-function handle(channel: string, listener: (event: Electron.IpcMainInvokeEvent, ...args: any[]) => unknown): void {
+function handle(channel: string, listener: (event: Electron.IpcMainInvokeEvent, ...args: never[]) => unknown): void {
   ipcMain.handle(channel, (event, ...args) => {
     if (!isTrustedSender(event, process.env['VITE_DEV_SERVER_URL'] ?? null)) throw new UntrustedSenderError(channel)
-    return listener(event, ...args)
+    return (listener as (e: Electron.IpcMainInvokeEvent, ...a: unknown[]) => unknown)(event, ...args)
   })
 }
 

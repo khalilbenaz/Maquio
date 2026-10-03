@@ -10,3 +10,5 @@ release/
 .superpowers/
 .gradle/
 local.properties
+coverage/
+.vitest/
