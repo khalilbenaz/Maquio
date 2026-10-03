@@ -1,5 +1,18 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { buildContentSecurityPolicy } from './src/shared/csp'
+
+// Mode dev uniquement : la CSP stricte d'index.html bloquerait le preambule
+// inline de React Refresh et la websocket HMR de Vite.
+const cspDev = {
+  name: 'calque-csp-dev',
+  apply: 'serve' as const,
+  transformIndexHtml: (html: string) =>
+    html.replace(
+      buildContentSecurityPolicy({ dev: false }),
+      buildContentSecurityPolicy({ dev: true }),
+    ),
+}
 
 // Construit uniquement le renderer (decision 7 du brief) : le main et le
 // preload sont compiles a part par deux autres configurations Vite (voir
@@ -13,7 +26,7 @@ import { defineConfig } from 'vite'
 // file://.
 export default defineConfig({
   base: './',
-  plugins: [react()],
+  plugins: [react(), cspDev],
   build: {
     outDir: 'dist/renderer',
     emptyOutDir: true,

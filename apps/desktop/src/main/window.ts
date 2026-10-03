@@ -9,6 +9,7 @@
 import { BrowserWindow } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { installNavigationGuards } from './security'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -29,6 +30,7 @@ export function creerFenetrePrincipale(): BrowserWindow {
   // (voir le script "dev"). En production, le renderer construit par Vite
   // est charge directement depuis le disque.
   const urlDev = process.env['VITE_DEV_SERVER_URL']
+  installNavigationGuards(fenetre.webContents, urlDev ?? null)
   if (urlDev !== undefined) {
     void fenetre.loadURL(urlDev)
   } else {
