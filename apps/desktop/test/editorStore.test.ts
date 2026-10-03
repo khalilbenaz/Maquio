@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createNodeCommand, findNode } from '@calque/core'
+import type { FrameNode, RectNode } from '@calque/core'
 import { useEditorStore } from '../src/renderer/state/editorStore'
 import { documentDeTest } from './helpers/documentDeTest'
 
@@ -96,5 +97,26 @@ describe('useEditorStore', () => {
     expect(state.tool).toBe('select')
     expect(state.zoom).toBe(1)
     expect(state.pan).toEqual({ x: 0, y: 0 })
+  })
+
+  // v3 (composants mobiles) : toute commande est suivie de la mise en page
+  // automatique, dans la meme entree d'historique.
+  it('execute re-cale les enfants d une frame en ligne, et un seul annuler defait tout', () => {
+    const { pageId, execute, undo } = useEditorStore.getState()
+    const rect = (id: string, w: number): RectNode => ({
+      id, name: id, type: 'rect', frame: { x: 0, y: 0, w, h: 10 },
+      visible: true, locked: false, opacity: 1, rotation: 0, fills: [], strokes: [], cornerRadius: 0,
+    })
+    const rangee: FrameNode = {
+      id: 'rangee', name: 'rangee', type: 'frame', frame: { x: 0, y: 200, w: 300, h: 50 },
+      visible: true, locked: false, opacity: 1, rotation: 0,
+      layout: { mode: 'row', gap: 10, padding: { top: 0, right: 0, bottom: 0, left: 0 }, alignMain: 'start', alignCross: 'start' },
+      fills: [], strokes: [], cornerRadius: 0, clipsContent: false, children: [rect('a', 40), rect('b', 40)],
+    }
+    execute(createNodeCommand(pageId, null, rangee))
+    const enfants = () => (findNode(useEditorStore.getState().document.pages[0]!.nodes, 'rangee') as FrameNode).children
+    expect(enfants().map((c) => c.frame.x)).toEqual([0, 50])
+    undo()
+    expect(findNode(useEditorStore.getState().document.pages[0]!.nodes, 'rangee')).toBeNull()
   })
 })

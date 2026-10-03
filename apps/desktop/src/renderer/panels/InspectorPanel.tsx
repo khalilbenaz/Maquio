@@ -19,55 +19,27 @@
 // noeuds selectionnes s'affiche vide ; le valider applique le nouveau
 // contenu a tous les noeuds concernes via une seule compositeCommand
 // (decision 4), pour qu'un seul "annuler" desfasse toute l'edition.
-import { useEffect, useRef, useState } from 'react'
-import type { ChangeEvent, KeyboardEvent } from 'react'
 import { clearLinkCommand, compositeCommand, findNode, isScreenNode, screenContaining, setLinkCommand, setTextCommand, updateNodeCommand } from '@calque/core'
 import type {
-  Color,
   Command,
+  ComponentNode,
   EllipseNode,
   Fill,
   FrameNode,
   ImageNode,
   LayoutMode,
   Node as CalqueNode,
-  NodePatch,
   RectNode,
   Stroke,
   TextNode,
 } from '@calque/core'
+import { CheckboxField, ColorField, NumberField, SelectField, TextField, colorToHex, commitToSelection, commonOf, hexToColor } from './inspectorFields'
+import { ComponentSection, ContainerSection } from './ComponentSection'
 import { useEditorStore } from '../state/editorStore'
 import { pageNodesOf } from '../canvas/useDragInteraction'
 import type { CalqueApi } from '../../shared/api'
 import './InspectorPanel.css'
 
-// --- Utilitaires generiques (valeur commune, execution groupee) ---
-
-function commonOf<N, T>(nodes: N[], get: (n: N) => T): T | null {
-  const first = nodes[0]
-  if (first === undefined) return null
-  const firstValue = get(first)
-  return nodes.every((n) => get(n) === firstValue) ? firstValue : null
-}
-
-// Construit et execute, pour chaque noeud dont la valeur courante differe
-// de `value`, la commande updateNodeCommand correspondante -- regroupees en
-// une seule compositeCommand des qu'il y en a plus d'une (decision 4). Si
-// aucun noeud ne differe (valeur inchangee, y compris sur une selection
-// multiple deja homogene), aucune commande n'est executee (decision 2).
-function commitToSelection<T>(
-  nodes: CalqueNode[],
-  pageId: string,
-  execute: (c: Command) => void,
-  label: string,
-  get: (n: CalqueNode) => T,
-  patch: (n: CalqueNode, value: T) => NodePatch,
-  value: T,
-): void {
-  const commands = nodes.filter((n) => get(n) !== value).map((n) => updateNodeCommand(pageId, n.id, patch(n, value)))
-  if (commands.length === 0) return
-  execute(commands.length === 1 ? commands[0]! : compositeCommand(label, commands))
-}
 
 // --- Predicats de type (decident quels champs s'affichent, decision 4) ---
 
@@ -91,223 +63,6 @@ function isFrameNode(n: CalqueNode): n is FrameNode {
 
 function isImageNode(n: CalqueNode): n is ImageNode {
   return n.type === 'image'
-}
-
-// --- Champ numerique : draft local, commit au blur/Entree, invalide/borne ---
-
-type NumberFieldProps = {
-  label: string
-  value: number | null
-  min?: number
-  max?: number
-  onCommit: (value: number) => void
-}
-
-// Affichage propre (finition v1) : au plus deux decimales, et jamais de
-// decimale inutile (233, pas 233.00 ; 12.5, pas 12.50). Un arrondi
-// D'AFFICHAGE uniquement -- il ne s'applique qu'au moment ou `draft` est
-// (re)initialise depuis la valeur du document (ici et dans l'effet ci-
-// dessous), jamais a ce que l'utilisateur tape : une frappe met a jour
-// `draft` directement depuis l'evenement (handleChange), et onCommit ne
-// lit jamais formatNumber -- une saisie clavier comme "12.5" est donc
-// conservee telle quelle, non arrondie.
-function formatNumber(v: number | null): string {
-  if (v === null || !Number.isFinite(v)) return ''
-  const trimmed = v.toFixed(2).replace(/\.?0+$/, '')
-  return trimmed === '-0' ? '0' : trimmed
-}
-
-function NumberField({ label, value, min, max, onCommit }: NumberFieldProps) {
-  const [draft, setDraft] = useState(() => formatNumber(value))
-  const [invalid, setInvalid] = useState(false)
-  const dirtyRef = useRef(false)
-
-  useEffect(() => {
-    setDraft(formatNumber(value))
-    setInvalid(false)
-    dirtyRef.current = false
-  }, [value])
-
-  function commit() {
-    if (!dirtyRef.current) return
-    dirtyRef.current = false
-
-    const trimmed = draft.trim()
-    const parsed = trimmed === '' ? Number.NaN : Number(trimmed)
-    const horsBornes =
-      !Number.isFinite(parsed) || (min !== undefined && parsed < min) || (max !== undefined && parsed > max)
-
-    if (horsBornes) {
-      setInvalid(true)
-      setDraft(formatNumber(value))
-      return
-    }
-
-    setInvalid(false)
-    if (value !== null && parsed === value) return
-    onCommit(parsed)
-  }
-
-  function handleChange(e: ChangeEvent<HTMLInputElement>) {
-    dirtyRef.current = true
-    setInvalid(false)
-    setDraft(e.target.value)
-  }
-
-  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      e.currentTarget.blur()
-    }
-  }
-
-  return (
-    <label className="inspector-field">
-      <span className="inspector-field-label">{label}</span>
-      <input
-        aria-label={label}
-        aria-invalid={invalid ? 'true' : undefined}
-        className={invalid ? 'inspector-input inspector-input-invalid' : 'inspector-input'}
-        value={draft}
-        onChange={handleChange}
-        onBlur={commit}
-        onKeyDown={handleKeyDown}
-      />
-    </label>
-  )
-}
-
-// --- Champ texte : meme regle de commit, sans bornes (toute chaine valide) ---
-
-type TextFieldProps = {
-  label: string
-  value: string | null
-  onCommit: (value: string) => void
-}
-
-function TextField({ label, value, onCommit }: TextFieldProps) {
-  const [draft, setDraft] = useState(() => value ?? '')
-  const dirtyRef = useRef(false)
-
-  useEffect(() => {
-    setDraft(value ?? '')
-    dirtyRef.current = false
-  }, [value])
-
-  function commit() {
-    if (!dirtyRef.current) return
-    dirtyRef.current = false
-    if (value !== null && draft === value) return
-    onCommit(draft)
-  }
-
-  return (
-    <label className="inspector-field">
-      <span className="inspector-field-label">{label}</span>
-      <input
-        aria-label={label}
-        className="inspector-input"
-        value={draft}
-        onChange={(e) => {
-          dirtyRef.current = true
-          setDraft(e.target.value)
-        }}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault()
-            e.currentTarget.blur()
-          }
-        }}
-      />
-    </label>
-  )
-}
-
-// --- Champ a choix (select) : commit immediat, pas de frappe a debattre ---
-
-type SelectFieldProps<T extends string> = {
-  label: string
-  value: T | null
-  options: readonly { value: T; label: string }[]
-  onCommit: (value: T) => void
-}
-
-function SelectField<T extends string>({ label, value, options, onCommit }: SelectFieldProps<T>) {
-  return (
-    <label className="inspector-field">
-      <span className="inspector-field-label">{label}</span>
-      <select
-        aria-label={label}
-        className="inspector-input"
-        value={value ?? ''}
-        onChange={(e) => onCommit(e.target.value as T)}
-      >
-        {value === null ? <option value="">(mixte)</option> : null}
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  )
-}
-
-// --- Champ case a cocher : commit immediat (pas de notion de frappe) ---
-
-function CheckboxField({
-  label,
-  checked,
-  onCommit,
-}: {
-  label: string
-  checked: boolean
-  onCommit: (value: boolean) => void
-}) {
-  return (
-    <label className="inspector-field inspector-field-checkbox">
-      <input
-        type="checkbox"
-        aria-label={label}
-        checked={checked}
-        onChange={(e) => onCommit(e.target.checked)}
-      />
-      <span className="inspector-field-label">{label}</span>
-    </label>
-  )
-}
-
-// --- Champ couleur : commit immediat sur le choix (pas de frappe clavier) ---
-
-function colorToHex(c: Color): string {
-  const toHex = (v: number) =>
-    Math.round(Math.min(1, Math.max(0, v)) * 255)
-      .toString(16)
-      .padStart(2, '0')
-  return `#${toHex(c.r)}${toHex(c.g)}${toHex(c.b)}`
-}
-
-function hexToColor(hex: string, alpha: number): Color {
-  const r = parseInt(hex.slice(1, 3), 16) / 255
-  const g = parseInt(hex.slice(3, 5), 16) / 255
-  const b = parseInt(hex.slice(5, 7), 16) / 255
-  return { r, g, b, a: alpha }
-}
-
-function ColorField({ label, value, onCommit }: { label: string; value: string; onCommit: (hex: string) => void }) {
-  return (
-    <label className="inspector-field">
-      <span className="inspector-field-label">{label}</span>
-      <input
-        type="color"
-        aria-label={label}
-        className="inspector-color"
-        value={value}
-        onChange={(e) => onCommit(e.target.value)}
-      />
-    </label>
-  )
 }
 
 // --- Sections specifiques ---
@@ -807,6 +562,13 @@ export function InspectorPanel({ api }: { api: CalqueApi }) {
   const frameNodes = selectedNodes.filter(isFrameNode)
   const showLayout = frameNodes.length === selectedNodes.length
 
+  // v3 (composants mobiles) : la section d'un composant n'apparait que si
+  // TOUTE la selection est de meme kind (ses champs ne s'appliqueraient
+  // sinon pas a tous) ; celle d'un conteneur, pour toute selection de frames.
+  const componentNodes = selectedNodes.filter((n): n is ComponentNode => n.type === 'component')
+  const showComponent =
+    componentNodes.length === selectedNodes.length && componentNodes.every((n) => n.kind === componentNodes[0]!.kind)
+
   const imageNodes = selectedNodes.filter(isImageNode)
   const showImage = imageNodes.length === selectedNodes.length
 
@@ -940,6 +702,15 @@ export function InspectorPanel({ api }: { api: CalqueApi }) {
         </section>
       ) : null}
 
+      {showComponent ? (
+        <ComponentSection
+          nodes={componentNodes}
+          pageId={pageId}
+          execute={execute}
+          screens={allNodes.filter(isScreenNode).map((s) => ({ id: s.id, name: s.name }))}
+        />
+      ) : null}
+      {showLayout ? <ContainerSection nodes={frameNodes} pageId={pageId} execute={execute} /> : null}
       {showFillAndStroke ? <FillSection nodes={fillableNodes} pageId={pageId} execute={execute} /> : null}
       {showFillAndStroke ? <StrokeSection nodes={fillableNodes} pageId={pageId} execute={execute} /> : null}
       {showText ? <TextSection nodes={textNodes} pageId={pageId} execute={execute} /> : null}

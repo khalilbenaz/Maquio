@@ -13,6 +13,7 @@ import type { CalqueApi } from '../shared/api'
 import { useEditorStore } from './state/editorStore'
 import { Canvas } from './canvas/Canvas'
 import { LayersPanel } from './panels/LayersPanel'
+import { PalettePanel } from './panels/PalettePanel'
 import { InspectorPanel } from './panels/InspectorPanel'
 import { Toolbar } from './panels/Toolbar'
 import { ClaudePanel } from './panels/ClaudePanel'
@@ -79,6 +80,9 @@ function Editeur({ api }: { api: CalqueApi }) {
   // duplique ou pousse dans un magasin partage supplementaire pour un
   // simple booleen d'affichage.
   const [reglagesOuverts, setReglagesOuverts] = useState(false)
+
+  // Colonne de gauche : calques ou palette de composants (onglets).
+  const [ongletGauche, setOngletGauche] = useState<'calques' | 'composants'>('calques')
 
   // Erreurs de fichier (ouvrir un document invalide, enregistrement refuse) :
   // sans ce garde, la promesse rejetee partait dans le vide et l'utilisateur
@@ -176,7 +180,21 @@ function Editeur({ api }: { api: CalqueApi }) {
       <Toolbar api={api} onOpenSettings={() => setReglagesOuverts(true)} />
       <div className="calque-body">
         <div className="calque-column-layers">
-          <LayersPanel />
+          <div className="calque-left-tabs" role="tablist" aria-label="Panneau de gauche">
+            {(['calques', 'composants'] as const).map((onglet) => (
+              <button
+                key={onglet}
+                type="button"
+                role="tab"
+                aria-selected={ongletGauche === onglet}
+                className={ongletGauche === onglet ? 'calque-left-tab calque-left-tab-active' : 'calque-left-tab'}
+                onClick={() => setOngletGauche(onglet)}
+              >
+                {onglet === 'calques' ? 'Calques' : 'Composants'}
+              </button>
+            ))}
+          </div>
+          <div className="calque-left-body">{ongletGauche === 'calques' ? <LayersPanel /> : <PalettePanel />}</div>
         </div>
         <div className="calque-column-canvas">
           <Canvas api={api} />

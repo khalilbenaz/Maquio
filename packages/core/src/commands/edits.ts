@@ -7,8 +7,11 @@
 // moveNode) qui preservent le partage structurel : on ne reconstruit jamais
 // l'arbre entier a la main ici.
 
-import type { CalqueDocument, DesignTokens, FrameNode, Layout, Node, Rect } from '../model/types'
+import type { CalqueDocument, DesignTokens, FrameNode, Layout, Node, Page, Rect } from '../model/types'
+import type { ContainerSpec } from '../components/props'
 import { translateRect, unionRects } from '../geometry/rect'
+import { layoutPage } from '../layout/autolayout'
+import { nodeSchema } from '../model/schema'
 import {
   absoluteFrame,
   findNode,
@@ -453,6 +456,34 @@ export function setLayoutCommand(pageId: string, frameId: string, layout: Layout
   }
 }
 
+// v3 (composants mobiles) : pose, remplace ou retire (`null`) le conteneur
+// semantique d'une frame. Distincte de `updateNodeCommand` : un patch fusionne
+// laisserait la cle `container` presente avec la valeur `undefined` ; cette
+// fabrique retire vraiment la cle, pour qu'une frame ordinaire serialise
+// comme une frame qui n'a jamais ete conteneur.
+export function setContainerCommand(pageId: string, frameId: string, container: ContainerSpec | null): Command {
+  return {
+    label: container === null ? 'Retirer le conteneur' : 'Modifier le conteneur',
+    apply(doc: CalqueDocument): CalqueDocument {
+      return updatePageNodes(doc, pageId, (nodes) => {
+        const node = findNode(nodes, frameId)
+        if (node === null) throw new NodeNotFoundError(frameId)
+        if (node.type !== 'frame') throw new NotAFrameError(frameId)
+        const { container: _previous, ...rest } = node
+        const next: FrameNode = container === null ? rest : { ...rest, container }
+        return replaceNode(nodes, frameId, nodeSchema.parse(next))
+      })
+    },
+    invert(doc: CalqueDocument): Command {
+      const nodes = requirePage(doc, pageId).nodes
+      const node = findNode(nodes, frameId)
+      if (node === null) throw new NodeNotFoundError(frameId)
+      if (node.type !== 'frame') throw new NotAFrameError(frameId)
+      return setContainerCommand(pageId, frameId, node.container ?? null)
+    },
+  }
+}
+
 export function setTokensCommand(tokens: Partial<DesignTokens>): Command {
   return {
     label: 'Modifier les tokens',
@@ -561,4 +592,57 @@ export function compositeCommand(label: string, commands: Command[]): Command {
       return compositeCommand(label, inverses)
     },
   }
+}
+
+
+// --- Mise en page automatique ---
+
+// Remplace les noeuds des pages dont l'id figure dans `saved` : sert
+// uniquement a inverser relayoutCommand (restaure les positions d'avant).
+function restorePagesCommand(saved: Page[]): Command {
+  return {
+    label: 'Mise en page automatique',
+    apply(doc: CalqueDocument): CalqueDocument {
+      return {
+        ...doc,
+        pages: doc.pages.map((p) => {
+          const before = saved.find((s) => s.id === p.id)
+          return before === undefined ? p : { ...p, nodes: before.nodes }
+        }),
+      }
+    },
+    invert(doc: CalqueDocument): Command {
+      return restorePagesCommand(doc.pages)
+    },
+  }
+}
+
+// v3 (composants mobiles) : applique la mise en page automatique (row,
+// column, grid) a toutes les pages et MATERIALISE le resultat dans les
+// cadres des noeuds. Le canevas affiche ainsi ce que les exportateurs
+// generent (ils rappellent layoutPage, idempotent). Rend le meme document,
+// par reference, quand aucune position ne change.
+export function relayoutCommand(): Command {
+  return {
+    label: 'Mise en page automatique',
+    apply(doc: CalqueDocument): CalqueDocument {
+      let changed = false
+      const pages = doc.pages.map((p) => {
+        const laidOut = layoutPage(p)
+        if (laidOut !== p) changed = true
+        return laidOut
+      })
+      return changed ? { ...doc, pages } : doc
+    },
+    invert(doc: CalqueDocument): Command {
+      return restorePagesCommand(doc.pages)
+    },
+  }
+}
+
+// Enveloppe une commande pour que son effet soit suivi de la mise en page
+// automatique DANS LA MEME entree d'historique : un seul « annuler » defait
+// la commande et le re-calage qu'elle a provoque. Le libelle est conserve.
+export function withAutoLayout(command: Command): Command {
+  return compositeCommand(command.label, [command, relayoutCommand()])
 }

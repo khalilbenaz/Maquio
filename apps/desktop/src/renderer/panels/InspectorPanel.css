@@ -134,3 +134,75 @@
   border-radius: 4px;
   padding: 0;
 }
+
+/* v3 : proprietes des composants mobiles. */
+.inspector-textarea {
+  height: auto;
+  min-height: 56px;
+  padding: 6px 8px;
+  resize: vertical;
+  line-height: 1.4;
+}
+
+.inspector-error {
+  margin: 6px 0 0;
+  padding: 6px 8px;
+  border-radius: var(--calque-radius-sm);
+  background: rgba(229, 120, 107, 0.14);
+  color: var(--calque-danger);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.inspector-list {
+  margin: 8px 0 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.inspector-list legend {
+  padding: 0;
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: var(--calque-text-faint);
+}
+
+.inspector-list-item {
+  margin-bottom: 8px;
+  padding: 6px;
+  border: 1px solid var(--calque-border);
+  border-radius: var(--calque-radius-sm);
+}
+
+.inspector-list-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.inspector-list-row .inspector-field {
+  flex: 1;
+}
+
+.inspector-link-button {
+  margin-top: 4px;
+  padding: 3px 8px;
+  border: 1px solid var(--calque-border);
+  border-radius: var(--calque-radius-sm);
+  background: transparent;
+  color: var(--calque-text-soft);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.inspector-link-button:hover {
+  border-color: var(--calque-accent);
+  color: var(--calque-text);
+}
+
+.inspector-color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

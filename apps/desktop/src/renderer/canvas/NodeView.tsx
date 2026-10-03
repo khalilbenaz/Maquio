@@ -10,6 +10,8 @@ import type { ImageNode, Node as CalqueNode, Rect } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import { resolvePreviewAbsoluteFrame, useNodeInteraction } from './useDragInteraction'
 import { resolveImageSrc } from './imageSource'
+import { ComponentContent } from './ComponentView'
+import { ContainerDecor, containerShadow } from './ContainerView'
 
 type Props = {
   node: CalqueNode
@@ -83,6 +85,7 @@ export function NodeView({ node, nodes }: Props) {
   return (
     <div
       data-testid={`node-${node.id}`}
+      data-node-type={node.type === 'component' ? node.kind : node.type === 'frame' && node.container ? node.container.kind : node.type}
       onPointerDown={node.locked ? undefined : onPointerDown}
       style={{
         position: 'absolute',
@@ -95,12 +98,15 @@ export function NodeView({ node, nodes }: Props) {
         pointerEvents: node.locked ? 'none' : 'auto',
         background: backgroundOf(node),
         borderRadius: node.type === 'ellipse' ? '50%' : node.type === 'rect' || node.type === 'frame' ? node.cornerRadius : undefined,
+        boxShadow: node.type === 'frame' ? containerShadow(node) : undefined,
         boxSizing: 'border-box',
         userSelect: 'none',
       }}
     >
       {node.type === 'text' ? node.characters : null}
       {node.type === 'image' ? <ImageContent node={node} /> : null}
+      {node.type === 'component' ? <ComponentContent node={node} /> : null}
+      {node.type === 'frame' && node.container !== undefined ? <ContainerDecor node={node} /> : null}
     </div>
   )
 }
