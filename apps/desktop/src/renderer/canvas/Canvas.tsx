@@ -35,8 +35,8 @@
 // Les raccourcis clavier (decision 7) restent geres ici, au niveau du
 // document (window), pas sur un element focusable du canevas.
 import { useEffect, useLayoutEffect, useRef } from 'react'
-import type { PointerEvent as ReactPointerEvent } from 'react'
-import { compositeCommand, deleteNodeCommand, findNode, isScreenNode, unionRects } from '@calque/core'
+import type { DragEvent, PointerEvent as ReactPointerEvent } from 'react'
+import { PALETTE_ITEMS, compositeCommand, deleteNodeCommand, findNode, isScreenNode, unionRects } from '@calque/core'
 import type { FrameNode, Node as CalqueNode } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import type { Tool } from '../state/editorStore'
@@ -44,7 +44,8 @@ import type { CalqueApi } from '../../shared/api'
 import { NodeView } from './NodeView'
 import { SelectionOverlay } from './SelectionOverlay'
 import { LinksLayer } from './LinksLayer'
-import { pageNodesOf, useCreateInteraction } from './useDragInteraction'
+import { PALETTE_MIME, insertPaletteItemAt } from './paletteInsert'
+import { pageNodesOf, screenToPage, useCreateInteraction } from './useDragInteraction'
 import { computeFitTransform, computeFitTransformToBounds, computeWheelZoom } from './viewport'
 import './Canvas.css'
 
@@ -350,6 +351,27 @@ export function Canvas({ api }: { api: CalqueApi }) {
     useEditorStore.getState().select([])
   }
 
+  // Glisser-deposer depuis la palette : le depot cree le composant sous le
+  // curseur (point de PAGE, voir screenToPage), dans le conteneur le plus
+  // profond -- placePaletteItem choisit parent et cadre.
+  function onPaletteDragOver(e: DragEvent) {
+    if (!e.dataTransfer.types.includes(PALETTE_MIME)) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+  }
+
+  function onPaletteDrop(e: DragEvent) {
+    const id = e.dataTransfer.getData(PALETTE_MIME)
+    if (id === '') return
+    e.preventDefault()
+    const item = PALETTE_ITEMS.find((i) => i.id === id)
+    if (item === undefined || !Number.isFinite(e.clientX) || !Number.isFinite(e.clientY)) return
+    const state = useEditorStore.getState()
+    const rect = canvasRef.current?.getBoundingClientRect()
+    const origin = rect ? { x: rect.left, y: rect.top } : { x: 0, y: 0 }
+    insertPaletteItemAt(item, screenToPage({ x: e.clientX, y: e.clientY }, origin, state.zoom, state.pan))
+  }
+
   const pageNodes = pageNodesOf(document_, pageId)
   const outilActif = tool !== 'select' ? tool : null
 
@@ -383,6 +405,8 @@ export function Canvas({ api }: { api: CalqueApi }) {
       className="calque-canvas"
       data-testid="canvas-scene"
       onPointerDown={onScenePointerDown}
+      onDragOver={onPaletteDragOver}
+      onDrop={onPaletteDrop}
     >
       <div
         className="calque-canvas-world"

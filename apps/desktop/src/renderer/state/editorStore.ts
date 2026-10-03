@@ -7,7 +7,7 @@
 // action qui touche l'historique (load/execute/undo/redo) : il n'existe pas
 // de deuxieme source de verite a tenir synchronisee a la main.
 import { create } from 'zustand'
-import { createDocument, History, screenContaining } from '@calque/core'
+import { createDocument, History, screenContaining, withAutoLayout } from '@calque/core'
 import type { CalqueDocument, Command, HandleId, Rect } from '@calque/core'
 
 export type Tool = 'select' | 'frame' | 'rect' | 'ellipse' | 'text' | 'image'
@@ -183,7 +183,11 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
     execute(cmd) {
       const { history } = get()
-      history.execute(cmd)
+      // v3 (composants mobiles) : toute commande est suivie, dans la MEME
+      // entree d'historique, de la mise en page automatique -- le canevas
+      // montre ainsi les positions que les exportateurs generent
+      // (Row/Column/Grille), et un seul « annuler » defait les deux.
+      history.execute(withAutoLayout(cmd))
       set({ document: history.document })
     },
 

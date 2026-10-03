@@ -26,7 +26,11 @@ import {
   ungroupCommand,
   setLayoutCommand,
   setTokensCommand,
+  relayoutCommand,
+  withAutoLayout,
+  setContainerCommand,
 } from './edits'
+import { History } from './history'
 import type { CalqueDocument, DevicePreset, FrameNode, Node, TextNode } from '../model/types'
 
 function rect(id: string, x: number, y: number, w = 10, h = 10): Node {
@@ -667,5 +671,93 @@ describe('deleteNodeCommand sur un ecran : cascade de liens (v2, addendum naviga
     const withA = createNodeCommand(pageId, null, rect('a', 0, 0)).apply(doc)
     const deleted = deleteNodeCommand(pageId, 'a').apply(withA)
     expect(findNode(deleted.pages[0]!.nodes, 'a')).toBeNull()
+  })
+})
+
+
+// v3 (composants mobiles) : les positions des enfants d'une frame en
+// mise en page automatique (row/column/grid) sont MATERIALISEES dans le
+// document, pour que le canevas affiche exactement ce que les exportateurs
+// generent -- et que l'annulation les restaure en un seul geste.
+describe('relayoutCommand / withAutoLayout', () => {
+  function rowDoc(): { doc: CalqueDocument; pageId: string; rowId: string } {
+    const { doc, pageId } = baseDoc()
+    const row: FrameNode = {
+      id: 'row', name: 'row', type: 'frame', frame: { x: 0, y: 0, w: 300, h: 100 },
+      visible: true, locked: false, opacity: 1, rotation: 0,
+      layout: { mode: 'row', gap: 10, padding: { top: 0, right: 0, bottom: 0, left: 0 }, alignMain: 'start', alignCross: 'start' },
+      fills: [], strokes: [], cornerRadius: 0, clipsContent: false, children: [rect('a', 0, 0, 50, 20), rect('b', 0, 0, 30, 20)],
+    }
+    return { doc: createNodeCommand(pageId, null, row).apply(doc), pageId, rowId: 'row' }
+  }
+
+  it('replace les enfants selon la disposition, sans toucher les frames absolues', () => {
+    const { doc, pageId } = rowDoc()
+    const out = relayoutCommand().apply(doc)
+    const page = out.pages.find((p) => p.id === pageId)!
+    const row = findNode(page.nodes, 'row') as FrameNode
+    expect(row.children[0]!.frame.x).toBe(0)
+    expect(row.children[1]!.frame.x).toBe(60)
+  })
+
+  it('rend le meme document (meme reference) quand rien ne bouge', () => {
+    const { doc } = rowDoc()
+    const once = relayoutCommand().apply(doc)
+    expect(relayoutCommand().apply(once)).toBe(once)
+  })
+
+  it('withAutoLayout : une seule entree d historique, annulable et retablissable', () => {
+    const { doc, pageId } = rowDoc()
+    const history = new History(doc)
+    history.execute(withAutoLayout(createNodeCommand(pageId, 'row', rect('c', 0, 0, 20, 20))))
+    const row = () => findNode(history.document.pages[0]!.nodes, 'row') as FrameNode
+    expect(row().children.map((c) => c.frame.x)).toEqual([0, 60, 100])
+    expect(history.undoLabels).toEqual(['Créer'])
+
+    history.undo()
+    expect(row().children.map((c) => c.id)).toEqual(['a', 'b'])
+    expect(row().children.map((c) => c.frame.x)).toEqual([0, 0])
+
+    history.redo()
+    expect(row().children.map((c) => c.frame.x)).toEqual([0, 60, 100])
+  })
+})
+
+
+describe('setContainerCommand (v3, conteneurs semantiques)', () => {
+  function frameDoc(): { doc: CalqueDocument; pageId: string } {
+    const { doc, pageId } = baseDoc()
+    const frame: FrameNode = {
+      id: 'f', name: 'f', type: 'frame', frame: { x: 0, y: 0, w: 100, h: 100 },
+      visible: true, locked: false, opacity: 1, rotation: 0,
+      layout: { mode: 'absolute', gap: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 }, alignMain: 'start', alignCross: 'start' },
+      fills: [], strokes: [], cornerRadius: 0, clipsContent: false, children: [],
+    }
+    return { doc: createNodeCommand(pageId, null, frame).apply(doc), pageId }
+  }
+
+  it('pose un conteneur sur une frame, et s annule en le retirant vraiment (cle absente)', () => {
+    const { doc, pageId } = frameDoc()
+    const cmd = setContainerCommand(pageId, 'f', { kind: 'card', elevation: 4 })
+    const apres = cmd.apply(doc)
+    expect((findNode(apres.pages[0]!.nodes, 'f') as FrameNode).container).toEqual({ kind: 'card', elevation: 4 })
+    const annule = cmd.invert(doc).apply(apres)
+    expect('container' in (findNode(annule.pages[0]!.nodes, 'f') as FrameNode)).toBe(false)
+  })
+
+  it('null retire le conteneur ; l inverse le restaure', () => {
+    const { doc, pageId } = frameDoc()
+    const avec = setContainerCommand(pageId, 'f', { kind: 'grid', columns: 3 }).apply(doc)
+    const cmd = setContainerCommand(pageId, 'f', null)
+    const sans = cmd.apply(avec)
+    expect('container' in (findNode(sans.pages[0]!.nodes, 'f') as FrameNode)).toBe(false)
+    expect((findNode(cmd.invert(avec).apply(sans).pages[0]!.nodes, 'f') as FrameNode).container).toEqual({ kind: 'grid', columns: 3 })
+  })
+
+  it('refuse un conteneur invalide et un noeud qui n est pas une frame', () => {
+    const { doc, pageId } = frameDoc()
+    expect(() => setContainerCommand(pageId, 'f', { kind: 'grid', columns: 0 }).apply(doc)).toThrow()
+    const avecRect = createNodeCommand(pageId, null, rect('r', 0, 0)).apply(doc)
+    expect(() => setContainerCommand(pageId, 'r', { kind: 'safeArea' }).apply(avecRect)).toThrow(NotAFrameError)
   })
 })

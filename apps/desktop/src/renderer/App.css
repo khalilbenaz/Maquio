@@ -85,6 +85,40 @@
 .calque-column-layers {
   width: var(--calque-layers-width);
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--calque-border);
+}
+
+.calque-left-tabs {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--calque-border);
+}
+
+.calque-left-tab {
+  flex: 1;
+  height: 34px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--calque-text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  cursor: pointer;
+}
+
+.calque-left-tab-active {
+  color: var(--calque-text);
+  border-bottom-color: var(--calque-accent);
+}
+
+.calque-left-body {
+  flex: 1;
+  min-height: 0;
 }
 
 .calque-column-canvas {
