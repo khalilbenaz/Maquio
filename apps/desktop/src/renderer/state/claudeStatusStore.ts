@@ -10,10 +10,16 @@
 // (une simple ecriture ici, lue reactivement par ClaudePanel via le hook).
 import { create } from 'zustand'
 
+// Phase de la demande en cours / derniere : sert de pastille quand le panneau
+// est replie (activite, puis resultat succes ou erreur jusqu'a ce qu'on le deplie).
+export type ClaudePhase = 'idle' | 'loading' | 'done' | 'error'
+
 export type ClaudeStatusState = {
   available: boolean
   path: string | null
+  phase: ClaudePhase
   setStatus: (status: { available: boolean; path: string | null }) => void
+  setPhase: (phase: ClaudePhase) => void
 }
 
 export const useClaudeStatusStore = create<ClaudeStatusState>((set) => ({
@@ -22,5 +28,7 @@ export const useClaudeStatusStore = create<ClaudeStatusState>((set) => ({
   // la premiere verification asynchrone n'ait eu le temps de repondre.
   available: true,
   path: null,
+  phase: 'idle',
   setStatus: (status) => set({ available: status.available, path: status.path }),
+  setPhase: (phase) => set({ phase }),
 }))

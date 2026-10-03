@@ -8,9 +8,12 @@
 // pour rester testables sans preload. Aucun acces au disque, au reseau ou
 // a un sous-processus ici : tout cela passe par le preload (window.calque).
 import { useEffect, useState } from 'react'
+import type { PointerEvent as ReactPointerEvent } from 'react'
 import { createDocument, parseDocument, serializeDocument } from '@calque/core'
 import type { CalqueApi } from '../shared/api'
 import { useEditorStore } from './state/editorStore'
+import { useUiPrefs } from './state/uiPrefsStore'
+import { useClaudeStatusStore } from './state/claudeStatusStore'
 import { Canvas } from './canvas/Canvas'
 import { LayersPanel } from './panels/LayersPanel'
 import { PalettePanel } from './panels/PalettePanel'
@@ -155,6 +158,38 @@ function Editeur({ api }: { api: CalqueApi }) {
     globalThis.document.title = `${nomDuDocument}${dirty ? ' • non enregistré' : ''} — Calque`
   }, [nomDuDocument, dirty])
 
+  const rightWidth = useUiPrefs((s) => s.rightWidth)
+
+  function commencerRedimensionnement(e: ReactPointerEvent) {
+    e.preventDefault()
+    const startX = e.clientX
+    const startW = useUiPrefs.getState().rightWidth
+    const move = (ev: PointerEvent) => useUiPrefs.getState().setRightWidth(startW + (startX - ev.clientX))
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+
+  // Cmd/Ctrl+J : replie ou deplie le panneau Claude (meme dans un champ de saisie).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'j') {
+        e.preventDefault()
+        const prefs = useUiPrefs.getState()
+        prefs.toggleClaude()
+        if (prefs.claudeCollapsed) {
+          const st = useClaudeStatusStore.getState()
+          if (st.phase === 'done' || st.phase === 'error') st.setPhase('idle')
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   return (
     <main className="calque-app">
       <div className="calque-titlebar">
@@ -201,7 +236,15 @@ function Editeur({ api }: { api: CalqueApi }) {
         <div className="calque-column-canvas">
           <Canvas api={api} />
         </div>
-        <div className="calque-column-right">
+        <div className="calque-column-right" style={{ width: rightWidth }}>
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Redimensionner le panneau de droite"
+            data-testid="right-resizer"
+            className="calque-right-resizer"
+            onPointerDown={commencerRedimensionnement}
+          />
           <InspectorPanel api={api} />
           <ClaudePanel api={api} onOpenSettings={() => setReglagesOuverts(true)} />
         </div>

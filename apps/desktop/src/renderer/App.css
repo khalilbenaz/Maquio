@@ -151,3 +151,20 @@
   font-size: 16px;
   cursor: pointer;
 }
+
+.calque-column-right {
+  position: relative;
+}
+.calque-right-resizer {
+  position: absolute;
+  left: -3px;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 10;
+}
+.calque-right-resizer:hover {
+  background: var(--calque-accent);
+  opacity: 0.4;
+}
