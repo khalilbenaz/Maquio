@@ -51,7 +51,40 @@ function text(name: string, characters: string, x: number, y: number, size = 20,
   }
 }
 
+// Identifiants STABLES (`ex-1`, `ex-2`...) : le fichier d'exemple livre dans
+// `exemples/` doit etre reproductible octet pour octet, et les liens (cible
+// d'un lien, d'une entree de barre) suivent la renumerotation.
+function stabiliser(doc: CalqueDocument): CalqueDocument {
+  const map = new Map<string, string>()
+  let counter = 0
+  const renumber = (nodes: Node[]): Node[] =>
+    nodes.map((node) => {
+      const id = `ex-${++counter}`
+      map.set(node.id, id)
+      return node.type === 'frame' ? { ...node, id, children: renumber(node.children) } : ({ ...node, id } as Node)
+    })
+  const retarget = (nodes: Node[]): Node[] =>
+    nodes.map((node) => {
+      let next: Node = node
+      if (next.link) next = { ...next, link: { target: map.get(next.link.target) ?? next.link.target } }
+      if (next.type === 'component' && (next.kind === 'bottomNav' || next.kind === 'tabs')) {
+        const items = (next.props.items as { target?: string }[]).map((item) =>
+          item.target === undefined ? item : { ...item, target: map.get(item.target) ?? item.target },
+        )
+        next = { ...next, props: { ...next.props, items } } as ComponentNode
+      }
+      return next.type === 'frame' ? { ...next, children: retarget(next.children) } : next
+    })
+  const page = doc.pages[0]!
+  const nodes = retarget(renumber(page.nodes))
+  return { ...doc, id: 'exemple-tous-les-composants', pages: [{ ...page, id: 'page-1', nodes }] }
+}
+
 export function documentExempleComplet(): CalqueDocument {
+  return stabiliser(construireExemple())
+}
+
+function construireExemple(): CalqueDocument {
   const device = DEVICE_PRESETS.iphone15
   const frame = (x: number): Rect => ({ x, y: 0, w: device.width, h: device.height })
   const accueilBase = createScreenNode('Accueil', device, frame(0))

@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { createDocument, createNodeCommand, History, nodeSchema } from '@calque/core'
+import {
+  COMPONENT_DEFINITIONS,
+  COMPONENT_KINDS,
+  CONTAINER_DEFINITIONS,
+  CONTAINER_KINDS,
+  createDocument,
+  createNodeCommand,
+  History,
+  nodeSchema,
+} from '@calque/core'
 import type { Node } from '@calque/core'
 import { buildPrompt } from '../src/prompt'
 import { NODE_EXAMPLES } from '../src/prompt-examples'
@@ -79,8 +88,8 @@ describe('buildPrompt', () => {
     const doc = createDocument('Mon app')
     const p = buildPrompt({ instruction: 'x', document: doc, selectionIds: [] })
 
-    it('nomme les six types exacts de noeud', () => {
-      for (const type of ['"frame"', '"text"', '"rect"', '"ellipse"', '"image"', '"line"']) {
+    it('nomme les sept types exacts de noeud', () => {
+      for (const type of ['"frame"', '"text"', '"rect"', '"ellipse"', '"image"', '"line"', '"component"']) {
         expect(p).toContain(type)
       }
       // "rectangle" est le nom INVENTE en conditions reelles (voir le
@@ -109,9 +118,9 @@ describe('buildPrompt', () => {
       expect(p.toLowerCase()).toContain('entier')
     })
 
-    it('inclut un exemple JSON complet et valide pour chacun des six types', () => {
+    it('inclut un exemple JSON complet et valide pour chacun des sept types', () => {
       const parses = NODE_EXAMPLES.map((n) => n.type)
-      expect(new Set(parses)).toEqual(new Set(['frame', 'text', 'rect', 'ellipse', 'image', 'line']))
+      expect(new Set(parses)).toEqual(new Set(['frame', 'text', 'rect', 'ellipse', 'image', 'line', 'component']))
       // Chaque exemple present dans le prompt doit lui-meme passer
       // nodeSchema -- exactement le validateur qui jugera le vrai patch,
       // pour qu'un exemple qui derive du modele casse ce test plutot que
@@ -120,6 +129,35 @@ describe('buildPrompt', () => {
         expect(() => nodeSchema.parse(example)).not.toThrow()
         expect(p).toContain(JSON.stringify(example, null, 2))
       }
+    })
+  })
+
+  // v3 (composants mobiles) : le modele doit pouvoir poser un bouton, un champ
+  // ou une barre de navigation SEMANTIQUES plutot qu'un rectangle avec du
+  // texte, et connaitre la forme exacte de leurs `props`.
+  describe('composants mobiles semantiques', () => {
+    const p = buildPrompt({ instruction: 'x', document: createDocument('Mon app'), selectionIds: [] })
+
+    it('explique le noeud component (kind + props) et nomme chaque kind', () => {
+      expect(p).toContain('"kind"')
+      expect(p).toContain('"props"')
+      for (const kind of COMPONENT_KINDS) expect(p, kind).toContain(`"${kind}"`)
+    })
+
+    it('donne les props par defaut de chaque kind, derivees du catalogue (valides)', () => {
+      for (const kind of COMPONENT_KINDS) {
+        expect(p).toContain(JSON.stringify(COMPONENT_DEFINITIONS[kind].props))
+      }
+    })
+
+    it('nomme les conteneurs semantiques de frame et leurs valeurs par defaut', () => {
+      expect(p).toContain('"container"')
+      for (const kind of CONTAINER_KINDS) expect(p, kind).toContain(JSON.stringify(CONTAINER_DEFINITIONS[kind].spec))
+    })
+
+    it('rappelle que les composants n ont pas d enfants et les valeurs d icones autorisees', () => {
+      expect(p.toLowerCase()).toMatch(/aucun enfant|n'a pas d'enfants|pas d'enfants/)
+      for (const icon of ['home', 'search', 'arrowBack']) expect(p).toContain(icon)
     })
   })
 })

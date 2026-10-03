@@ -10,12 +10,9 @@ export type ExportedFile = { path: string; contents: string }
 
 export type ExportResult = { files: ExportedFile[]; warnings: string[] }
 
-// `activeScreenId` (v2, addendum navigation §3.1/§7) : identifiant de
-// l'ecran a exporter pour une page qui en contient plusieurs -- absent ou
-// ne correspondant a aucun ecran de la page en cours, le premier ecran de
-// cette page est exporte (voir selectActiveScreen dans
-// shared/node-helpers.ts). Sans effet sur une page sans ecran (document v1
-// non migre).
+// `activeScreenId` : ecran de depart de la navigation generee (route
+// initiale, `startDestination`, racine de la pile). TOUS les ecrans sont
+// exportes ; absent ou inconnu, le premier ecran est l'ecran de depart.
 export type ExportOptions = { projectName: string; nullSafety?: boolean; activeScreenId?: string }
 
 export type ExporterId = 'flutter' | 'react-native' | 'swiftui' | 'compose'

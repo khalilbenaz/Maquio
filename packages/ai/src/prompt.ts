@@ -19,7 +19,14 @@
 // nodeSchema a l'import), plus les regles qui ne se devinent pas depuis un
 // seul exemple (les six types exacts, `frame` en objet imbrique, la
 // structure d'un ecran).
-import { findNode } from '@calque/core'
+import {
+  COMPONENT_DEFINITIONS,
+  COMPONENT_KINDS,
+  CONTAINER_DEFINITIONS,
+  CONTAINER_KINDS,
+  ICON_NAMES,
+  findNode,
+} from '@calque/core'
 import type { CalqueDocument, Node } from '@calque/core'
 import { NODE_EXAMPLES } from './prompt-examples'
 
@@ -58,6 +65,18 @@ const NODE_EXAMPLES_TEXT = NODE_EXAMPLES.map((node) => `"${node.type}" (exemple,
   '\n\n',
 )
 
+// v3 (composants mobiles) : valeurs par defaut de chaque `kind` et de chaque
+// conteneur, DERIVEES du catalogue de @calque/core (jamais ecrites a la main) :
+// le modele voit la forme exacte de `props`, y compris les champs optionnels
+// (`icon`, `color`...) que les valeurs par defaut omettent.
+const COMPONENT_CATALOG_TEXT = COMPONENT_KINDS.map(
+  (kind) => `- "${kind}" (${COMPONENT_DEFINITIONS[kind].label}) : "props" = ${JSON.stringify(COMPONENT_DEFINITIONS[kind].props)}`,
+).join('\n')
+
+const CONTAINER_CATALOG_TEXT = CONTAINER_KINDS.map(
+  (kind) => `- ${CONTAINER_DEFINITIONS[kind].label} : "container" = ${JSON.stringify(CONTAINER_DEFINITIONS[kind].spec)}`,
+).join('\n')
+
 export function buildPrompt(input: { instruction: string; document: CalqueDocument; selectionIds: string[] }): string {
   const { instruction, document, selectionIds } = input
 
@@ -79,7 +98,7 @@ Reponds UNIQUEMENT avec un patch JSON decrivant les operations a appliquer au do
 Format attendu (DocumentPatch), eventuellement dans un bloc de code :
 ${PATCH_FORMAT}
 
-Le champ "node" de "insertNode", et le resultat de la fusion de "patch" dans "updateNode", doivent avoir EXACTEMENT la forme d'un des six types de noeud ci-dessous -- jamais une forme inventee, meme plausible. Il n'existe QUE ces six types, sous CES noms exacts : "frame", "text", "rect", "ellipse", "image", "line" (jamais "rectangle", "shape", ou toute autre variante).
+Le champ "node" de "insertNode", et le resultat de la fusion de "patch" dans "updateNode", doivent avoir EXACTEMENT la forme d'un des sept types de noeud ci-dessous -- jamais une forme inventee, meme plausible. Il n'existe QUE ces sept types, sous CES noms exacts : "frame", "text", "rect", "ellipse", "image", "line", "component" (jamais "rectangle", "shape", "button" comme type, ou toute autre variante).
 
 Regles communes a tous les types, qui ne se devinent pas depuis un seul exemple :
 - la position et la taille vivent TOUJOURS dans un objet imbrique "frame" : { "x", "y", "w", "h" } -- jamais "x"/"y"/"width"/"height" a plat sur le noeud ;
@@ -88,11 +107,21 @@ Regles communes a tous les types, qui ne se devinent pas depuis un seul exemple 
 - toutes les dimensions (largeur, hauteur, espacement, marges, rayon d'arrondi, epaisseur de trait, taille de police, interligne) sont des nombres ENTIERS et POSITIFS ou nuls, jamais negatifs ni fractionnaires ;
 - la rotation ("rotation") est exprimee en degres, jamais en radians ;
 - un "id" et un "name" sont obligatoires sur chaque noeud, ainsi que "visible", "locked", "opacity" (0 a 1) ;
+- un composant mobile (bouton, champ de saisie, interrupteur, barre d'application...) est un noeud "component" : "kind" nomme le widget natif et "props" porte ses proprietes, avec la forme EXACTE donnee plus bas pour ce "kind" -- jamais un "rect" avec du texte pour imiter un bouton ; un "component" n'a pas d'enfants (aucun champ "children") ;
+- un conteneur semantique (carte, liste, grille, zone defilante, zone sure, feuille basse, tiroir) est une "frame" qui porte un champ "container" (forme exacte plus bas) et garde ses "children" ;
+- les icones (props "icon", "name", "leadingIcon", "trailingIcon", "actions", entrees "items") ne prennent que ces valeurs : ${ICON_NAMES.join(', ')} ;
+- un lien « au clic, aller a l'ecran X » est le champ "link": { "target": "<id de l'ecran>" } d'un noeud ; une entree de barre de navigation ("items") porte sa propre cible dans "target" ;
 - un ECRAN n'est PAS un type de noeud a part : c'est une frame de PREMIER NIVEAU de la page qui porte un champ "device" ({ "id", "label", "width", "height", "pixelRatio" }, voir l'exemple "frame" nomme "Écran Accueil" ci-dessous) -- une frame imbriquee (pas de premier niveau) ne doit jamais porter "device".
 
 Exemples complets, un par type, a suivre EXACTEMENT (mêmes cles, mêmes noms de cles, mêmes objets imbriques) :
 
 ${NODE_EXAMPLES_TEXT}
+
+Proprietes de chaque "kind" de "component" (valeurs par defaut ; les champs optionnels "icon", "leadingIcon", "color"... peuvent s'ajouter, "items" accepte "target") :
+${COMPONENT_CATALOG_TEXT}
+
+Conteneurs semantiques d'une "frame" :
+${CONTAINER_CATALOG_TEXT}
 
 Contraintes du modele de donnees a respecter dans "node", "patch" et "tokens" :
 - les couleurs (r, g, b, a) sont des nombres entre 0 et 1, pas entre 0 et 255 ;

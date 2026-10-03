@@ -52,9 +52,9 @@ export function createExportHandler(deps: {
 
     let result: ExportResult
     try {
-      // v2 (addendum navigation §7) : transmet l'ecran actif au generateur
-      // (voir selectActiveScreen, @calque/codegen) -- sans effet sur un
-      // document sans ecran (v1 non migre).
+      // L'ecran actif choisit l'ecran de DEPART de la navigation generee
+      // (tous les ecrans sont exportes) -- sans effet sur un document sans
+      // ecran (v1 non migre).
       result = exporter.export(document, { projectName: input.projectName, activeScreenId: input.activeScreenId })
     } catch (err) {
       throw translateExportError(err)

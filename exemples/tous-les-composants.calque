@@ -1,0 +1,2199 @@
+{
+  "version": 3,
+  "id": "exemple-tous-les-composants",
+  "name": "Tous les composants",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Page 1",
+      "device": {
+        "id": "iphone15",
+        "label": "iPhone 15",
+        "width": 393,
+        "height": 852,
+        "pixelRatio": 3
+      },
+      "nodes": [
+        {
+          "id": "ex-1",
+          "name": "Accueil",
+          "type": "frame",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "w": 393,
+            "h": 852
+          },
+          "visible": true,
+          "locked": false,
+          "opacity": 1,
+          "rotation": 0,
+          "layout": {
+            "mode": "absolute",
+            "gap": 0,
+            "padding": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "alignMain": "start",
+            "alignCross": "start"
+          },
+          "fills": [
+            {
+              "type": "solid",
+              "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1,
+                "a": 1
+              }
+            }
+          ],
+          "strokes": [],
+          "cornerRadius": 0,
+          "clipsContent": false,
+          "children": [
+            {
+              "id": "ex-2",
+              "name": "Barre d’application",
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 393,
+                "h": 56
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "component",
+              "kind": "appBar",
+              "props": {
+                "title": "Accueil",
+                "leading": "menu",
+                "actions": [
+                  "search",
+                  "moreVert"
+                ],
+                "centerTitle": false
+              }
+            },
+            {
+              "id": "ex-3",
+              "name": "Onglets",
+              "frame": {
+                "x": 0,
+                "y": 56,
+                "w": 393,
+                "h": 48
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "component",
+              "kind": "tabs",
+              "props": {
+                "items": [
+                  {
+                    "label": "Pour vous",
+                    "icon": "home"
+                  },
+                  {
+                    "label": "Suivis"
+                  },
+                  {
+                    "label": "Récents"
+                  }
+                ],
+                "selectedIndex": 0
+              }
+            },
+            {
+              "id": "ex-4",
+              "name": "Titre",
+              "type": "text",
+              "frame": {
+                "x": 16,
+                "y": 104,
+                "w": 300,
+                "h": 28
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "characters": "Bienvenue",
+              "style": {
+                "fontFamily": "Roboto",
+                "fontSize": 20,
+                "fontWeight": 600,
+                "lineHeight": 24,
+                "letterSpacing": 0,
+                "color": {
+                  "r": 0.11,
+                  "g": 0.1,
+                  "b": 0.13,
+                  "a": 1
+                },
+                "align": "left"
+              }
+            },
+            {
+              "id": "ex-5",
+              "name": "Carte profil",
+              "frame": {
+                "x": 16,
+                "y": 120,
+                "w": 361,
+                "h": 232
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "frame",
+              "layout": {
+                "mode": "absolute",
+                "gap": 0,
+                "padding": {
+                  "top": 16,
+                  "right": 16,
+                  "bottom": 16,
+                  "left": 16
+                },
+                "alignMain": "start",
+                "alignCross": "start"
+              },
+              "fills": [
+                {
+                  "type": "solid",
+                  "color": {
+                    "r": 1,
+                    "g": 1,
+                    "b": 1,
+                    "a": 1
+                  }
+                }
+              ],
+              "strokes": [],
+              "cornerRadius": 12,
+              "clipsContent": false,
+              "children": [
+                {
+                  "id": "ex-6",
+                  "name": "Avatar",
+                  "frame": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 48,
+                    "h": 48
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "avatar",
+                  "props": {
+                    "initials": "LB",
+                    "src": ""
+                  }
+                },
+                {
+                  "id": "ex-7",
+                  "name": "Badge",
+                  "frame": {
+                    "x": 36,
+                    "y": 0,
+                    "w": 24,
+                    "h": 20
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "badge",
+                  "props": {
+                    "text": "3"
+                  }
+                },
+                {
+                  "id": "ex-8",
+                  "name": "Nom",
+                  "type": "text",
+                  "frame": {
+                    "x": 64,
+                    "y": 0,
+                    "w": 300,
+                    "h": 26
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "characters": "Lilou Benali",
+                  "style": {
+                    "fontFamily": "Roboto",
+                    "fontSize": 18,
+                    "fontWeight": 600,
+                    "lineHeight": 22,
+                    "letterSpacing": 0,
+                    "color": {
+                      "r": 0.11,
+                      "g": 0.1,
+                      "b": 0.13,
+                      "a": 1
+                    },
+                    "align": "left"
+                  }
+                },
+                {
+                  "id": "ex-9",
+                  "name": "Chip",
+                  "frame": {
+                    "x": 64,
+                    "y": 32,
+                    "w": 96,
+                    "h": 32
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "chip",
+                  "props": {
+                    "label": "Premium",
+                    "variant": "assist",
+                    "selected": false
+                  }
+                },
+                {
+                  "id": "ex-10",
+                  "name": "Chip filtre",
+                  "frame": {
+                    "x": 168,
+                    "y": 32,
+                    "w": 96,
+                    "h": 32
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "chip",
+                  "props": {
+                    "label": "Actif",
+                    "variant": "filter",
+                    "selected": true
+                  }
+                },
+                {
+                  "id": "ex-11",
+                  "name": "Bouton primaire",
+                  "frame": {
+                    "x": 0,
+                    "y": 88,
+                    "w": 150,
+                    "h": 44
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "button",
+                  "props": {
+                    "label": "Voir détails",
+                    "variant": "primary",
+                    "disabled": false,
+                    "icon": "arrowForward"
+                  },
+                  "link": {
+                    "target": "ex-51"
+                  }
+                },
+                {
+                  "id": "ex-12",
+                  "name": "Bouton secondaire",
+                  "frame": {
+                    "x": 160,
+                    "y": 88,
+                    "w": 150,
+                    "h": 44
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "button",
+                  "props": {
+                    "label": "Modifier",
+                    "variant": "secondary",
+                    "disabled": false
+                  }
+                },
+                {
+                  "id": "ex-13",
+                  "name": "Bouton texte",
+                  "frame": {
+                    "x": 0,
+                    "y": 140,
+                    "w": 110,
+                    "h": 44
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "button",
+                  "props": {
+                    "label": "Annuler",
+                    "variant": "text",
+                    "disabled": false
+                  }
+                },
+                {
+                  "id": "ex-14",
+                  "name": "Bouton désactivé",
+                  "frame": {
+                    "x": 120,
+                    "y": 140,
+                    "w": 150,
+                    "h": 44
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "button",
+                  "props": {
+                    "label": "Indisponible",
+                    "variant": "primary",
+                    "disabled": true
+                  }
+                }
+              ],
+              "container": {
+                "kind": "card",
+                "elevation": 2
+              }
+            },
+            {
+              "id": "ex-15",
+              "name": "Rangée d’actions",
+              "frame": {
+                "x": 16,
+                "y": 364,
+                "w": 361,
+                "h": 56
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "frame",
+              "layout": {
+                "mode": "row",
+                "gap": 8,
+                "padding": {
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 0,
+                  "left": 0
+                },
+                "alignMain": "start",
+                "alignCross": "center"
+              },
+              "fills": [
+                {
+                  "type": "solid",
+                  "color": {
+                    "r": 0,
+                    "g": 0,
+                    "b": 0,
+                    "a": 0.04
+                  }
+                }
+              ],
+              "strokes": [],
+              "cornerRadius": 0,
+              "clipsContent": false,
+              "children": [
+                {
+                  "id": "ex-16",
+                  "name": "Icône étoile",
+                  "frame": {
+                    "x": 0,
+                    "y": 12,
+                    "w": 32,
+                    "h": 32
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "icon",
+                  "props": {
+                    "name": "star",
+                    "size": 28
+                  }
+                },
+                {
+                  "id": "ex-17",
+                  "name": "Bouton icône",
+                  "frame": {
+                    "x": 40,
+                    "y": 4,
+                    "w": 48,
+                    "h": 48
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "iconButton",
+                  "props": {
+                    "icon": "favorite",
+                    "variant": "standard",
+                    "disabled": false
+                  }
+                },
+                {
+                  "id": "ex-18",
+                  "name": "Bouton icône plein",
+                  "frame": {
+                    "x": 96,
+                    "y": 4,
+                    "w": 48,
+                    "h": 48
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "iconButton",
+                  "props": {
+                    "icon": "share",
+                    "variant": "filled",
+                    "disabled": false
+                  }
+                },
+                {
+                  "id": "ex-19",
+                  "name": "Espaceur",
+                  "frame": {
+                    "x": 152,
+                    "y": 8,
+                    "w": 40,
+                    "h": 40
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "spacer",
+                  "props": {
+                    "flex": 1
+                  }
+                },
+                {
+                  "id": "ex-20",
+                  "name": "Bouton icône contour",
+                  "frame": {
+                    "x": 200,
+                    "y": 4,
+                    "w": 48,
+                    "h": 48
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "iconButton",
+                  "props": {
+                    "icon": "edit",
+                    "variant": "outlined",
+                    "disabled": false
+                  }
+                }
+              ]
+            },
+            {
+              "id": "ex-21",
+              "name": "Liste des messages",
+              "frame": {
+                "x": 0,
+                "y": 440,
+                "w": 393,
+                "h": 216
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "frame",
+              "layout": {
+                "mode": "column",
+                "gap": 0,
+                "padding": {
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 0,
+                  "left": 0
+                },
+                "alignMain": "start",
+                "alignCross": "stretch"
+              },
+              "fills": [
+                {
+                  "type": "none"
+                }
+              ],
+              "strokes": [],
+              "cornerRadius": 0,
+              "clipsContent": true,
+              "children": [
+                {
+                  "id": "ex-22",
+                  "name": "Message 1",
+                  "frame": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 393,
+                    "h": 72
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "listTile",
+                  "props": {
+                    "title": "Alice",
+                    "subtitle": "Bonjour !",
+                    "leadingIcon": "person",
+                    "trailingIcon": "chevronRight"
+                  },
+                  "link": {
+                    "target": "ex-51"
+                  }
+                },
+                {
+                  "id": "ex-23",
+                  "name": "Message 2",
+                  "frame": {
+                    "x": 0,
+                    "y": 72,
+                    "w": 393,
+                    "h": 72
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "listTile",
+                  "props": {
+                    "title": "Bruno",
+                    "subtitle": "À demain",
+                    "leadingIcon": "email",
+                    "trailingIcon": "chevronRight"
+                  }
+                },
+                {
+                  "id": "ex-24",
+                  "name": "Message 3",
+                  "frame": {
+                    "x": 0,
+                    "y": 144,
+                    "w": 393,
+                    "h": 72
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "listTile",
+                  "props": {
+                    "title": "Camille",
+                    "subtitle": "Merci",
+                    "leadingIcon": "notifications",
+                    "trailingIcon": "chevronRight"
+                  }
+                }
+              ],
+              "container": {
+                "kind": "listView",
+                "axis": "vertical",
+                "dividers": true
+              }
+            },
+            {
+              "id": "ex-25",
+              "name": "Snackbar",
+              "frame": {
+                "x": 16,
+                "y": 664,
+                "w": 360,
+                "h": 48
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "component",
+              "kind": "snackbar",
+              "props": {
+                "message": "Profil enregistré",
+                "actionLabel": "Annuler"
+              }
+            },
+            {
+              "id": "ex-26",
+              "name": "Bouton flottant",
+              "frame": {
+                "x": 321,
+                "y": 668,
+                "w": 56,
+                "h": 56
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "component",
+              "kind": "fab",
+              "props": {
+                "icon": "add",
+                "label": "",
+                "size": "regular"
+              },
+              "link": {
+                "target": "ex-33"
+              }
+            },
+            {
+              "id": "ex-27",
+              "name": "Barre de navigation basse",
+              "frame": {
+                "x": 0,
+                "y": 772,
+                "w": 393,
+                "h": 80
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "component",
+              "kind": "bottomNav",
+              "props": {
+                "selectedIndex": 0,
+                "items": [
+                  {
+                    "label": "Accueil",
+                    "icon": "home",
+                    "target": "ex-1"
+                  },
+                  {
+                    "label": "Formulaire",
+                    "icon": "edit",
+                    "target": "ex-33"
+                  },
+                  {
+                    "label": "Détails",
+                    "icon": "info",
+                    "target": "ex-51"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "ex-28",
+              "name": "Tiroir",
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 304,
+                "h": 852
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "frame",
+              "layout": {
+                "mode": "column",
+                "gap": 0,
+                "padding": {
+                  "top": 16,
+                  "right": 0,
+                  "bottom": 16,
+                  "left": 0
+                },
+                "alignMain": "start",
+                "alignCross": "stretch"
+              },
+              "fills": [
+                {
+                  "type": "solid",
+                  "color": {
+                    "r": 1,
+                    "g": 1,
+                    "b": 1,
+                    "a": 1
+                  }
+                }
+              ],
+              "strokes": [],
+              "cornerRadius": 0,
+              "clipsContent": true,
+              "children": [
+                {
+                  "id": "ex-29",
+                  "name": "Menu : formulaire",
+                  "frame": {
+                    "x": 0,
+                    "y": 16,
+                    "w": 304,
+                    "h": 56
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "listTile",
+                  "props": {
+                    "title": "Formulaire",
+                    "subtitle": "",
+                    "leadingIcon": "edit",
+                    "trailingIcon": "chevronRight"
+                  },
+                  "link": {
+                    "target": "ex-33"
+                  }
+                },
+                {
+                  "id": "ex-30",
+                  "name": "Menu : détails",
+                  "frame": {
+                    "x": 0,
+                    "y": 72,
+                    "w": 304,
+                    "h": 56
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "listTile",
+                  "props": {
+                    "title": "Détails",
+                    "subtitle": "",
+                    "leadingIcon": "info",
+                    "trailingIcon": "chevronRight"
+                  },
+                  "link": {
+                    "target": "ex-51"
+                  }
+                },
+                {
+                  "id": "ex-31",
+                  "name": "Séparateur du tiroir",
+                  "frame": {
+                    "x": 0,
+                    "y": 128,
+                    "w": 304,
+                    "h": 1
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "divider",
+                  "props": {
+                    "vertical": false,
+                    "thickness": 1,
+                    "indent": 0
+                  }
+                },
+                {
+                  "id": "ex-32",
+                  "name": "Menu : réglages",
+                  "frame": {
+                    "x": 0,
+                    "y": 129,
+                    "w": 304,
+                    "h": 56
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "listTile",
+                  "props": {
+                    "title": "Réglages",
+                    "subtitle": "",
+                    "leadingIcon": "settings"
+                  }
+                }
+              ],
+              "container": {
+                "kind": "drawer"
+              }
+            }
+          ],
+          "device": {
+            "id": "iphone15",
+            "label": "iPhone 15",
+            "width": 393,
+            "height": 852,
+            "pixelRatio": 3
+          }
+        },
+        {
+          "id": "ex-33",
+          "name": "Formulaire",
+          "type": "frame",
+          "frame": {
+            "x": 500,
+            "y": 0,
+            "w": 393,
+            "h": 852
+          },
+          "visible": true,
+          "locked": false,
+          "opacity": 1,
+          "rotation": 0,
+          "layout": {
+            "mode": "absolute",
+            "gap": 0,
+            "padding": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "alignMain": "start",
+            "alignCross": "start"
+          },
+          "fills": [
+            {
+              "type": "solid",
+              "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1,
+                "a": 1
+              }
+            }
+          ],
+          "strokes": [],
+          "cornerRadius": 0,
+          "clipsContent": false,
+          "children": [
+            {
+              "id": "ex-34",
+              "name": "Barre d’application",
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 393,
+                "h": 56
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "component",
+              "kind": "appBar",
+              "props": {
+                "title": "Formulaire",
+                "leading": "back",
+                "actions": [],
+                "centerTitle": true
+              }
+            },
+            {
+              "id": "ex-35",
+              "name": "Formulaire défilant",
+              "frame": {
+                "x": 0,
+                "y": 56,
+                "w": 393,
+                "h": 716
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "frame",
+              "layout": {
+                "mode": "column",
+                "gap": 16,
+                "padding": {
+                  "top": 16,
+                  "right": 16,
+                  "bottom": 16,
+                  "left": 16
+                },
+                "alignMain": "start",
+                "alignCross": "start"
+              },
+              "fills": [
+                {
+                  "type": "none"
+                }
+              ],
+              "strokes": [],
+              "cornerRadius": 0,
+              "clipsContent": true,
+              "children": [
+                {
+                  "id": "ex-36",
+                  "name": "Champ e-mail",
+                  "frame": {
+                    "x": 16,
+                    "y": 16,
+                    "w": 361,
+                    "h": 56
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "textField",
+                  "props": {
+                    "label": "E-mail",
+                    "placeholder": "nom@exemple.fr",
+                    "value": "",
+                    "password": false,
+                    "multiline": false,
+                    "helperText": "",
+                    "errorText": "",
+                    "disabled": false,
+                    "leadingIcon": "email"
+                  }
+                },
+                {
+                  "id": "ex-37",
+                  "name": "Champ mot de passe",
+                  "frame": {
+                    "x": 16,
+                    "y": 88,
+                    "w": 361,
+                    "h": 56
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "textField",
+                  "props": {
+                    "label": "Mot de passe",
+                    "placeholder": "",
+                    "value": "secret",
+                    "password": true,
+                    "multiline": false,
+                    "helperText": "",
+                    "errorText": "",
+                    "disabled": false,
+                    "leadingIcon": "lock"
+                  }
+                },
+                {
+                  "id": "ex-38",
+                  "name": "Champ message",
+                  "frame": {
+                    "x": 16,
+                    "y": 160,
+                    "w": 361,
+                    "h": 120
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "textField",
+                  "props": {
+                    "label": "Message",
+                    "placeholder": "",
+                    "value": "",
+                    "password": false,
+                    "multiline": true,
+                    "helperText": "280 caractères maximum",
+                    "errorText": "",
+                    "disabled": false
+                  }
+                },
+                {
+                  "id": "ex-39",
+                  "name": "Champ en erreur",
+                  "frame": {
+                    "x": 16,
+                    "y": 296,
+                    "w": 361,
+                    "h": 76
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "textField",
+                  "props": {
+                    "label": "Téléphone",
+                    "placeholder": "",
+                    "value": "06",
+                    "password": false,
+                    "multiline": false,
+                    "helperText": "",
+                    "errorText": "Numéro incomplet",
+                    "disabled": false
+                  }
+                },
+                {
+                  "id": "ex-40",
+                  "name": "Case",
+                  "frame": {
+                    "x": 16,
+                    "y": 388,
+                    "w": 361,
+                    "h": 40
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "checkbox",
+                  "props": {
+                    "label": "J’accepte les conditions",
+                    "checked": true,
+                    "disabled": false
+                  }
+                },
+                {
+                  "id": "ex-41",
+                  "name": "Interrupteur",
+                  "frame": {
+                    "x": 16,
+                    "y": 444,
+                    "w": 361,
+                    "h": 48
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "switch",
+                  "props": {
+                    "label": "Notifications",
+                    "checked": true,
+                    "disabled": false
+                  }
+                },
+                {
+                  "id": "ex-42",
+                  "name": "Radio",
+                  "frame": {
+                    "x": 16,
+                    "y": 508,
+                    "w": 361,
+                    "h": 40
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "radio",
+                  "props": {
+                    "label": "Livraison à domicile",
+                    "selected": true,
+                    "disabled": false
+                  }
+                },
+                {
+                  "id": "ex-43",
+                  "name": "Curseur",
+                  "frame": {
+                    "x": 16,
+                    "y": 564,
+                    "w": 361,
+                    "h": 40
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "slider",
+                  "props": {
+                    "value": 40,
+                    "min": 0,
+                    "max": 100,
+                    "disabled": false
+                  }
+                },
+                {
+                  "id": "ex-44",
+                  "name": "Liste déroulante",
+                  "frame": {
+                    "x": 16,
+                    "y": 620,
+                    "w": 361,
+                    "h": 56
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "dropdown",
+                  "props": {
+                    "label": "Pays",
+                    "options": [
+                      "France",
+                      "Maroc",
+                      "Belgique"
+                    ],
+                    "selectedIndex": 1,
+                    "disabled": false
+                  }
+                },
+                {
+                  "id": "ex-45",
+                  "name": "Date",
+                  "frame": {
+                    "x": 16,
+                    "y": 692,
+                    "w": 361,
+                    "h": 56
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "datePicker",
+                  "props": {
+                    "label": "Date de naissance",
+                    "value": "1990-04-12",
+                    "disabled": false
+                  }
+                },
+                {
+                  "id": "ex-46",
+                  "name": "Progression",
+                  "frame": {
+                    "x": 16,
+                    "y": 764,
+                    "w": 361,
+                    "h": 4
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "progressBar",
+                  "props": {
+                    "value": 0.6,
+                    "indeterminate": false
+                  }
+                },
+                {
+                  "id": "ex-47",
+                  "name": "Chargement",
+                  "frame": {
+                    "x": 16,
+                    "y": 784,
+                    "w": 40,
+                    "h": 40
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "spinner",
+                  "props": {}
+                },
+                {
+                  "id": "ex-48",
+                  "name": "Envoyer",
+                  "frame": {
+                    "x": 16,
+                    "y": 840,
+                    "w": 361,
+                    "h": 48
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "button",
+                  "props": {
+                    "label": "Envoyer",
+                    "variant": "primary",
+                    "disabled": false
+                  },
+                  "link": {
+                    "target": "ex-51"
+                  }
+                }
+              ],
+              "container": {
+                "kind": "scrollView",
+                "axis": "vertical"
+              }
+            },
+            {
+              "id": "ex-49",
+              "name": "Confirmation",
+              "frame": {
+                "x": 56,
+                "y": 330,
+                "w": 280,
+                "h": 190
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "component",
+              "kind": "dialog",
+              "props": {
+                "title": "Envoyer ?",
+                "message": "Vos informations seront transmises.",
+                "confirmLabel": "Envoyer",
+                "cancelLabel": "Annuler"
+              }
+            },
+            {
+              "id": "ex-50",
+              "name": "Barre de navigation basse",
+              "frame": {
+                "x": 0,
+                "y": 772,
+                "w": 393,
+                "h": 80
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "component",
+              "kind": "bottomNav",
+              "props": {
+                "selectedIndex": 1,
+                "items": [
+                  {
+                    "label": "Accueil",
+                    "icon": "home",
+                    "target": "ex-1"
+                  },
+                  {
+                    "label": "Formulaire",
+                    "icon": "edit",
+                    "target": "ex-33"
+                  },
+                  {
+                    "label": "Détails",
+                    "icon": "info",
+                    "target": "ex-51"
+                  }
+                ]
+              }
+            }
+          ],
+          "device": {
+            "id": "iphone15",
+            "label": "iPhone 15",
+            "width": 393,
+            "height": 852,
+            "pixelRatio": 3
+          }
+        },
+        {
+          "id": "ex-51",
+          "name": "Détails",
+          "type": "frame",
+          "frame": {
+            "x": 1000,
+            "y": 0,
+            "w": 393,
+            "h": 852
+          },
+          "visible": true,
+          "locked": false,
+          "opacity": 1,
+          "rotation": 0,
+          "layout": {
+            "mode": "absolute",
+            "gap": 0,
+            "padding": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "alignMain": "start",
+            "alignCross": "start"
+          },
+          "fills": [
+            {
+              "type": "solid",
+              "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1,
+                "a": 1
+              }
+            }
+          ],
+          "strokes": [],
+          "cornerRadius": 0,
+          "clipsContent": false,
+          "children": [
+            {
+              "id": "ex-52",
+              "name": "Barre d’application",
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 393,
+                "h": 56
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "component",
+              "kind": "appBar",
+              "props": {
+                "title": "Détails",
+                "leading": "back",
+                "actions": [
+                  "share"
+                ],
+                "centerTitle": false
+              }
+            },
+            {
+              "id": "ex-53",
+              "name": "Grille",
+              "frame": {
+                "x": 0,
+                "y": 72,
+                "w": 393,
+                "h": 220
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "frame",
+              "layout": {
+                "mode": "absolute",
+                "gap": 8,
+                "padding": {
+                  "top": 8,
+                  "right": 8,
+                  "bottom": 8,
+                  "left": 8
+                },
+                "alignMain": "start",
+                "alignCross": "start"
+              },
+              "fills": [
+                {
+                  "type": "none"
+                }
+              ],
+              "strokes": [],
+              "cornerRadius": 0,
+              "clipsContent": true,
+              "children": [
+                {
+                  "id": "ex-54",
+                  "name": "Cellule 1",
+                  "frame": {
+                    "x": 8,
+                    "y": 8,
+                    "w": 184.5,
+                    "h": 90
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "frame",
+                  "layout": {
+                    "mode": "column",
+                    "gap": 4,
+                    "padding": {
+                      "top": 12,
+                      "right": 12,
+                      "bottom": 12,
+                      "left": 12
+                    },
+                    "alignMain": "start",
+                    "alignCross": "start"
+                  },
+                  "fills": [
+                    {
+                      "type": "solid",
+                      "color": {
+                        "r": 1,
+                        "g": 1,
+                        "b": 1,
+                        "a": 1
+                      }
+                    }
+                  ],
+                  "strokes": [],
+                  "cornerRadius": 12,
+                  "clipsContent": false,
+                  "children": [
+                    {
+                      "id": "ex-55",
+                      "name": "Cellule 1",
+                      "type": "text",
+                      "frame": {
+                        "x": 12,
+                        "y": 12,
+                        "w": 300,
+                        "h": 22
+                      },
+                      "visible": true,
+                      "locked": false,
+                      "opacity": 1,
+                      "rotation": 0,
+                      "characters": "Cellule 1",
+                      "style": {
+                        "fontFamily": "Roboto",
+                        "fontSize": 14,
+                        "fontWeight": 500,
+                        "lineHeight": 18,
+                        "letterSpacing": 0,
+                        "color": {
+                          "r": 0.11,
+                          "g": 0.1,
+                          "b": 0.13,
+                          "a": 1
+                        },
+                        "align": "left"
+                      }
+                    }
+                  ],
+                  "container": {
+                    "kind": "card",
+                    "elevation": 2
+                  }
+                },
+                {
+                  "id": "ex-56",
+                  "name": "Cellule 2",
+                  "frame": {
+                    "x": 200.5,
+                    "y": 8,
+                    "w": 184.5,
+                    "h": 90
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "frame",
+                  "layout": {
+                    "mode": "column",
+                    "gap": 4,
+                    "padding": {
+                      "top": 12,
+                      "right": 12,
+                      "bottom": 12,
+                      "left": 12
+                    },
+                    "alignMain": "start",
+                    "alignCross": "start"
+                  },
+                  "fills": [
+                    {
+                      "type": "solid",
+                      "color": {
+                        "r": 1,
+                        "g": 1,
+                        "b": 1,
+                        "a": 1
+                      }
+                    }
+                  ],
+                  "strokes": [],
+                  "cornerRadius": 12,
+                  "clipsContent": false,
+                  "children": [
+                    {
+                      "id": "ex-57",
+                      "name": "Cellule 2",
+                      "type": "text",
+                      "frame": {
+                        "x": 12,
+                        "y": 12,
+                        "w": 300,
+                        "h": 22
+                      },
+                      "visible": true,
+                      "locked": false,
+                      "opacity": 1,
+                      "rotation": 0,
+                      "characters": "Cellule 2",
+                      "style": {
+                        "fontFamily": "Roboto",
+                        "fontSize": 14,
+                        "fontWeight": 500,
+                        "lineHeight": 18,
+                        "letterSpacing": 0,
+                        "color": {
+                          "r": 0.11,
+                          "g": 0.1,
+                          "b": 0.13,
+                          "a": 1
+                        },
+                        "align": "left"
+                      }
+                    }
+                  ],
+                  "container": {
+                    "kind": "card",
+                    "elevation": 2
+                  }
+                },
+                {
+                  "id": "ex-58",
+                  "name": "Cellule 3",
+                  "frame": {
+                    "x": 8,
+                    "y": 106,
+                    "w": 184.5,
+                    "h": 90
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "frame",
+                  "layout": {
+                    "mode": "column",
+                    "gap": 4,
+                    "padding": {
+                      "top": 12,
+                      "right": 12,
+                      "bottom": 12,
+                      "left": 12
+                    },
+                    "alignMain": "start",
+                    "alignCross": "start"
+                  },
+                  "fills": [
+                    {
+                      "type": "solid",
+                      "color": {
+                        "r": 1,
+                        "g": 1,
+                        "b": 1,
+                        "a": 1
+                      }
+                    }
+                  ],
+                  "strokes": [],
+                  "cornerRadius": 12,
+                  "clipsContent": false,
+                  "children": [
+                    {
+                      "id": "ex-59",
+                      "name": "Cellule 3",
+                      "type": "text",
+                      "frame": {
+                        "x": 12,
+                        "y": 12,
+                        "w": 300,
+                        "h": 22
+                      },
+                      "visible": true,
+                      "locked": false,
+                      "opacity": 1,
+                      "rotation": 0,
+                      "characters": "Cellule 3",
+                      "style": {
+                        "fontFamily": "Roboto",
+                        "fontSize": 14,
+                        "fontWeight": 500,
+                        "lineHeight": 18,
+                        "letterSpacing": 0,
+                        "color": {
+                          "r": 0.11,
+                          "g": 0.1,
+                          "b": 0.13,
+                          "a": 1
+                        },
+                        "align": "left"
+                      }
+                    }
+                  ],
+                  "container": {
+                    "kind": "card",
+                    "elevation": 2
+                  }
+                },
+                {
+                  "id": "ex-60",
+                  "name": "Cellule 4",
+                  "frame": {
+                    "x": 200.5,
+                    "y": 106,
+                    "w": 184.5,
+                    "h": 90
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "frame",
+                  "layout": {
+                    "mode": "column",
+                    "gap": 4,
+                    "padding": {
+                      "top": 12,
+                      "right": 12,
+                      "bottom": 12,
+                      "left": 12
+                    },
+                    "alignMain": "start",
+                    "alignCross": "start"
+                  },
+                  "fills": [
+                    {
+                      "type": "solid",
+                      "color": {
+                        "r": 1,
+                        "g": 1,
+                        "b": 1,
+                        "a": 1
+                      }
+                    }
+                  ],
+                  "strokes": [],
+                  "cornerRadius": 12,
+                  "clipsContent": false,
+                  "children": [
+                    {
+                      "id": "ex-61",
+                      "name": "Cellule 4",
+                      "type": "text",
+                      "frame": {
+                        "x": 12,
+                        "y": 12,
+                        "w": 300,
+                        "h": 22
+                      },
+                      "visible": true,
+                      "locked": false,
+                      "opacity": 1,
+                      "rotation": 0,
+                      "characters": "Cellule 4",
+                      "style": {
+                        "fontFamily": "Roboto",
+                        "fontSize": 14,
+                        "fontWeight": 500,
+                        "lineHeight": 18,
+                        "letterSpacing": 0,
+                        "color": {
+                          "r": 0.11,
+                          "g": 0.1,
+                          "b": 0.13,
+                          "a": 1
+                        },
+                        "align": "left"
+                      }
+                    }
+                  ],
+                  "container": {
+                    "kind": "card",
+                    "elevation": 2
+                  }
+                }
+              ],
+              "container": {
+                "kind": "grid",
+                "columns": 2
+              }
+            },
+            {
+              "id": "ex-62",
+              "name": "Colonne",
+              "frame": {
+                "x": 16,
+                "y": 304,
+                "w": 170,
+                "h": 130
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "frame",
+              "layout": {
+                "mode": "column",
+                "gap": 8,
+                "padding": {
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 0,
+                  "left": 0
+                },
+                "alignMain": "start",
+                "alignCross": "center"
+              },
+              "fills": [
+                {
+                  "type": "solid",
+                  "color": {
+                    "r": 0,
+                    "g": 0,
+                    "b": 0,
+                    "a": 0.04
+                  }
+                }
+              ],
+              "strokes": [],
+              "cornerRadius": 0,
+              "clipsContent": false,
+              "children": [
+                {
+                  "id": "ex-63",
+                  "name": "Ligne 1",
+                  "type": "text",
+                  "frame": {
+                    "x": -65,
+                    "y": 0,
+                    "w": 300,
+                    "h": 22
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "characters": "Colonne : ligne 1",
+                  "style": {
+                    "fontFamily": "Roboto",
+                    "fontSize": 14,
+                    "fontWeight": 500,
+                    "lineHeight": 18,
+                    "letterSpacing": 0,
+                    "color": {
+                      "r": 0.11,
+                      "g": 0.1,
+                      "b": 0.13,
+                      "a": 1
+                    },
+                    "align": "left"
+                  }
+                },
+                {
+                  "id": "ex-64",
+                  "name": "Ligne 2",
+                  "type": "text",
+                  "frame": {
+                    "x": -65,
+                    "y": 30,
+                    "w": 300,
+                    "h": 22
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "characters": "Colonne : ligne 2",
+                  "style": {
+                    "fontFamily": "Roboto",
+                    "fontSize": 14,
+                    "fontWeight": 500,
+                    "lineHeight": 18,
+                    "letterSpacing": 0,
+                    "color": {
+                      "r": 0.11,
+                      "g": 0.1,
+                      "b": 0.13,
+                      "a": 1
+                    },
+                    "align": "left"
+                  }
+                },
+                {
+                  "id": "ex-65",
+                  "name": "Séparateur",
+                  "frame": {
+                    "x": 25,
+                    "y": 60,
+                    "w": 120,
+                    "h": 1
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "divider",
+                  "props": {
+                    "vertical": false,
+                    "thickness": 1,
+                    "indent": 0
+                  }
+                }
+              ]
+            },
+            {
+              "id": "ex-66",
+              "name": "Pile",
+              "frame": {
+                "x": 206,
+                "y": 304,
+                "w": 171,
+                "h": 130
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "frame",
+              "layout": {
+                "mode": "absolute",
+                "gap": 0,
+                "padding": {
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 0,
+                  "left": 0
+                },
+                "alignMain": "start",
+                "alignCross": "start"
+              },
+              "fills": [
+                {
+                  "type": "solid",
+                  "color": {
+                    "r": 0,
+                    "g": 0,
+                    "b": 0,
+                    "a": 0.04
+                  }
+                }
+              ],
+              "strokes": [],
+              "cornerRadius": 0,
+              "clipsContent": false,
+              "children": [
+                {
+                  "id": "ex-67",
+                  "name": "Avatar pile",
+                  "frame": {
+                    "x": 10,
+                    "y": 10,
+                    "w": 80,
+                    "h": 80
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "avatar",
+                  "props": {
+                    "initials": "CD",
+                    "src": ""
+                  }
+                },
+                {
+                  "id": "ex-68",
+                  "name": "Badge pile",
+                  "frame": {
+                    "x": 70,
+                    "y": 8,
+                    "w": 24,
+                    "h": 20
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "badge",
+                  "props": {
+                    "text": "9"
+                  }
+                },
+                {
+                  "id": "ex-69",
+                  "name": "Séparateur vertical",
+                  "frame": {
+                    "x": 100,
+                    "y": 10,
+                    "w": 1,
+                    "h": 100
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "divider",
+                  "props": {
+                    "vertical": true,
+                    "thickness": 1,
+                    "indent": 0
+                  }
+                }
+              ]
+            },
+            {
+              "id": "ex-70",
+              "name": "Zone sûre",
+              "frame": {
+                "x": 16,
+                "y": 450,
+                "w": 361,
+                "h": 60
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "frame",
+              "layout": {
+                "mode": "absolute",
+                "gap": 0,
+                "padding": {
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 0,
+                  "left": 0
+                },
+                "alignMain": "start",
+                "alignCross": "start"
+              },
+              "fills": [
+                {
+                  "type": "none"
+                }
+              ],
+              "strokes": [],
+              "cornerRadius": 0,
+              "clipsContent": false,
+              "children": [
+                {
+                  "id": "ex-71",
+                  "name": "Zone sûre",
+                  "type": "text",
+                  "frame": {
+                    "x": 0,
+                    "y": 8,
+                    "w": 300,
+                    "h": 22
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "characters": "Contenu dans la zone sûre",
+                  "style": {
+                    "fontFamily": "Roboto",
+                    "fontSize": 14,
+                    "fontWeight": 500,
+                    "lineHeight": 18,
+                    "letterSpacing": 0,
+                    "color": {
+                      "r": 0.11,
+                      "g": 0.1,
+                      "b": 0.13,
+                      "a": 1
+                    },
+                    "align": "left"
+                  }
+                }
+              ],
+              "container": {
+                "kind": "safeArea"
+              }
+            },
+            {
+              "id": "ex-72",
+              "name": "Feuille basse",
+              "frame": {
+                "x": 0,
+                "y": 560,
+                "w": 393,
+                "h": 220
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "frame",
+              "layout": {
+                "mode": "column",
+                "gap": 12,
+                "padding": {
+                  "top": 16,
+                  "right": 16,
+                  "bottom": 16,
+                  "left": 16
+                },
+                "alignMain": "start",
+                "alignCross": "start"
+              },
+              "fills": [
+                {
+                  "type": "solid",
+                  "color": {
+                    "r": 1,
+                    "g": 1,
+                    "b": 1,
+                    "a": 1
+                  }
+                }
+              ],
+              "strokes": [],
+              "cornerRadius": 24,
+              "clipsContent": true,
+              "children": [
+                {
+                  "id": "ex-73",
+                  "name": "Action : retour",
+                  "frame": {
+                    "x": 16,
+                    "y": 16,
+                    "w": 361,
+                    "h": 56
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "listTile",
+                  "props": {
+                    "title": "Retour à l’accueil",
+                    "subtitle": "",
+                    "leadingIcon": "home"
+                  },
+                  "link": {
+                    "target": "ex-1"
+                  }
+                },
+                {
+                  "id": "ex-74",
+                  "name": "Action : partager",
+                  "frame": {
+                    "x": 16,
+                    "y": 84,
+                    "w": 361,
+                    "h": 56
+                  },
+                  "visible": true,
+                  "locked": false,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "type": "component",
+                  "kind": "listTile",
+                  "props": {
+                    "title": "Partager",
+                    "subtitle": "",
+                    "leadingIcon": "share"
+                  }
+                }
+              ],
+              "container": {
+                "kind": "bottomSheet",
+                "handle": true
+              }
+            },
+            {
+              "id": "ex-75",
+              "name": "Barre de navigation basse",
+              "frame": {
+                "x": 0,
+                "y": 772,
+                "w": 393,
+                "h": 80
+              },
+              "visible": true,
+              "locked": false,
+              "opacity": 1,
+              "rotation": 0,
+              "type": "component",
+              "kind": "bottomNav",
+              "props": {
+                "selectedIndex": 2,
+                "items": [
+                  {
+                    "label": "Accueil",
+                    "icon": "home",
+                    "target": "ex-1"
+                  },
+                  {
+                    "label": "Formulaire",
+                    "icon": "edit",
+                    "target": "ex-33"
+                  },
+                  {
+                    "label": "Détails",
+                    "icon": "info",
+                    "target": "ex-51"
+                  }
+                ]
+              }
+            }
+          ],
+          "device": {
+            "id": "iphone15",
+            "label": "iPhone 15",
+            "width": 393,
+            "height": 852,
+            "pixelRatio": 3
+          }
+        }
+      ]
+    }
+  ],
+  "tokens": {
+    "colors": {},
+    "typography": {},
+    "spacing": {}
+  }
+}
