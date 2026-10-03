@@ -80,6 +80,21 @@ function Editeur({ api }: { api: CalqueApi }) {
   // simple booleen d'affichage.
   const [reglagesOuverts, setReglagesOuverts] = useState(false)
 
+  // Erreurs de fichier (ouvrir un document invalide, enregistrement refuse) :
+  // sans ce garde, la promesse rejetee partait dans le vide et l'utilisateur
+  // ne voyait rien. Electron prefixe les erreurs IPC (« Error invoking
+  // remote method 'x': Error: ») : on ne garde que le message utile.
+  const [erreurFichier, setErreurFichier] = useState<string | null>(null)
+  async function signaler(action: () => Promise<void>) {
+    try {
+      setErreurFichier(null)
+      await action()
+    } catch (err) {
+      const brut = err instanceof Error ? err.message : String(err)
+      setErreurFichier(brut.replace(/^Error invoking remote method '[^']*': (Error: )?/, ''))
+    }
+  }
+
   // "Nouveau" (finition v1) : aucun canal main n'est necessaire (voir la
   // note dans preload.ts) -- un document vierge se construit entierement
   // ici avec createDocument(), deja utilise par le magasin lui-meme pour
@@ -119,9 +134,9 @@ function Editeur({ api }: { api: CalqueApi }) {
     const evenements = window.calqueMenu
     if (!evenements) return
     const detacherNouveau = evenements.onNewRequested(() => nouveau())
-    const detacherOuvrir = evenements.onOpenRequested(() => void ouvrir())
-    const detacherEnregistrer = evenements.onSaveRequested(() => void enregistrer(false))
-    const detacherEnregistrerSous = evenements.onSaveAsRequested(() => void enregistrer(true))
+    const detacherOuvrir = evenements.onOpenRequested(() => void signaler(ouvrir))
+    const detacherEnregistrer = evenements.onSaveRequested(() => void signaler(() => enregistrer(false)))
+    const detacherEnregistrerSous = evenements.onSaveAsRequested(() => void signaler(() => enregistrer(true)))
     return () => {
       detacherNouveau()
       detacherOuvrir()
@@ -150,6 +165,14 @@ function Editeur({ api }: { api: CalqueApi }) {
           </span>
         ) : null}
       </div>
+      {erreurFichier !== null ? (
+        <div role="alert" className="calque-error-banner">
+          <span>{erreurFichier}</span>
+          <button type="button" aria-label="Fermer le message" onClick={() => setErreurFichier(null)}>
+            ×
+          </button>
+        </div>
+      ) : null}
       <Toolbar api={api} onOpenSettings={() => setReglagesOuverts(true)} />
       <div className="calque-body">
         <div className="calque-column-layers">
