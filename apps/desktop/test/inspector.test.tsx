@@ -198,6 +198,26 @@ describe('InspectorPanel', () => {
     expect(screen.getByLabelText('Famille de police')).toBeTruthy()
   })
 
+  it('permet de modifier le contenu d un noeud texte (champ Contenu), annulable', () => {
+    const doc = documentDeTest()
+    const textNode = {
+      id: 'text1', name: 'text1', type: 'text' as const, frame: { x: 0, y: 0, w: 100, h: 20 },
+      visible: true, locked: false, opacity: 1, rotation: 0, characters: 'Texte',
+      style: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeight: 19, letterSpacing: 0, color: { r: 0, g: 0, b: 0, a: 1 }, align: 'left' as const },
+    }
+    useEditorStore.getState().load({ ...doc, pages: [{ ...doc.pages[0]!, nodes: [textNode] }] })
+    useEditorStore.getState().select(['text1'])
+    render(<InspectorPanel api={apiFactice} />)
+
+    const champ = screen.getByLabelText('Contenu') as HTMLInputElement
+    fireEvent.change(champ, { target: { value: 'Bonjour' } })
+    fireEvent.blur(champ)
+
+    expect((useEditorStore.getState().document.pages[0]!.nodes[0] as { characters: string }).characters).toBe('Bonjour')
+    useEditorStore.getState().undo()
+    expect((useEditorStore.getState().document.pages[0]!.nodes[0] as { characters: string }).characters).toBe('Texte')
+  })
+
   // Round de correction 1 (Critical) : changer la couleur de remplissage ne
   // doit jamais tronquer le tableau `fills` a un seul element ni figer
   // l'alpha du premier a 1 -- perte de donnees silencieuse constatee en
