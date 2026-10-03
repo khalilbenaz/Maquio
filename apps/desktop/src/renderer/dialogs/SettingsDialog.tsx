@@ -23,6 +23,7 @@
 // Claude redevient utilisable immediatement, sans redemarrer l'application.
 import { useEffect, useState } from 'react'
 import type { CalqueApi } from '../../shared/api'
+import { messageOfError } from '../../shared/errors'
 import { useClaudeStatusStore } from '../state/claudeStatusStore'
 import './Dialog.css'
 
@@ -79,7 +80,7 @@ export function SettingsDialog({ api, onClose }: { api: CalqueApi; onClose: () =
       // Refus (ex. safeStorage indisponible) : la raison est montree,
       // jamais avalee -- et le champ garde sa valeur pour que
       // l'utilisateur n'ait pas a la ressaisir (decision 3).
-      setErreur(err instanceof Error ? err.message : String(err))
+      setErreur(messageOfError(err))
       setStatut('error')
     }
   }
@@ -98,7 +99,7 @@ export function SettingsDialog({ api, onClose }: { api: CalqueApi; onClose: () =
       ecrireStatutPartage({ available: reglages.claudeAvailable, path: reglages.claudePath })
       setClaudeStatut('idle')
     } catch (err) {
-      setClaudeErreur(err instanceof Error ? err.message : String(err))
+      setClaudeErreur(messageOfError(err))
       setClaudeStatut('error')
     }
   }
@@ -118,7 +119,7 @@ export function SettingsDialog({ api, onClose }: { api: CalqueApi; onClose: () =
       // valeur saisie, et l'etat affiche (claudeAvailable/claudePath) n'est
       // pas touche, puisque le reglage cote main n'a pas ete ecrase non
       // plus.
-      setClaudeErreur(err instanceof Error ? err.message : String(err))
+      setClaudeErreur(messageOfError(err))
       setClaudeStatut('error')
     }
   }

@@ -16,3 +16,13 @@ describe('purete de src/shared/api.ts', () => {
     expect(src).not.toMatch(/\brequire\(/)
   })
 })
+
+describe('messageOfError', () => {
+  it('retire le prefixe IPC d Electron', async () => {
+    const { messageOfError } = await import('../src/shared/errors')
+    expect(messageOfError(new Error("Error invoking remote method 'askClaude': Error: Demande interrompue"))).toBe('Demande interrompue')
+    expect(messageOfError(new Error("Error invoking remote method 'x': Boom"))).toBe('Boom')
+    expect(messageOfError(new Error('Autre'))).toBe('Autre')
+    expect(messageOfError('texte')).toBe('texte')
+  })
+})

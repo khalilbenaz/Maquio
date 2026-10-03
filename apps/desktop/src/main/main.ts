@@ -120,6 +120,10 @@ const lanceurClaude = new ProcessClaudeRunner({
   spawn: nodeSpawn,
   which: whichClaude,
   workingDirectory: createNeutralClaudeWorkingDirectory,
+  // Delai personnalisable (tests de bout en bout) ; absent ou invalide : 2 minutes.
+  ...(Number.isFinite(Number(process.env['CALQUE_CLAUDE_TIMEOUT_MS'])) && Number(process.env['CALQUE_CLAUDE_TIMEOUT_MS']) > 0
+    ? { timeoutMs: Number(process.env['CALQUE_CLAUDE_TIMEOUT_MS']) }
+    : {}),
 })
 const serviceClaude = new AiService(lanceurClaude)
 const claudeRequests = new ClaudeRequestTracker()
