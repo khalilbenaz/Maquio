@@ -17,6 +17,7 @@ import { DocumentVersionError, parseDocument, serializeDocument } from '@calque/
 import type { CalqueDocument, Command } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import { useClaudeStatusStore } from '../state/claudeStatusStore'
+import { useUiPrefs } from '../state/uiPrefsStore'
 import type { CalqueApi } from '../../shared/api'
 import { translateUnknownError } from '../../shared/errors'
 import './ClaudePanel.css'
@@ -50,7 +51,17 @@ export function ClaudePanel({ api, onOpenSettings }: { api: CalqueApi; onOpenSet
   // ClaudePanel sont freres, sans prop en commun -- voir Toolbar.tsx).
   const disponible = useClaudeStatusStore((s) => s.available)
   const setStatutClaude = useClaudeStatusStore((s) => s.setStatus)
-  const [statut, setStatut] = useState<Statut>('idle')
+  const [statutLocal, setStatutLocal] = useState<Statut>('idle')
+  const setPhase = useClaudeStatusStore((s) => s.setPhase)
+  const phase = useClaudeStatusStore((s) => s.phase)
+  const replie = useUiPrefs((s) => s.claudeCollapsed)
+  const toggleClaude = useUiPrefs((s) => s.toggleClaude)
+  // Le statut local alimente aussi la pastille du panneau replie.
+  const setStatut = (s: Statut) => {
+    setStatutLocal(s)
+    setPhase(s === 'loading' ? 'loading' : s === 'done' ? 'done' : s === 'error' || s === 'perime' ? 'error' : 'idle')
+  }
+  const statut = statutLocal
   const [derniereInstruction, setDerniereInstruction] = useState('')
   const [resume, setResume] = useState('')
   const [erreur, setErreur] = useState('')
@@ -146,16 +157,50 @@ export function ClaudePanel({ api, onOpenSettings }: { api: CalqueApi; onOpenSet
 
   const desactive = !disponible
 
+  // Replie : une fine barre (titre + pastille d'activite ou de resultat). Le
+  // composant reste monte, donc une demande en cours n'est jamais perdue.
+  function deplier() {
+    toggleClaude()
+    // En depliant, le resultat est considere comme vu.
+    if (replie && (phase === 'done' || phase === 'error')) setPhase('idle')
+  }
+
   return (
-    <section aria-label="Assistant Claude Code" className="claude-panel">
+    <section
+      aria-label="Assistant Claude Code"
+      className={replie ? 'claude-panel claude-panel-collapsed' : 'claude-panel'}
+    >
       <div className="claude-panel-header">
-        <span className={disponible ? 'claude-panel-dot claude-panel-dot-on' : 'claude-panel-dot claude-panel-dot-off'} />
-        <span className="claude-panel-title">Claude Code</span>
-        <span className="claude-panel-header-spacer" />
-        <span className="claude-panel-status">{disponible ? 'connecté' : 'non connecté'}</span>
+        {replie ? (
+          <button type="button" className="claude-panel-bar" aria-label="Déplier le panneau Claude" aria-expanded={false} title="Déplier Claude (Cmd/Ctrl+J)" onClick={deplier}>
+            <span className={disponible ? 'claude-panel-dot claude-panel-dot-on' : 'claude-panel-dot claude-panel-dot-off'} />
+            <span className="claude-panel-title">Claude Code</span>
+            {phase !== 'idle' ? (
+              <span
+                data-testid="claude-badge"
+                data-phase={phase}
+                role="status"
+                aria-label={phase === 'loading' ? 'Claude travaille' : phase === 'done' ? 'Claude a terminé' : 'Claude a échoué'}
+                className={`claude-badge claude-badge-${phase}`}
+              />
+            ) : null}
+            <span className="claude-panel-header-spacer" />
+            <span aria-hidden="true">▴</span>
+          </button>
+        ) : (
+          <>
+            <span className={disponible ? 'claude-panel-dot claude-panel-dot-on' : 'claude-panel-dot claude-panel-dot-off'} />
+            <span className="claude-panel-title">Claude Code</span>
+            <span className="claude-panel-header-spacer" />
+            <span className="claude-panel-status">{disponible ? 'connecté' : 'non connecté'}</span>
+            <button type="button" className="claude-panel-fold" aria-label="Replier le panneau Claude" aria-expanded={true} title="Replier Claude (Cmd/Ctrl+J)" onClick={deplier}>
+              ▾
+            </button>
+          </>
+        )}
       </div>
 
-      <div className="claude-panel-body">
+      <div className="claude-panel-body" hidden={replie}>
         {!disponible ? (
           <>
             <p role="alert" className="claude-panel-alert">

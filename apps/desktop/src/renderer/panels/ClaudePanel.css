@@ -189,3 +189,54 @@
   margin: 0;
   word-break: break-word;
 }
+
+/* Replie : une fine barre au bas de la colonne ; le contenu reste monte (hidden). */
+.claude-panel-collapsed {
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+.claude-panel-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.claude-panel-fold {
+  background: transparent;
+  border: 0;
+  color: var(--calque-text-faint);
+  cursor: pointer;
+  font-size: 12px;
+}
+.claude-badge {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.claude-badge-loading {
+  background: var(--calque-accent);
+  animation: claude-pulse 1s ease-in-out infinite;
+}
+.claude-badge-done {
+  background: var(--calque-success);
+}
+.claude-badge-error {
+  background: #e5534b;
+}
+@keyframes claude-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.claude-panel-body[hidden] {
+  display: none !important;
+}
