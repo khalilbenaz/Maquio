@@ -29,10 +29,12 @@ function docAvecEcrans(...noms: string[]): CalqueDocument {
 describe('un ecran exporte garde la position de ses enfants et sa taille', () => {
   const doc = docAvecEcrans('Accueil')
 
-  it('Flutter : Positioned(left: 50, top: 70) et ecran de 393 x 852', () => {
+  // v3 : un ecran devient un Scaffold qui occupe tout l'appareil (plus de
+  // SizedBox 393 x 852 fige) ; la position des enfants est inchangee.
+  it('Flutter : Scaffold et Positioned(left: 50, top: 70)', () => {
     const f = flutterExporter.export(doc, { projectName: 'p' }).files.find((x) => x.path.includes('screens'))!
+    expect(f.contents).toContain('Scaffold(')
     expect(f.contents).toMatch(/Positioned\(\s*left: 50,\s*top: 70/)
-    expect(f.contents).toContain('393')
   })
 
   it('React Native : position absolute left 50 top 70', () => {

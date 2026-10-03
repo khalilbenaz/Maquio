@@ -19,10 +19,11 @@ describe('collapseShortCalls', () => {
     // Le defaut precis a ne plus jamais produire : une virgule collee a un
     // crochet ouvrant, invalide en Dart.
     expect(result.join('\n')).not.toContain('[,')
-    // Une ligne qui ouvre une liste non refermee disqualifie tout le
-    // groupe englobant du regroupement -- le bloc reste donc developpe
-    // exactement comme fourni, plutot que fusionne en une syntaxe brisee.
-    expect(result).toEqual(lines)
+    // La liste, elle, est refermee a l'interieur du groupe : `dart format`
+    // rassemble une liste qui tient en largeur (verifie avec le SDK : la
+    // virgule finale ne force plus l'eclatement), donc le groupe entier se
+    // regroupe, proprement.
+    expect(result).toEqual(['Row(children: [Foo()])'])
   })
 
   // Non-regression : un appel a arguments reellement plats (aucun d'eux

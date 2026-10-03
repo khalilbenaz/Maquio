@@ -38,6 +38,7 @@ import { flutterExporter } from '@calque/codegen'
 import { createDocument, createScreenNode, DEVICE_PRESETS } from '@calque/core'
 import type { CalqueDocument, FrameNode, TextNode } from '@calque/core'
 import { FIGMA_FIXTURES } from './fixtures'
+import { documentExempleComplet } from './fixtures/exemple-complet'
 
 // Correctif parentage (v2, addendum navigation) : cas ajoute a CE harnais,
 // pas aux fixtures Figma partagees (fixtures.ts, consommees par d'autres
@@ -199,9 +200,14 @@ describe('garde-fou flutter analyze (preuve de compilation reelle)', () => {
     // contenu propre rejoignent le meme paquet jetable, sous leurs propres
     // namespaces ('multi-screen-content-ecran1'/'2'), pour que le meme
     // `flutter analyze` (un seul processus, plus bas) les couvre aussi.
+    // v3 : le projet d'exemple « tous les composants » (30 composants, 7
+    // conteneurs, 3 ecrans relies) -- la preuve que chaque widget natif
+    // emis compile et ne leve aucune remontee, `flutter_lints` compris.
+    const exempleComplet = flutterExporter.export(documentExempleComplet(), { projectName: 'demo' })
     for (const [namespace, result] of [
       ['multi-screen-content-ecran1', exportEcran1],
       ['multi-screen-content-ecran2', exportEcran2],
+      ['exemple-complet', exempleComplet],
     ] as const) {
       for (const file of result.files) {
         const relative = file.path.replace(/^lib\//, '')
@@ -252,7 +258,7 @@ describe('garde-fou flutter analyze (preuve de compilation reelle)', () => {
   // genere a partir d'un document CORRECTEMENT imbrique (ce que garantit
   // desormais le correctif) reste valide, pas seulement que le placement du
   // contenu est le bon (verifie separement ci-dessous).
-  for (const namespace of ['multi-screen-content-ecran1', 'multi-screen-content-ecran2']) {
+  for (const namespace of ['multi-screen-content-ecran1', 'multi-screen-content-ecran2', 'exemple-complet']) {
     runIfFlutterAvailable(`la sortie Flutter pour ${namespace} ne produit aucune remontee flutter analyze`, () => {
       const prefix = `lib/${namespace}/`
       const fixtureIssues = issues.filter((i) => i.file.includes(prefix))
@@ -276,15 +282,23 @@ describe('garde-fou flutter analyze (preuve de compilation reelle)', () => {
   // dans AUCUN des deux exports (un ecran vide de tout contenu, quel que
   // soit l'ecran actif choisi). Ce test ne depend pas de `flutter` (pur JS,
   // voir le calcul inconditionnel de exportEcran1/exportEcran2 plus haut).
-  it('le contenu de chaque ecran se retrouve dans le bon ecran, et seulement lui', () => {
-    const contenu1 = exportEcran1.files.map((f) => f.contents).join('\n')
-    const contenu2 = exportEcran2.files.map((f) => f.contents).join('\n')
-
-    expect(contenu1).toContain('Contenu propre de l ecran un')
-    expect(contenu1).not.toContain('Contenu propre de l ecran deux')
-
-    expect(contenu2).toContain('Contenu propre de l ecran deux')
-    expect(contenu2).not.toContain('Contenu propre de l ecran un')
+  // v3 : TOUS les ecrans sont exportes (un fichier par ecran, plus les
+  // routes de main.dart) -- le contenu de chaque ecran se retrouve dans SON
+  // fichier, et seulement lui, quel que soit l'ecran actif demande ; l'ecran
+  // actif ne fait que choisir la route de depart.
+  it('chaque ecran a son fichier, avec son propre contenu, et la route de depart suit l ecran actif', () => {
+    for (const result of [exportEcran1, exportEcran2]) {
+      const un = result.files.find((f) => f.path === 'lib/screens/ecran_1.dart')!
+      const deux = result.files.find((f) => f.path === 'lib/screens/ecran_2.dart')!
+      expect(un.contents).toContain('Contenu propre de l ecran un')
+      expect(un.contents).not.toContain('Contenu propre de l ecran deux')
+      expect(deux.contents).toContain('Contenu propre de l ecran deux')
+      expect(deux.contents).not.toContain('Contenu propre de l ecran un')
+    }
+    const main1 = exportEcran1.files.find((f) => f.path === 'lib/main.dart')!.contents
+    const main2 = exportEcran2.files.find((f) => f.path === 'lib/main.dart')!.contents
+    expect(main1).toContain("initialRoute: '/ecran_1'")
+    expect(main2).toContain("initialRoute: '/ecran_2'")
   })
 
   // Le harnais doit rester raisonnablement rapide (borne large : la
