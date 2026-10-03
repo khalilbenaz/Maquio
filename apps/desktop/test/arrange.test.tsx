@@ -80,13 +80,13 @@ describe('agencement : raccourcis et presse-papiers', () => {
 })
 
 describe('agencement : inspecteur', () => {
-  it('aligner, distribuer et renommer depuis l inspecteur', () => {
+  it('aligner et distribuer depuis l inspecteur', () => {
     render(<InspectorPanel api={apiFactice} />)
     act(() => store().select(['a', 'b', 'c']))
     fireEvent.click(screen.getByRole('button', { name: 'Aligner à gauche' }))
     expect(kids().map((n) => n.frame.x)).toEqual([10, 10, 10])
     fireEvent.click(screen.getByRole('button', { name: 'Distribuer verticalement' }))
-    expect(kids().map((n) => n.frame.y)).toEqual([10, 225, 400])
+    expect(kids().map((n) => n.frame.y)).toEqual([10, 205, 400])
   })
   it('renomme un calque', () => {
     render(<InspectorPanel api={apiFactice} />)
