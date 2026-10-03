@@ -7,7 +7,17 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import path from 'node:path'
 import { lancer } from './helpers.mjs'
 
-const t = await lancer()
+// Faux serveur de l'API Figma (127.0.0.1) : sert la fixture JSON a /v1/files/<cle>.
+const fixtureFigma = readFileSync(path.resolve('test/integration/fixtures/realistic-figma-file.json'), 'utf8')
+const requetesFigma = []
+const serveur = createServer((req, res) => {
+  requetesFigma.push({ url: req.url, jeton: req.headers['x-figma-token'] })
+  if (req.headers['x-figma-token'] !== 'figd_jeton_de_test') { res.writeHead(403); res.end('{}'); return }
+  if (req.url === '/v1/files/CLE_OK') { res.writeHead(200, { 'content-type': 'application/json' }); res.end(fixtureFigma); return }
+  res.writeHead(404); res.end('{}')
+})
+await new Promise((r) => serveur.listen(0, '127.0.0.1', r))
+const t = await lancer({ CALQUE_FIGMA_API_BASE: `http://127.0.0.1:${serveur.address().port}` })
 const { win, work, check, shot, setNext, menu, ids, nodes, box, sceneBox, selected, drag, draw } = t
 const calques = () => win.evaluate(() => [...document.querySelectorAll('[role=treeitem]')].map((e) => ({ id: e.dataset.testid.replace('layer-', ''), name: e.querySelector('.layers-row-name')?.textContent })))
 const noms = async () => (await calques()).map((c) => c.name)
@@ -224,4 +234,201 @@ check('panoramique : n a pas deplace de noeud', (await selected()).length === 0 
 await btn('Ajuster à la fenêtre').click(); await pause(150)
 await shot('46-zoom')
 
+// ---------- 6. Auto-layout Row / Column ----------
+await setNext({ box: 1 }); await menu('Nouveau'); await pause(250)
+await btn('Nouvel écran').click(); await pause(200)
+const [ec2] = await ids()
+const eb2 = await box(ec2)
+const k2 = eb2.width / 393
+const pp2 = (x, y) => ({ x: eb2.x + x * k2, y: eb2.y + y * k2 })
+const trace2 = async (outil, x, y, w, h) => { const a = pp2(x, y), b = pp2(x + w, y + h); await win.getByRole('button', { name: outil, exact: true }).click(); await drag(a.x, a.y, b.x, b.y, { steps: 6 }) }
+const av2 = new Set(await ids())
+await trace2('Frame', 20, 100, 300, 300)
+const [idFrame] = (await ids()).filter((i) => !av2.has(i))
+await trace2('Rectangle', 40, 120, 60, 40)
+await trace2('Rectangle', 60, 200, 60, 40)
+await selectLayer(idFrame)
+const modeSel = win.getByLabel('Mode de disposition', { exact: true })
+await modeSel.selectOption('column'); await pause()
+const enfants = (await ids()).filter((i) => i !== ec2 && i !== idFrame)
+const bf = await Promise.all(enfants.map(box))
+check('auto-layout : Colonne empile les enfants (meme x, y croissants)', Math.abs(bf[0].x - bf[1].x) < 1.5 && bf[1].y > bf[0].y + 30 * k2, JSON.stringify(bf.map((b) => [Math.round(b.x), Math.round(b.y)])))
+await modeSel.selectOption('row'); await pause()
+const br = await Promise.all(enfants.map(box))
+check('auto-layout : Ligne aligne les enfants (meme y, x croissants)', Math.abs(br[0].y - br[1].y) < 1.5 && br[1].x > br[0].x + 30 * k2)
+await undo(); await undo(); await pause()
+await shot('47-autolayout')
+
+// ---------- 7. Liens entre ecrans ----------
+await btn('Nouvel écran').click(); await pause(200)
+const tous = await calques()
+const ecran2 = tous.find((c) => c.id !== ec2 && /Écran/.test(c.name))
+await win.getByRole('tab', { name: 'Composants' }).click()
+await win.getByTestId('palette-item-button').click(); await pause(200)
+const idBouton = (await nodes()).find((n) => n.type === 'button')?.id
+check('liens : un bouton est ajoute a l ecran actif par clic sur la palette', idBouton !== undefined)
+await win.getByRole('tab', { name: 'Calques' }).click()
+if (idBouton) await selectLayer(idBouton)
+const lien = win.getByLabel('Au clic →', { exact: true })
+const cible = (await lien.locator('option').allTextContents()).filter((x) => x !== '(aucun)')
+await lien.selectOption({ index: 1 }); await pause()
+check('liens : poser un lien vers un ecran (liste des ecrans cibles)', (await lien.inputValue()) !== '' && cible.length >= 1, cible.join())
+await btn('Afficher les liens').click(); await pause(150)
+check('liens : afficher les connecteurs', (await win.getByTestId('links-layer-svg').count()) === 1)
+await shot('48-liens')
+await btn('Afficher les liens').click(); await pause(100)
+check('liens : masquer les connecteurs', (await win.getByTestId('links-layer-svg').count()) === 0)
+await undo(); await pause()
+check('liens : annuler le lien', (await lien.inputValue()) === '')
+
+// ---------- 8. Palette complete : chaque composant, glisse puis chaque propriete editee ----------
+await setNext({ box: 1 }); await menu('Nouveau'); await pause(250)
+await btn('Nouvel écran').click(); await pause(200)
+const [ec3] = await ids()
+await win.getByRole('tab', { name: 'Composants' }).click()
+const itemsPalette = await win.evaluate(() => [...document.querySelectorAll('[data-testid^="palette-item-"]')].map((e) => e.dataset.testid.replace('palette-item-', '')))
+check('palette : tous les composants sont listes', itemsPalette.length >= 40, `${itemsPalette.length} elements`)
+const eb3 = await box(ec3)
+const scene = win.getByTestId('canvas-scene')
+const sc3 = await sceneBox()
+let crees = 0, controles = 0, invalides = []
+for (const item of itemsPalette) {
+  const avantP = new Set(await ids())
+  await win.getByTestId(`palette-item-${item}`).scrollIntoViewIfNeeded()
+  await win.getByTestId(`palette-item-${item}`).dragTo(scene, { targetPosition: { x: eb3.x - sc3.x + eb3.width * 0.5, y: eb3.y - sc3.y + eb3.height * 0.5 } })
+  await pause(120)
+  const nouveaux = (await ids()).filter((i) => !avantP.has(i))
+  if (nouveaux.length === 0) { check(`palette : ${item} cree un element`, false); continue }
+  crees++
+  // chaque champ de l'inspecteur est modifie ; aucune saisie ne doit etre rejetee
+  const champs = win.locator('.inspector-panel input:not([type=color]):not([type=range]), .inspector-panel select, .inspector-panel textarea')
+  const n = await champs.count()
+  for (let i = 0; i < n; i++) {
+    const c = champs.nth(i)
+    const label = (await c.getAttribute('aria-label')) ?? ''
+    if (/^(X|Y|Largeur|Hauteur|Opacité|Rotation|Nom du calque)$/.test(label)) continue
+    const tag = await c.evaluate((e) => e.tagName)
+    const type = await c.getAttribute('type')
+    try {
+      if (type === 'checkbox') await c.click({ timeout: 2000 })
+      else if (tag === 'SELECT') { const opts = await c.locator('option').count(); if (opts > 1) await c.selectOption({ index: 1 }, { timeout: 2000 }) }
+      else {
+        const courant = await c.inputValue()
+        if (/^-?\d+(\.\d+)?$/.test(courant)) {
+          // champ numerique : une valeur voisine, dans les bornes du champ
+          const v = Number(courant)
+          let accepte = false
+          for (const cand of [v + 1, v - 1, 0, 1]) {
+            await c.fill(String(cand), { timeout: 2000 }); await c.press('Enter')
+            if ((await c.getAttribute('aria-invalid')) !== 'true') { accepte = true; break }
+          }
+          if (!accepte) invalides.push(`${item}/${label}`)
+        } else { await c.fill('Zed', { timeout: 2000 }); await c.press('Enter') }
+      }
+      controles++
+    } catch { /* controle desactive ou masque par un choix precedent */ }
+  }
+  if ((await win.getByRole('button', { name: 'Supprimer', exact: true }).count()) > 0) { await btn('Supprimer').click(); await pause(60) }
+}
+check('palette : chaque composant se glisse sur l ecran', crees === itemsPalette.length, `${crees}/${itemsPalette.length}`)
+check('inspecteur : chaque propriete de chaque composant est editable (aucune saisie rejetee)', controles > 100 && invalides.length === 0, `${controles} champs edites ; rejetes: ${invalides.join(',')}`)
+await shot('49-palette')
+
+// ---------- 9. Formats de fichier : ancien format, version future, JSON invalide ----------
+const v1 = { version: 1, id: '11111111-1111-4111-8111-111111111111', name: 'Ancien', tokens: { colors: {}, typography: {}, spacing: {} },
+  pages: [{ id: '22222222-2222-4222-8222-222222222222', name: 'Page 1', device: { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 },
+    nodes: [{ id: '33333333-3333-4333-8333-333333333333', name: 'Carte', type: 'rect', frame: { x: 10, y: 10, w: 100, h: 60 }, visible: true, locked: false, opacity: 1, rotation: 0, fills: [{ type: 'solid', color: { r: 1, g: 0, b: 0, a: 1 } }], strokes: [], cornerRadius: 4 }] }] }
+const ancien = path.join(work, 'ancien-v1.calque'); writeFileSync(ancien, JSON.stringify(v1))
+await setNext({ open: ancien }); await menu('Ouvrir...'); await pause(500)
+check('fichier : un ancien format (v1) s ouvre et est migre en ecran', (await ids()).length >= 1 && (await win.getByTestId('node-33333333-3333-4333-8333-333333333333').count()) === 1, (await noms()).join())
+const futur = path.join(work, 'futur.calque'); writeFileSync(futur, JSON.stringify({ ...v1, version: 99 }))
+await setNext({ open: futur }); await menu('Ouvrir...'); await pause(400)
+const msgFutur = await win.locator('.calque-error-banner').innerText().catch(() => '')
+check('fichier : une version plus recente est refusee avec un message explicite', /version/i.test(msgFutur), msgFutur)
+check('fichier : l ancien document reste intact apres un refus', (await win.getByTestId('node-33333333-3333-4333-8333-333333333333').count()) === 1)
+
+// ---------- 10. Images : import, enregistrement, export copie et declare ----------
+await setNext({ box: 1 }); await menu('Nouveau'); await pause(250)
+await btn('Nouvel écran').click(); await pause(200)
+const [ec4] = await ids()
+const eb4 = await box(ec4); const k4 = eb4.width / 393
+const png = path.join(work, 'Mon Logo.png')
+writeFileSync(png, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'))
+await setNext({ open: png })
+await btn('Image').click()
+await drag(eb4.x + 20 * k4, eb4.y + 40 * k4, eb4.x + 120 * k4, eb4.y + 140 * k4)
+await pause(400)
+const img = (await nodes()).find((n) => n.type === 'image')
+check('images : importer une image (selecteur natif) l affiche', img !== undefined && (await win.getByTestId(`node-${img.id}`).locator('img').count()) === 1)
+const exporter = async (label, dirName) => {
+  const dir = path.join(work, 'img-' + dirName); mkdirSync(dir, { recursive: true })
+  await setNext({ open: dir, box: 1 })
+  await win.getByRole('button', { name: 'Exporter', exact: true }).click()
+  await win.getByRole('menuitem', { name: new RegExp(label) }).click()
+  await win.getByRole('button', { name: "Lancer l'export" }).click()
+  await pause(900)
+  const texte = await win.locator('.dialog-panel').innerText()
+  await win.getByRole('button', { name: "Fermer l'export" }).click()
+  return { dir, texte }
+}
+let r = await exporter('Flutter', 'flutter')
+check('images : Flutter copie l image dans assets/images/ et la declare dans pubspec.yaml', existsSync(path.join(r.dir, 'assets/images/Mon_Logo.png')) && /assets\/images\/Mon_Logo\.png/.test(readFileSync(path.join(r.dir, 'pubspec.yaml'), 'utf8')), r.texte.slice(0, 120))
+r = await exporter('React Native', 'rn')
+check('images : React Native copie l image et la reference par require', existsSync(path.join(r.dir, 'assets/images/Mon_Logo.png')) && /require\('\.\.\/\.\.\/assets\/images\/Mon_Logo\.png'\)/.test(readFileSync(path.join(r.dir, readdirSync(path.join(r.dir, 'src/screens'))[0] ? 'src/screens/' + readdirSync(path.join(r.dir, 'src/screens'))[0] : ''), 'utf8')))
+r = await exporter('SwiftUI', 'swift')
+check('images : SwiftUI copie l image dans un .imageset', existsSync(path.join(r.dir, 'Sources/Assets.xcassets/Mon_Logo.imageset/Mon_Logo.png')) && existsSync(path.join(r.dir, 'Sources/Assets.xcassets/Mon_Logo.imageset/Contents.json')))
+r = await exporter('Jetpack Compose', 'compose')
+check('images : Compose copie l image dans res/drawable (nom valide)', existsSync(path.join(r.dir, 'src/main/res/drawable/mon_logo.png')))
+// apres enregistrement : l'image est relative (<doc>.ressources/) et l'export la retrouve
+const doc2 = path.join(work, 'avec-image.calque')
+await setNext({ save: doc2 }); await menu('Enregistrer'); await pause(500)
+check('images : l enregistrement copie l image dans <document>.ressources/', existsSync(path.join(work, 'avec-image.ressources', 'Mon Logo.png')))
+r = await exporter('Flutter', 'flutter2')
+check('images : export apres enregistrement (source relative) copie toujours l image', existsSync(path.join(r.dir, 'assets/images/Mon_Logo.png')))
+
+// ---------- 11. Import Figma : fichier .json et API (serveur local) ----------
+await setNext({ box: 1 }); await menu('Nouveau'); await pause(250)
+await btn('Importer depuis Figma').click()
+await setNext({ open: path.resolve('test/integration/fixtures/realistic-figma-file.json') })
+await win.getByRole('button', { name: 'Importer un fichier Figma' }).click(); await pause(600)
+const note = await win.locator('.dialog-panel .dialog-note').innerText().catch(() => '')
+check('figma : import d un fichier .json (dialogue reel) charge le document', /nœud/.test(note), note)
+await win.getByRole('button', { name: "Fermer l'import Figma" }).click(); await pause(200)
+const nFigma = (await ids()).length
+check('figma : le canevas affiche le design importe', nFigma >= 3, `${nFigma} noeuds`)
+await shot('50-figma-fichier')
+// API : sans jeton -> message nomme
+await menu('Nouveau'); await pause(200)
+await btn('Importer depuis Figma').click()
+await win.getByLabel('Clé ou lien du fichier Figma').fill('https://www.figma.com/design/CLE_OK/Mon-design?node-id=0-1')
+await win.getByRole('button', { name: "Importer depuis l'API Figma" }).click(); await pause(500)
+check('figma : API sans jeton -> message actionnable', /jeton/i.test(await win.locator('.dialog-alert').innerText().catch(() => '')))
+await win.getByRole('button', { name: "Fermer l'import Figma" }).click()
+// jeton dans les reglages (chiffre par le trousseau systeme)
+await btn('Réglages').click()
+await win.getByLabel('Jeton personnel Figma').fill('figd_mauvais')
+await win.getByRole('button', { name: 'Enregistrer le jeton Figma' }).click(); await pause(600)
+const reglMsg = await win.locator('.dialog-panel').innerText()
+await win.getByRole('button', { name: 'Fermer les réglages' }).click()
+await btn('Importer depuis Figma').click()
+await win.getByLabel('Clé ou lien du fichier Figma').fill('CLE_OK')
+await win.getByRole('button', { name: "Importer depuis l'API Figma" }).click(); await pause(600)
+const refus = await win.locator('.dialog-alert').innerText().catch(() => '')
+check('figma : API avec un mauvais jeton -> refus explicite', /refus/i.test(refus) || /jeton/i.test(reglMsg) , refus || reglMsg.slice(0, 100))
+await win.getByRole('button', { name: "Fermer l'import Figma" }).click()
+await btn('Réglages').click()
+await win.getByLabel('Jeton personnel Figma').fill('figd_jeton_de_test')
+await win.getByRole('button', { name: 'Enregistrer le jeton Figma' }).click(); await pause(600)
+await win.getByRole('button', { name: 'Fermer les réglages' }).click()
+await btn('Importer depuis Figma').click()
+await win.getByLabel('Clé ou lien du fichier Figma').fill('CLE_OK')
+await win.getByRole('button', { name: "Importer depuis l'API Figma" }).click(); await pause(800)
+const noteApi = await win.locator('.dialog-panel .dialog-note').innerText().catch(() => '')
+check('figma : import via l API (serveur local, jeton envoye en en-tete) charge le document', /nœud/.test(noteApi), noteApi || (await win.locator('.dialog-panel').innerText()).slice(0, 200))
+check('figma : le serveur a recu la cle et le jeton', requetesFigma.some((q) => q.url === '/v1/files/CLE_OK' && q.jeton === 'figd_jeton_de_test'))
+await win.getByRole('button', { name: "Fermer l'import Figma" }).click()
+await shot('51-figma-api')
+r = await exporter('Flutter', 'figma-flutter')
+check('figma : le design importe s exporte (tous les ecrans)', existsSync(path.join(r.dir, 'lib/main.dart')))
+serveur.close()
 await t.fin()

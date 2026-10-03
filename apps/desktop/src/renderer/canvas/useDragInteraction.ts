@@ -36,7 +36,7 @@ import {
   snapValue,
   translateRect,
 } from '@calque/core'
-import type { CalqueDocument, HandleId, Node, Rect } from '@calque/core'
+import type { CalqueDocument, FrameNode, HandleId, Node, Rect } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import type { DragPreview, Tool } from '../state/editorStore'
 import type { CalqueApi } from '../../shared/api'
@@ -45,6 +45,26 @@ import type { CalqueApi } from '../../shared/api'
 
 function depthIsTop(nodes: Node[], id: string): boolean {
   return nodes.some((n) => n.id === id)
+}
+
+// Frame (groupe, conteneur, ecran) la plus profonde, visible et deverrouillee,
+// qui contient le point (coordonnees de PAGE) : parent d'un element trace a
+// cet endroit. Les composants (feuilles) ne sont jamais parents.
+export function deepestFrameAt(nodes: Node[], point: { x: number; y: number }): FrameNode | null {
+  let best: FrameNode | null = null
+  const visit = (list: Node[], ox: number, oy: number) => {
+    for (const n of list) {
+      if (!n.visible || n.locked || n.type !== 'frame') continue
+      const x = ox + n.frame.x
+      const y = oy + n.frame.y
+      if (point.x >= x && point.x < x + n.frame.w && point.y >= y && point.y < y + n.frame.h) {
+        best = n
+        visit(n.children, x, y)
+      }
+    }
+  }
+  visit(nodes, 0, 0)
+  return best
 }
 
 export function pageNodesOf(doc: CalqueDocument, pageId: string): Node[] {
@@ -761,7 +781,7 @@ export function useCreateInteraction(canvasRef: RefObject<HTMLElement | null>, a
       // sur le fond, hors de tout ecran -- le noeud reste alors de premier
       // niveau, un cas legitime (repere, note hors maquette), pas un refus.
       const nodesAuDepart = pageNodesOf(state.document, state.pageId)
-      const parentScreen = screenAtPoint(nodesAuDepart, start)
+      const parentScreen = deepestFrameAt(nodesAuDepart, start)
 
       let currentFrame: Rect = { x: start.x, y: start.y, w: 0, h: 0 }
       state.setDragPreview({ kind: 'create', tool, frame: currentFrame })
@@ -798,12 +818,13 @@ export function useCreateInteraction(canvasRef: RefObject<HTMLElement | null>, a
         // une simple soustraction suffit. Entier deja garanti par
         // finalFrameAbsolue (arrondie ci-dessus) moins un entier.
         const parentId = parentScreen !== null ? parentScreen.id : null
+        const parentOrigin = parentScreen !== null ? absoluteFrame(pageNodesOf(current.document, current.pageId), parentScreen.id) : null
         const finalFrame: Rect =
-          parentScreen === null
+          parentOrigin === null
             ? finalFrameAbsolue
             : {
-                x: finalFrameAbsolue.x - parentScreen.frame.x,
-                y: finalFrameAbsolue.y - parentScreen.frame.y,
+                x: finalFrameAbsolue.x - parentOrigin.x,
+                y: finalFrameAbsolue.y - parentOrigin.y,
                 w: finalFrameAbsolue.w,
                 h: finalFrameAbsolue.h,
               }

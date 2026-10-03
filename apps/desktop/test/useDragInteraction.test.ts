@@ -61,3 +61,21 @@ describe('createDefaultNode (texte)', () => {
     expect(node.style.lineHeight).toBeGreaterThanOrEqual(node.style.fontSize)
   })
 })
+
+describe('deepestFrameAt', () => {
+  it('rend la frame la plus profonde qui contient le point (coordonnees de page), ignore verrouillees et feuilles', async () => {
+    const { deepestFrameAt } = await import('../src/renderer/canvas/useDragInteraction')
+    const { createScreenNode, DEVICE_PRESETS } = await import('@calque/core')
+    const dev = DEVICE_PRESETS.iphone15
+    const leaf = { id: 'r', name: 'r', type: 'rect' as const, frame: { x: 0, y: 0, w: 500, h: 500 }, visible: true, locked: false, opacity: 1, rotation: 0, fills: [], strokes: [], cornerRadius: 0 }
+    const inner = { ...createScreenNode('inner', dev, { x: 50, y: 50, w: 100, h: 100 }, []), id: 'inner', device: undefined }
+    const outer = { ...createScreenNode('outer', dev, { x: 20, y: 20, w: 300, h: 300 }, [leaf, inner]), id: 'outer', device: undefined }
+    const screen = { ...createScreenNode('s', dev, { x: 100, y: 0, w: 393, h: 852 }, [outer]), id: 's' }
+    // inner est a 100+20+50 = 170 en page
+    expect(deepestFrameAt([screen], { x: 180, y: 80 })?.id).toBe('inner')
+    expect(deepestFrameAt([screen], { x: 130, y: 30 })?.id).toBe('outer')
+    expect(deepestFrameAt([screen], { x: 110, y: 700 })?.id).toBe('s')
+    expect(deepestFrameAt([screen], { x: 10, y: 10 })).toBeNull()
+    expect(deepestFrameAt([{ ...screen, locked: true }], { x: 110, y: 700 })).toBeNull()
+  })
+})

@@ -11,7 +11,7 @@ const work = mkdtempSync(path.join(tmpdir(), 'calque-work-'))
 const results = []
 const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? 'OK  ' : 'FAIL'} ${name} ${detail}`) }
 
-const app = await electron.launch({ args: [path.resolve('apps/desktop')] })
+const app = await electron.launch({ args: [path.resolve('apps/desktop'), `--user-data-dir=${path.join(work, 'userdata')}`] })
 const win = await app.firstWindow()
 const errors = []
 win.on('pageerror', (e) => errors.push(e.message))
