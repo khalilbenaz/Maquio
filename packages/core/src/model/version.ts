@@ -6,4 +6,10 @@
 // v2 (addendum navigation, 2026-09-21) : ecrans multiples et liens. Un
 // document v1 se migre automatiquement a l'ouverture (voir
 // migrateV1ToV2 dans document.ts) ; un document v2 se lit tel quel.
-export const DOCUMENT_VERSION = 2 as const
+//
+// v3 (composants mobiles) : noeuds `component` et conteneurs semantiques
+// (`frame.container`). Purement ADDITIF : un document v1/v2 ne contient
+// aucune de ces formes, il s'ouvre donc sans transformation de contenu
+// (seul le numero de version est releve) ; un document v3 est refuse par
+// une application qui ne connait que v2, comme tout document futur.
+export const DOCUMENT_VERSION = 3 as const

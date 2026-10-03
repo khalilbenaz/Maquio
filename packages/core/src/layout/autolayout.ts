@@ -97,6 +97,41 @@ function layoutRowOrColumn(frame: FrameNode, children: Node[]): { children: Node
   return { children: positioned, changed }
 }
 
+// v3 (composants mobiles) : mise en page d'un conteneur `grid`. Les enfants
+// sont repartis en `columns` colonnes de largeur egale (largeur utile moins
+// les `gap` entre colonnes), ligne apres ligne ; chaque ligne est aussi
+// haute que sa cellule la plus haute, separee de la suivante par `gap`. La
+// hauteur propre de chaque enfant est conservee, sa largeur est imposee par
+// la grille (comme `GridView.count` / `LazyVerticalGrid`).
+function layoutGrid(frame: FrameNode, children: Node[], columns: number): { children: Node[]; changed: boolean } {
+  const { gap, padding } = frame.layout
+  const innerWidth = Math.max(frame.frame.w - padding.left - padding.right, 0)
+  const cellWidth = Math.max((innerWidth - gap * (columns - 1)) / columns, 0)
+
+  let changed = false
+  let rowTop = padding.top
+  const positioned: Node[] = []
+  for (let start = 0; start < children.length; start += columns) {
+    const row = children.slice(start, start + columns)
+    row.forEach((c, column) => {
+      const newFrame: Rect = { x: padding.left + column * (cellWidth + gap), y: rowTop, w: cellWidth, h: c.frame.h }
+      if (
+        newFrame.x === c.frame.x &&
+        newFrame.y === c.frame.y &&
+        newFrame.w === c.frame.w &&
+        newFrame.h === c.frame.h
+      ) {
+        positioned.push(c)
+      } else {
+        changed = true
+        positioned.push({ ...c, frame: newFrame })
+      }
+    })
+    rowTop += Math.max(...row.map((c) => c.frame.h)) + gap
+  }
+  return { children: positioned, changed }
+}
+
 // Met en page recursivement les enfants d'une frame selon `layout`.
 //
 // L'ordre de calcul est "enfants d'abord" : chaque enfant qui est lui-meme
@@ -115,6 +150,14 @@ export function applyAutoLayout(frame: FrameNode): FrameNode {
     if (laidOut !== c) descendantsChanged = true
     return laidOut
   })
+
+  // Une grille impose sa propre repartition, quel que soit `layout.mode`.
+  if (frame.container?.kind === 'grid') {
+    if (descendantsProcessed.length === 0) return frame
+    const grid = layoutGrid(frame, descendantsProcessed, frame.container.columns)
+    if (!descendantsChanged && !grid.changed) return frame
+    return { ...frame, children: grid.children }
+  }
 
   if (frame.layout.mode === 'absolute') {
     return descendantsChanged ? { ...frame, children: descendantsProcessed } : frame

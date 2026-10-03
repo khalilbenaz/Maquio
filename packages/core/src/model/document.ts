@@ -91,7 +91,14 @@ function wrapPageAsScreen(page: Page): Page {
 }
 
 function migrateV1ToV2(doc: CalqueDocument): CalqueDocument {
-  return { ...doc, version: DOCUMENT_VERSION, pages: doc.pages.map(wrapPageAsScreen) }
+  return { ...doc, version: 2, pages: doc.pages.map(wrapPageAsScreen) }
+}
+
+// v3 (composants mobiles) : aucune transformation de contenu -- les noeuds
+// `component` et le champ `container` n'existaient pas, aucun ancien
+// document n'en porte.
+function migrateV2ToV3(doc: CalqueDocument): CalqueDocument {
+  return { ...doc, version: DOCUMENT_VERSION }
 }
 
 export function parseDocument(json: string): CalqueDocument {
@@ -120,5 +127,10 @@ export function parseDocument(json: string): CalqueDocument {
   // d'aucune manipulation de JSON brut non type : elle s'applique APRES
   // validation, sur un CalqueDocument deja bien forme.
   const parsed = documentSchema.parse(raw)
-  return version === 1 ? migrateV1ToV2(parsed) : parsed
+  // Chaine de migrations : v1 -> v2 (ecrans) puis v2 -> v3 (composants).
+  // v3 est purement additif (voir model/version.ts) : relever le numero
+  // suffit. Un document deja en v3 est rendu tel quel.
+  if (version === 1) return migrateV2ToV3(migrateV1ToV2(parsed))
+  if (version === 2) return migrateV2ToV3(parsed)
+  return parsed
 }

@@ -7,6 +7,7 @@
 // branche de litteraux manquante) sans erreur. C'est schema.test.ts, qui
 // enumere explicitement chaque valeur attendue, qui detecte cette derive.
 import { z } from 'zod'
+import { COMPONENT_KINDS, COMPONENT_PROPS_SCHEMAS, containerSpecSchema } from '../components/props'
 import type {
   CalqueDocument,
   Color,
@@ -179,6 +180,8 @@ const frameNodeSchema = z
     // les profondeurs de l'arbre) : c'est pageSchema qui interprete sa
     // presence/absence au premier niveau.
     device: devicePresetSchema.optional(),
+    // v3 (composants mobiles) : conteneur semantique (carte, liste, grille...).
+    container: containerSpecSchema.optional(),
   })
   .strict() satisfies z.ZodType<FrameNode>
 
@@ -228,15 +231,48 @@ const lineNodeSchema = z
   })
   .strict() satisfies z.ZodType<LineNode>
 
-// Union discriminee sur `type`, recursive via frameNodeSchema (z.lazy) pour frame.children.
-export const nodeSchema: z.ZodType<Node> = z.discriminatedUnion('type', [
+// v3 (composants mobiles) : le noeud `component` est un objet a deux
+// niveaux de discrimination (`type` puis `kind`). Zod 3 n'imbrique pas les
+// unions discriminees : la forme ci-dessous valide la STRUCTURE (type,
+// kind connu, `props` objet) pour que `type` reste lisible par
+// z.discriminatedUnion, et nodeSchema (plus bas) valide ensuite `props`
+// avec le schema EXACT de son `kind` -- c'est la que `props` est stricte.
+const componentNodeSchema = z
+  .object({
+    ...nodeBaseShape,
+    type: z.literal('component'),
+    kind: z.enum(COMPONENT_KINDS),
+    props: z.record(z.string(), z.unknown()),
+  })
+  .strict()
+
+const nodeUnionSchema = z.discriminatedUnion('type', [
   frameNodeSchema,
   textNodeSchema,
   rectNodeSchema,
   ellipseNodeSchema,
   imageNodeSchema,
   lineNodeSchema,
+  componentNodeSchema,
 ])
+
+// Union discriminee sur `type`, recursive via frameNodeSchema (z.lazy) pour
+// frame.children. Le raffinement valide `props` selon `kind` (chemins
+// d'erreur prefixes par `props`) ; le cast final est du au fait que
+// l'entree du raffinement type `props` en record permissif, alors que le
+// type canonique (ComponentNode) le type par `kind`.
+export const nodeSchema: z.ZodType<Node> = nodeUnionSchema.superRefine((node, ctx) => {
+  if (node.type !== 'component') return
+  const result = COMPONENT_PROPS_SCHEMAS[node.kind].safeParse(node.props)
+  if (result.success) return
+  for (const issue of result.error.issues) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['props', ...issue.path],
+      message: issue.message,
+    })
+  }
+}) as unknown as z.ZodType<Node>
 
 // v2 (addendum navigation, §3.2) : verifie tout lien porte par un noeud de
 // cette page -- cible existante, de la meme page, differente de l'ecran qui
@@ -266,6 +302,22 @@ function checkLinks(page: Page, ctx: z.RefinementCtx): void {
           message: "Cible de lien invalide : un nœud ne peut pas être lié à l'écran qui le contient",
         })
       }
+    }
+    // v3 : les entrees d'une barre de navigation ou d'onglets portent leur
+    // propre cible. Contrairement a un lien de noeud, une entree PEUT viser
+    // l'ecran qui la contient (c'est l'onglet courant) : seule l'existence
+    // de l'ecran cible est imposee.
+    if (node.type === 'component' && (node.kind === 'bottomNav' || node.kind === 'tabs')) {
+      const items = node.props.items as { target?: string }[]
+      items.forEach((item, index) => {
+        if (item.target !== undefined && !screenIds.has(item.target)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [...path, 'props', 'items', index, 'target'],
+            message: `Cible de lien invalide : "${item.target}" n'est pas un écran de cette page`,
+          })
+        }
+      })
     }
     if (node.type === 'frame') {
       node.children.forEach((child, i) => visit(child, containingScreenId, [...path, 'children', i]))

@@ -209,3 +209,37 @@ describe('layoutPage', () => {
     expect(out).toBe(page)
   })
 })
+
+// v3 (composants mobiles) : un conteneur `grid` repartit ses enfants en
+// `columns` colonnes egales, ligne apres ligne, au lieu de les empiler.
+describe('applyAutoLayout : conteneur grid', () => {
+  const grid = (columns: number, children: Node[], layout: Partial<FrameNode['layout']> = {}): FrameNode => ({
+    ...makeFrame({ mode: 'absolute', gap: 10, padding: { top: 5, right: 5, bottom: 5, left: 5 }, ...layout }, children),
+    container: { kind: 'grid', columns },
+  })
+
+  it('place les enfants en colonnes egales, ligne par ligne', () => {
+    // largeur utile : 300 - 2*5 = 290 ; 2 colonnes, gap 10 -> cellule 140.
+    const out = applyAutoLayout(grid(2, [child('a', 10, 30), child('b', 10, 20), child('c', 10, 40)]))
+    expect(out.children[0]!.frame).toEqual({ x: 5, y: 5, w: 140, h: 30 })
+    expect(out.children[1]!.frame).toEqual({ x: 155, y: 5, w: 140, h: 20 })
+    // 2e ligne : decalee de la plus haute cellule de la 1re (30) + gap.
+    expect(out.children[2]!.frame).toEqual({ x: 5, y: 45, w: 140, h: 40 })
+  })
+
+  it('une colonne unique empile verticalement', () => {
+    const out = applyAutoLayout(grid(1, [child('a', 10, 30), child('b', 10, 20)]))
+    expect(out.children[0]!.frame).toEqual({ x: 5, y: 5, w: 290, h: 30 })
+    expect(out.children[1]!.frame).toEqual({ x: 5, y: 45, w: 290, h: 20 })
+  })
+
+  it('est idempotente et conserve la reference si rien ne change', () => {
+    const once = applyAutoLayout(grid(2, [child('a', 10, 30), child('b', 10, 20)]))
+    expect(applyAutoLayout(once)).toBe(once)
+  })
+
+  it('une grille vide est rendue telle quelle', () => {
+    const empty = grid(3, [])
+    expect(applyAutoLayout(empty)).toBe(empty)
+  })
+})
