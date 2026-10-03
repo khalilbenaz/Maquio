@@ -637,8 +637,15 @@ function renderUnit(
   if (unit.screen !== null && unit.parts !== null) {
     rootBlock = scaffoldBlock(unit.screen, unit.parts, ctx)
   } else {
-    const blocks = unit.rootNodes.map((n) => renderNode(n, ctx)).filter((b): b is Block => b !== null)
-    rootBlock = blocks.length === 1 ? blocks[0]! : call('Stack', [{ key: 'children', block: list(blocks) }])
+    const visibleRoots = unit.rootNodes.filter((n) => n.visible)
+    if (visibleRoots.length === 1) {
+      const only = renderNode(visibleRoots[0]!, ctx)
+      rootBlock = only ?? call('SizedBox', [])
+    } else {
+      // Plusieurs racines (page v1 sans ecran) : chacune est POSITIONNEE,
+      // sinon elles s'empileraient toutes en haut a gauche.
+      rootBlock = call('Stack', [{ key: 'children', block: list(renderStackChildren(visibleRoots, ctx)) }])
+    }
   }
 
   const className = names.pascal
