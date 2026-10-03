@@ -21,7 +21,7 @@
 // prompt lui-meme refuse de se construire plutot que d'envoyer a Claude
 // Code un exemple que son propre validateur rejetterait.
 import { nodeSchema } from '@calque/core'
-import type { EllipseNode, FrameNode, ImageNode, LineNode, Node, RectNode, TextNode } from '@calque/core'
+import type { ComponentNode, EllipseNode, FrameNode, ImageNode, LineNode, Node, RectNode, TextNode } from '@calque/core'
 
 // Gabarit d'ecran (v2, addendum navigation §3.1) : une frame de PREMIER
 // NIVEAU qui porte `device` EST un ecran -- aucun type de noeud dedie.
@@ -151,9 +151,25 @@ const lineExample: LineNode = {
   stroke: { color: { r: 0.85, g: 0.85, b: 0.85, a: 1 }, width: 1 },
 }
 
-// Un exemple par type de noeud EXACT (les six seuls types valides, voir
+// v3 (composants mobiles) : un composant SEMANTIQUE (ici un bouton) est un
+// noeud `component` -- `kind` designe le widget natif, `props` ses
+// proprietes. Il n'a jamais d'enfants.
+const componentExample: ComponentNode = {
+  id: 'bouton-connexion',
+  name: 'Bouton de connexion',
+  type: 'component',
+  frame: { x: 16, y: 300, w: 361, h: 48 },
+  visible: true,
+  locked: false,
+  opacity: 1,
+  rotation: 0,
+  kind: 'button',
+  props: { label: 'Se connecter', variant: 'primary', disabled: false },
+}
+
+// Un exemple par type de noeud EXACT (les sept seuls types valides, voir
 // packages/core/src/model/types.ts : Node = FrameNode | TextNode | RectNode
-// | EllipseNode | ImageNode | LineNode) -- validees ci-dessous via
+// | EllipseNode | ImageNode | LineNode | ComponentNode) -- validees ci-dessous via
 // nodeSchema.parse, jamais admises telles quelles sans repasser par le
 // meme validateur que celui qui juge les patchs reels.
 export const NODE_EXAMPLES: readonly Node[] = [
@@ -164,4 +180,5 @@ export const NODE_EXAMPLES: readonly Node[] = [
   ellipseExample,
   imageExample,
   lineExample,
+  componentExample,
 ].map((node) => nodeSchema.parse(node))

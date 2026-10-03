@@ -52,9 +52,8 @@ export function ExportDialog({
         exporterId,
         json: serializeDocument(useEditorStore.getState().document),
         projectName: nomProjet,
-        // v2 (addendum navigation §7) : l'ecran actif du plan de travail,
-        // pour qu'un document a plusieurs ecrans exporte celui affiche
-        // plutot que le premier par defaut.
+        // L'ecran actif du plan de travail est l'ecran de depart de la
+        // navigation generee ; tous les ecrans sont exportes.
         activeScreenId: useEditorStore.getState().activeScreenId ?? undefined,
       })
       if (resultat === null) {
