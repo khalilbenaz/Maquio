@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
-import { createDocument, createScreenNode, setLinkCommand } from '@calque/core'
+import { COMPONENT_DEFINITIONS, createDocument, createScreenNode, setLinkCommand } from '@calque/core'
 import type { CalqueDocument, DevicePreset, FrameNode, RectNode } from '@calque/core'
 import { Canvas } from '../src/renderer/canvas/Canvas'
 import { computeFitTransform } from '../src/renderer/canvas/viewport'
@@ -830,7 +830,7 @@ describe('Canvas - correctif parentage (tracer et glisser entre ecrans)', () => 
     render(<Canvas api={apiFactice} />)
 
     const ecranAId = (doc.pages[0]!.nodes[0] as FrameNode).id
-    const el = screen.getByTestId(`node-${ecranAId}`)
+    const el = screen.getByTestId(`screen-label-${ecranAId}`) // l'etiquette est la poignee de deplacement
     fireEvent.pointerDown(el, { clientX: 20, clientY: 20 })
     fireEvent.pointerMove(window, { clientX: 520, clientY: 20 }) // ecranA glisse sur ecranB
     expect(useEditorStore.getState().dragPreview).toMatchObject({ targetScreenId: null })
@@ -879,5 +879,129 @@ describe('Canvas - capture du tracer par-dessus les ecrans (correctif parentage)
     const ecran1Apres = state.document.pages[0]!.nodes[0] as FrameNode
     expect(ecran1Apres.children).toHaveLength(1)
     expect(ecran1Apres.children[0]!.frame).toMatchObject({ x: 50, y: 50, w: 50, h: 100 })
+  })
+})
+
+// Selection par rectangle (marquee).
+describe('Canvas - selection par rectangle', () => {
+  it('trace sur le fond : selectionne les noeuds coupes, une seule fois, sans commande', () => {
+    render(<Canvas api={apiFactice} />)
+    const bg = screen.getByTestId('canvas-background')
+    fireEvent.pointerDown(bg, { clientX: 90, clientY: 90 }) // rect2 est a (100,100,50,50)
+    fireEvent.pointerMove(window, { clientX: 200, clientY: 200 })
+    expect(screen.getByTestId('marquee-rect')).toBeTruthy()
+    expect(useEditorStore.getState().selection).toEqual(['rect2'])
+    fireEvent.pointerUp(window, { clientX: 200, clientY: 200 })
+    expect(screen.queryByTestId('marquee-rect')).toBeNull()
+    expect(useEditorStore.getState().history.undoLabels).toHaveLength(0)
+    expect(useEditorStore.getState().selection).toEqual(['rect2'])
+  })
+  it('un rectangle qui couvre tout selectionne tous les noeuds', () => {
+    render(<Canvas api={apiFactice} />)
+    fireEvent.pointerDown(screen.getByTestId('canvas-background'), { clientX: 0, clientY: 0 })
+    fireEvent.pointerMove(window, { clientX: 300, clientY: 300 })
+    fireEvent.pointerUp(window)
+    expect(useEditorStore.getState().selection).toEqual(['rect1', 'rect2'])
+  })
+  it('Maj ajoute a la selection existante', () => {
+    render(<Canvas api={apiFactice} />)
+    fireEvent.pointerDown(screen.getByTestId('node-rect1'))
+    fireEvent.pointerUp(window)
+    fireEvent.pointerDown(screen.getByTestId('canvas-background'), { clientX: 90, clientY: 90, shiftKey: true })
+    fireEvent.pointerMove(window, { clientX: 200, clientY: 200 })
+    fireEvent.pointerUp(window)
+    expect(useEditorStore.getState().selection).toEqual(['rect1', 'rect2'])
+  })
+  it('un simple clic dans le vide deselectionne', () => {
+    render(<Canvas api={apiFactice} />)
+    fireEvent.pointerDown(screen.getByTestId('node-rect1'))
+    fireEvent.pointerUp(window)
+    fireEvent.pointerDown(screen.getByTestId('canvas-background'), { clientX: 400, clientY: 400 })
+    fireEvent.pointerUp(window)
+    expect(useEditorStore.getState().selection).toEqual([])
+  })
+  it('tracer depuis le corps d un ecran selectionne ses enfants coupes ; un clic selectionne l ecran', () => {
+    const doc = createDocument('Document de test')
+    const appareil: DevicePreset = { id: 'd', label: 'd', width: 393, height: 852, pixelRatio: 3 }
+    const bouton: RectNode = { id: 'bouton', name: 'bouton', type: 'rect', frame: { x: 10, y: 10, w: 50, h: 50 }, visible: true, locked: false, opacity: 1, rotation: 0, fills: [], strokes: [], cornerRadius: 0 }
+    const ecran = createScreenNode('ecranA', appareil, { x: 0, y: 0, w: 393, h: 852 }, [bouton])
+    doc.pages[0]!.nodes = [ecran]
+    useEditorStore.getState().load(doc)
+    render(<Canvas api={apiFactice} />)
+    const ecranA = doc.pages[0]!.nodes[0] as FrameNode
+    const enfant = ecranA.children[0]!
+    const el = screen.getByTestId(`node-${ecranA.id}`)
+    fireEvent.pointerDown(el, { clientX: ecranA.frame.x + 1, clientY: ecranA.frame.y + 1 })
+    fireEvent.pointerUp(window)
+    expect(useEditorStore.getState().selection).toEqual([ecranA.id])
+    fireEvent.pointerDown(el, { clientX: ecranA.frame.x + 1, clientY: ecranA.frame.y + 1 })
+    fireEvent.pointerMove(window, { clientX: ecranA.frame.x + ecranA.frame.w, clientY: ecranA.frame.y + ecranA.frame.h })
+    fireEvent.pointerUp(window)
+    expect(useEditorStore.getState().selection).toContain(enfant.id)
+    expect(useEditorStore.getState().history.undoLabels).toHaveLength(0)
+  })
+})
+
+// Edition de texte au double-clic.
+describe('Canvas - edition de texte sur le canevas', () => {
+  function docAvecTexteEtBouton(): CalqueDocument {
+    const doc = createDocument('Doc')
+    const base = { visible: true, locked: false, opacity: 1, rotation: 0 }
+    const texte = { ...base, id: 't1', name: 'Texte', type: 'text' as const, frame: { x: 10, y: 10, w: 100, h: 20 }, characters: 'Salut', style: { fontFamily: 'Inter', fontSize: 20, fontWeight: 700, lineHeight: 24, letterSpacing: 0, color: { r: 1, g: 0, b: 0, a: 1 }, align: 'left' as const } }
+    const bouton = { ...base, id: 'b1', name: 'Bouton', type: 'component' as const, kind: 'button' as const, frame: { x: 10, y: 50, w: 120, h: 44 }, props: { ...COMPONENT_DEFINITIONS.button.props, label: 'Valider' } }
+    doc.pages[0]!.nodes = [texte, bouton]
+    return doc
+  }
+  beforeEach(() => useEditorStore.getState().load(docAvecTexteEtBouton()))
+
+  it('rend le texte avec son style (couleur, taille, graisse)', () => {
+    render(<Canvas api={apiFactice} />)
+    const el = screen.getByTestId('node-t1')
+    expect(el.style.color).toBe('rgb(255, 0, 0)')
+    expect(el.style.fontSize).toBe('20px')
+    expect(el.style.fontWeight).toBe('700')
+  })
+  it('double-clic : ouvre l editeur ; Entree valide en UNE commande annulable', () => {
+    render(<Canvas api={apiFactice} />)
+    fireEvent.doubleClick(screen.getByTestId('node-t1'))
+    const ed = screen.getByTestId('inline-text-editor') as HTMLTextAreaElement
+    expect(ed.value).toBe('Salut')
+    fireEvent.change(ed, { target: { value: 'Bonjour' } })
+    fireEvent.keyDown(ed, { key: 'Enter' })
+    expect(screen.queryByTestId('inline-text-editor')).toBeNull()
+    const st = useEditorStore.getState()
+    expect((st.document.pages[0]!.nodes[0] as { characters: string }).characters).toBe('Bonjour')
+    expect(st.history.undoLabels).toHaveLength(1)
+    st.undo()
+    expect((useEditorStore.getState().document.pages[0]!.nodes[0] as { characters: string }).characters).toBe('Salut')
+  })
+  it('Echap annule sans commande ; perdre le focus valide', () => {
+    render(<Canvas api={apiFactice} />)
+    fireEvent.doubleClick(screen.getByTestId('node-t1'))
+    let ed = screen.getByTestId('inline-text-editor') as HTMLTextAreaElement
+    fireEvent.change(ed, { target: { value: 'X' } })
+    fireEvent.keyDown(ed, { key: 'Escape' })
+    expect(useEditorStore.getState().history.undoLabels).toHaveLength(0)
+    fireEvent.doubleClick(screen.getByTestId('node-t1'))
+    ed = screen.getByTestId('inline-text-editor') as HTMLTextAreaElement
+    fireEvent.change(ed, { target: { value: 'Blur' } })
+    fireEvent.blur(ed)
+    expect((useEditorStore.getState().document.pages[0]!.nodes[0] as { characters: string }).characters).toBe('Blur')
+  })
+  it('double-clic sur un bouton edite son libelle', () => {
+    render(<Canvas api={apiFactice} />)
+    fireEvent.doubleClick(screen.getByTestId('node-b1'))
+    const ed = screen.getByTestId('inline-text-editor') as HTMLTextAreaElement
+    expect(ed.value).toBe('Valider')
+    fireEvent.change(ed, { target: { value: 'Envoyer' } })
+    fireEvent.keyDown(ed, { key: 'Enter' })
+    const b = useEditorStore.getState().document.pages[0]!.nodes[1] as { props: { label: string } }
+    expect(b.props.label).toBe('Envoyer')
+  })
+  it('un rectangle n a pas d editeur au double-clic', () => {
+    useEditorStore.getState().load(documentDeTest())
+    render(<Canvas api={apiFactice} />)
+    fireEvent.doubleClick(screen.getByTestId('node-rect1'))
+    expect(screen.queryByTestId('inline-text-editor')).toBeNull()
   })
 })

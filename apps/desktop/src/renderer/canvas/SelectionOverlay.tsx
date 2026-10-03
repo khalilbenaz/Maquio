@@ -182,6 +182,19 @@ export function SelectionOverlay({ canvasRef }: { canvasRef: RefObject<HTMLEleme
               ))
             : null}
 
+          {dragPreview !== null && dragPreview.kind === 'marquee' ? (
+            <rect
+              data-testid="marquee-rect"
+              x={dragPreview.frame.x}
+              y={dragPreview.frame.y}
+              width={dragPreview.frame.w}
+              height={dragPreview.frame.h}
+              fill="rgba(226, 113, 74, 0.10)"
+              stroke={ACCENT}
+              strokeWidth={1 / zoom}
+            />
+          ) : null}
+
           {dragPreview !== null && dragPreview.kind === 'create' ? (
             <rect
               x={dragPreview.frame.x}
