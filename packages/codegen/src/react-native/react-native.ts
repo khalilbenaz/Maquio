@@ -39,7 +39,7 @@ import type {
 import { layoutPage } from '@calque/core'
 import { formatNumber } from '../shared/format-number'
 import { createUniqueIdentifierNamer } from '../shared/identifier'
-import { toPascalCase } from '../shared/naming'
+import { createPageNamer } from '../shared/naming'
 import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl, selectActiveScreen } from '../shared/node-helpers'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
 import { alignItemsExpr, colorExpr as colorExprBase, fontWeightExpr, jsString, justifyContentExpr } from './rn-utils'
@@ -270,7 +270,7 @@ function renderNode(
   if (node.type === 'image') {
     const source = isRemoteUrl(node.src)
       ? `{{ uri: ${jsString(node.src)} }}`
-      : `{require(${jsString(node.src)})}`
+      : `{require(${jsString(/^[./]/.test(node.src) ? node.src : `./${node.src}`)})}`
     return [
       `${pad}<Image style={styles.${styleKey}} source=${source} resizeMode="${resizeModeExpr(node.fit)}" />`,
     ]
@@ -311,7 +311,7 @@ function renderStylesBlock(ctx: RenderContext): string[] {
   return lines
 }
 
-function renderPage(page: Page, tokens: DesignTokens, warnings: string[]): ExportedFile {
+function renderPage(page: Page, tokens: DesignTokens, warnings: string[], componentName: string): ExportedFile {
   const ctx: RenderContext = {
     tokens,
     warnings,
@@ -341,7 +341,6 @@ function renderPage(page: Page, tokens: DesignTokens, warnings: string[]): Expor
     bodyLines = [`    <View style={styles.${rootKey}}>`, ...topLevel.flat(), '    </View>']
   }
 
-  const componentName = toPascalCase(page.name)
   const importComponents = Array.from(new Set(['StyleSheet', ...ctx.usedComponents])).sort()
 
   const lines: string[] = [`import { ${importComponents.join(', ')} } from 'react-native';`]
@@ -362,6 +361,7 @@ function renderPage(page: Page, tokens: DesignTokens, warnings: string[]): Expor
 function exportReactNative(doc: CalqueDocument, opts: ExportOptions): ExportResult {
   const warnings: string[] = []
   const files: ExportedFile[] = []
+  const nameFor = createPageNamer()
 
   for (const page of doc.pages) {
     // v2 (addendum navigation §7) : n'exporte que l'ecran actif d'une page
@@ -371,7 +371,7 @@ function exportReactNative(doc: CalqueDocument, opts: ExportOptions): ExportResu
     warnings.push(...screenWarnings)
 
     const laidOutPage = layoutPage(activePage)
-    files.push(renderPage(laidOutPage, doc.tokens, warnings))
+    files.push(renderPage(laidOutPage, doc.tokens, warnings, nameFor(laidOutPage.name).pascal))
   }
 
   files.push(generateThemeFile(doc.tokens))
