@@ -17,6 +17,7 @@
 // stable, sont parcourus).
 import type {
   CalqueDocument,
+  ComponentNode,
   DesignTokens,
   EllipseNode,
   Fill,
@@ -30,7 +31,9 @@ import type {
   TextNode,
 } from '@calque/core'
 import { layoutPage } from '@calque/core'
-import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl, selectActiveScreen } from '../shared/node-helpers'
+import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
+import { hasScaffoldParts, linkTargetOf, planExport, splitScreen } from '../shared/screens'
+import type { ExportPlan, ScreenParts } from '../shared/screens'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
 import { type Arg, type Block, attach, call, collapseShortCalls, lit, list } from './dart-writer'
 import {
@@ -43,8 +46,9 @@ import {
   mainAxisAlignmentExpr,
   textAlignExpr,
 } from './dart-utils'
-import { createPageNamer } from '../shared/naming'
+import { toPascalCase } from '../shared/naming'
 import { generateThemeFile } from './theme'
+import { navigateExpr, renderComponent } from './components'
 
 // `usesTheme` (D4 du rapport dart-correctness) : mis a `true` des qu'une
 // reference `AppColors.*` est effectivement emise pour la page en cours
@@ -52,7 +56,22 @@ import { generateThemeFile } from './theme'
 // '../theme.dart' que si l'ecran genere s'en sert reellement -- un import
 // inconditionnel produit un `unused_import` a l'analyse pour tout ecran
 // sans token de couleur (cas courant : une frame de mise en page pure).
-type RenderContext = { tokens: DesignTokens; warnings: string[]; usesTheme: boolean }
+type RenderContext = {
+  tokens: DesignTokens
+  warnings: string[]
+  usesTheme: boolean
+  plan: ExportPlan
+  // Le tiroir de l'ecran courant (le bouton « menu » de la barre l'ouvre).
+  hasDrawer: boolean
+  // Un composant a ete emis : voir ignoreForFile dans renderPage.
+  usesComponents: boolean
+  // `scheme` (ColorScheme du theme) est reference : voir renderUnit.
+  usesScheme: boolean
+}
+
+// Un enfant est place soit dans un Stack (Positioned fournit sa taille),
+// soit dans un flux Row/Column/ListView (il faut lui donner sa taille).
+type Parent = 'stack' | 'flow'
 
 function dartString(value: string): string {
   return `'${escapeDartString(value)}'`
@@ -212,15 +231,15 @@ function renderText(node: TextNode, ctx: RenderContext): Block {
   ])
 }
 
-function renderStackChildren(frame: FrameNode, ctx: RenderContext): Block[] {
+function renderStackChildren(children: Node[], ctx: RenderContext, yOffset = 0): Block[] {
   const blocks: Block[] = []
-  for (const child of frame.children) {
-    const rendered = renderNode(child, ctx)
+  for (const child of children) {
+    const rendered = renderNode(child, ctx, 'stack')
     if (!rendered) continue
     blocks.push(
       call('Positioned', [
         { key: 'left', block: lit(formatNumber(child.frame.x)) },
-        { key: 'top', block: lit(formatNumber(child.frame.y)) },
+        { key: 'top', block: lit(formatNumber(child.frame.y - yOffset)) },
         { key: 'width', block: lit(formatNumber(child.frame.w)) },
         { key: 'height', block: lit(formatNumber(child.frame.h)) },
         { key: 'child', block: rendered },
@@ -253,38 +272,187 @@ function interleaveGap(
   return result
 }
 
-function renderFrame(frame: FrameNode, ctx: RenderContext): Block {
-  let content: Block
-
+// Contenu d'une frame (Stack de Positioned, ou Row/Column avec ecarts et
+// marges) sans sa boite. `children`/`yOffset` permettent de rendre un
+// sous-ensemble (corps d'un Scaffold) decale du bas de la barre
+// d'application.
+function frameContent(frame: FrameNode, ctx: RenderContext, children: Node[] = frame.children, yOffset = 0): Block {
   if (frame.layout.mode === 'absolute') {
-    const children = renderStackChildren(frame, ctx)
-    content =
-      children.length === 0
-        ? lit('const SizedBox.shrink()')
-        : call('Stack', [{ key: 'children', block: list(children) }])
-  } else {
-    const isRow = frame.layout.mode === 'row'
-    const rawChildren = frame.children.map((c) => renderNode(c, ctx)).filter((b): b is Block => b !== null)
-    const children = interleaveGap(
-      rawChildren,
-      frame.layout.gap,
-      isRow ? 'width' : 'height',
-      frame.layout.alignMain,
-    )
-    const widgetName = isRow ? 'Row' : 'Column'
-    const layoutWidget = call(widgetName, [
-      { key: 'mainAxisAlignment', block: lit(mainAxisAlignmentExpr(frame.layout.alignMain)) },
-      { key: 'crossAxisAlignment', block: lit(crossAxisAlignmentExpr(frame.layout.alignCross)) },
-      { key: 'children', block: list(children) },
-    ])
-    const padding = edgeInsetsBlock(frame.layout.padding)
-    content = padding
-      ? call('Padding', [
-          { key: 'padding', block: padding },
-          { key: 'child', block: layoutWidget },
-        ])
-      : layoutWidget
+    const blocks = renderStackChildren(children, ctx, yOffset)
+    return blocks.length === 0 ? lit('const SizedBox.shrink()') : call('Stack', [{ key: 'children', block: list(blocks) }])
   }
+  const isRow = frame.layout.mode === 'row'
+  const rawChildren = renderFlowChildren(children, ctx)
+  const interleaved = interleaveGap(rawChildren, frame.layout.gap, isRow ? 'width' : 'height', frame.layout.alignMain)
+  const layoutWidget = call(isRow ? 'Row' : 'Column', [
+    { key: 'mainAxisAlignment', block: lit(mainAxisAlignmentExpr(frame.layout.alignMain)) },
+    { key: 'crossAxisAlignment', block: lit(crossAxisAlignmentExpr(frame.layout.alignCross)) },
+    { key: 'children', block: list(interleaved) },
+  ])
+  const padding = edgeInsetsBlock(frame.layout.padding)
+  return padding
+    ? call('Padding', [
+        { key: 'padding', block: padding },
+        { key: 'child', block: layoutWidget },
+      ])
+    : layoutWidget
+}
+
+function renderFlowChildren(children: Node[], ctx: RenderContext, spacerIsFlex = true): Block[] {
+  return children.map((c) => renderNode(c, ctx, 'flow', spacerIsFlex)).filter((b): b is Block => b !== null)
+}
+
+// `(context) => <widget>` : prefixe la premiere ligne d'un bloc.
+function builder(block: Block): Block {
+  return block.map((line, i) => (i === 0 ? `(context) => ${line}` : line))
+}
+
+function padArg(frame: FrameNode): Arg[] {
+  const padding = edgeInsetsBlock(frame.layout.padding)
+  return padding ? [{ key: 'padding', block: padding }] : []
+}
+
+// Widget natif d'un conteneur semantique (frame portant `container`), ou null
+// pour une frame ordinaire. Le widget est l'enfant de la boite de la frame
+// (voir renderFrame) ; les enfants sont rendus par le conteneur lui-meme.
+function containerWidget(frame: FrameNode, ctx: RenderContext): { widget: Block; ownsBox: boolean } | null {
+  const spec = frame.container
+  if (spec === undefined) return null
+  ctx.usesComponents = true
+  const fill = firstSolidFillColor(frame.fills)
+  const markTheme = () => {
+    ctx.usesTheme = true
+  }
+  const fillArg: Arg[] = fill ? [{ key: 'backgroundColor', block: lit(colorExpr(fill, ctx.tokens, markTheme)) }] : []
+  const flowChildren = (): Block[] => {
+    const raw = renderFlowChildren(frame.children, ctx, false)
+    return raw
+  }
+
+  switch (spec.kind) {
+    case 'card': {
+      const stroke = firstStroke(frame.strokes)
+      const shapeArgs: Arg[] = [{ key: 'borderRadius', block: lit(`BorderRadius.circular(${formatNumber(frame.cornerRadius)})`) }]
+      if (stroke) {
+        shapeArgs.push({
+          key: 'side',
+          block: call('BorderSide', [
+            { key: 'color', block: lit(colorExpr(stroke.color, ctx.tokens, markTheme)) },
+            { key: 'width', block: lit(formatNumber(stroke.width)) },
+          ]),
+        })
+      }
+      return {
+        ownsBox: false,
+        widget: call('Card', [
+          { key: 'elevation', block: lit(formatNumber(spec.elevation)) },
+          ...(fill ? [{ key: 'color', block: lit(colorExpr(fill, ctx.tokens, markTheme)) }] : []),
+          { key: 'margin', block: lit('EdgeInsets.zero') },
+          { key: 'shape', block: call('RoundedRectangleBorder', shapeArgs) },
+          { key: 'clipBehavior', block: lit('Clip.antiAlias') },
+          { key: 'child', block: frameContent(frame, ctx) },
+        ]),
+      }
+    }
+    case 'listView': {
+      const horizontal = spec.axis === 'horizontal'
+      const separator = (): Block | null =>
+        spec.dividers
+          ? lit(horizontal ? 'const VerticalDivider(width: 1)' : 'const Divider(height: 1)')
+          : frame.layout.gap > 0
+            ? lit(`const SizedBox(${horizontal ? 'width' : 'height'}: ${formatNumber(frame.layout.gap)})`)
+            : null
+      const items: Block[] = []
+      flowChildren().forEach((child, i) => {
+        const sep = i > 0 ? separator() : null
+        if (sep) items.push(sep)
+        items.push(child)
+      })
+      return {
+        ownsBox: true,
+        widget: call('ListView', [
+          ...(horizontal ? [{ key: 'scrollDirection', block: lit('Axis.horizontal') }] : []),
+          ...padArg(frame),
+          { key: 'children', block: list(items) },
+        ]),
+      }
+    }
+    case 'grid': {
+      const { gap, padding } = frame.layout
+      const inner = Math.max(frame.frame.w - padding.left - padding.right, 0)
+      const cell = Math.max((inner - gap * (spec.columns - 1)) / spec.columns, 0)
+      const first = frame.children[0]
+      const ratio = first && first.frame.h > 0 ? cell / first.frame.h : 1
+      return {
+        ownsBox: true,
+        widget: call('GridView.count', [
+          { key: 'crossAxisCount', block: lit(String(spec.columns)) },
+          { key: 'mainAxisSpacing', block: lit(formatNumber(gap)) },
+          { key: 'crossAxisSpacing', block: lit(formatNumber(gap)) },
+          { key: 'childAspectRatio', block: lit(formatNumber(ratio)) },
+          ...padArg(frame),
+          { key: 'children', block: list(flowChildren()) },
+        ]),
+      }
+    }
+    case 'scrollView': {
+      const horizontal = spec.axis === 'horizontal'
+      let content = frameContent(frame, ctx)
+      if (frame.layout.mode === 'absolute') {
+        // Un Stack n'a pas de taille propre : on lui donne celle de son contenu.
+        const extentW = Math.max(frame.frame.w, ...frame.children.map((c) => c.frame.x + c.frame.w))
+        const extentH = Math.max(frame.frame.h, ...frame.children.map((c) => c.frame.y + c.frame.h))
+        content = call('SizedBox', [
+          { key: 'width', block: lit(formatNumber(extentW)) },
+          { key: 'height', block: lit(formatNumber(extentH)) },
+          { key: 'child', block: content },
+        ])
+      }
+      return {
+        ownsBox: true,
+        widget: call('SingleChildScrollView', [
+          ...(horizontal ? [{ key: 'scrollDirection', block: lit('Axis.horizontal') }] : []),
+          { key: 'child', block: content },
+        ]),
+      }
+    }
+    case 'safeArea':
+      return { ownsBox: true, widget: call('SafeArea', [{ key: 'child', block: frameContent(frame, ctx) }]) }
+    case 'bottomSheet':
+      return {
+        ownsBox: false,
+        widget: call('BottomSheet', [
+          { key: 'onClosing', block: lit('() {}') },
+          { key: 'enableDrag', block: lit('false') },
+          { key: 'showDragHandle', block: lit(String(spec.handle)) },
+          ...fillArg,
+          {
+            key: 'shape',
+            block: call('RoundedRectangleBorder', [
+              { key: 'borderRadius', block: lit(`BorderRadius.vertical(top: Radius.circular(${formatNumber(frame.cornerRadius)}))`) },
+            ]),
+          },
+          { key: 'builder', block: builder(frameContent(frame, ctx)) },
+        ]),
+      }
+    case 'drawer':
+      return {
+        ownsBox: false,
+        widget: call('Drawer', [
+          { key: 'width', block: lit(formatNumber(frame.frame.w)) },
+          ...fillArg,
+          { key: 'child', block: frameContent(frame, ctx) },
+        ]),
+      }
+  }
+}
+
+function renderFrame(frame: FrameNode, ctx: RenderContext): Block {
+  const container = containerWidget(frame, ctx)
+  if (container !== null && !container.ownsBox) {
+    return boxOrSizedBox(frame.frame.w, frame.frame.h, null, false, container.widget)
+  }
+  const content = container !== null ? container.widget : frameContent(frame, ctx)
 
   let decoration = decorationBlock(frame.fills, frame.strokes, frame.cornerRadius, false, ctx)
   // Important 2, corrige apres re-revue : `Container` de Flutter refuse
@@ -308,20 +476,53 @@ function renderFrame(frame: FrameNode, ctx: RenderContext): Block {
   return boxOrSizedBox(frame.frame.w, frame.frame.h, decoration, frame.clipsContent, content)
 }
 
-function renderNodeInner(node: Node, ctx: RenderContext): Block | null {
+type Rendered = { block: Block; consumesLink: boolean }
+
+function renderNodeInner(node: Node, ctx: RenderContext, parent: Parent, spacerIsFlex: boolean): Rendered | null {
+  const plain = (block: Block | null): Rendered | null => (block === null ? null : { block, consumesLink: false })
   switch (node.type) {
     case 'frame':
-      return renderFrame(node, ctx)
+      return plain(renderFrame(node, ctx))
     case 'text':
-      return renderText(node, ctx)
+      return plain(renderText(node, ctx))
     case 'rect':
-      return renderRect(node, ctx)
+      return plain(renderRect(node, ctx))
     case 'ellipse':
-      return renderEllipse(node, ctx)
+      return plain(renderEllipse(node, ctx))
     case 'image':
-      return renderImage(node, ctx)
+      return plain(renderImage(node, ctx))
     case 'line':
-      return renderLine(node, ctx)
+      return plain(renderLine(node, ctx))
+    case 'component': {
+      ctx.usesComponents = true
+      const rendered = renderComponent(node, {
+        tokens: ctx.tokens,
+        plan: ctx.plan,
+        hasDrawer: ctx.hasDrawer,
+        inFlex: parent === 'flow' && spacerIsFlex,
+        markTheme: () => {
+          ctx.usesTheme = true
+        },
+        markScheme: () => {
+          ctx.usesScheme = true
+        },
+      })
+      if (rendered === null) return null
+      // Un Spacer de flux est rendu tel quel : le envelopper casserait son flex.
+      if (parent === 'flow' && node.kind === 'spacer' && spacerIsFlex) return rendered
+      // Dans un flux, aucun Positioned ne fournit la taille : on la donne.
+      if (parent === 'flow') {
+        return {
+          consumesLink: rendered.consumesLink,
+          block: call('SizedBox', [
+            { key: 'width', block: lit(formatNumber(node.frame.w)) },
+            { key: 'height', block: lit(formatNumber(node.frame.h)) },
+            { key: 'child', block: rendered.block },
+          ]),
+        }
+      }
+      return rendered
+    }
     default: {
       // Type inconnu du generateur : jamais ignore en silence (decision
       // 11 du brief), on l'ecrit dans warnings et on n'emet aucun widget
@@ -335,13 +536,24 @@ function renderNodeInner(node: Node, ctx: RenderContext): Block | null {
   }
 }
 
-function renderNode(node: Node, ctx: RenderContext): Block | null {
+function renderNode(node: Node, ctx: RenderContext, parent: Parent = 'stack', spacerIsFlex = true): Block | null {
   if (!node.visible) return null
 
-  const inner = renderNodeInner(node, ctx)
-  if (inner === null) return null
+  const rendered = renderNodeInner(node, ctx, parent, spacerIsFlex)
+  if (rendered === null) return null
 
-  let block = inner
+  let block = rendered.block
+  // Navigation : un noeud lie a un ecran devient cliquable. Les widgets qui
+  // gerent deja un rappel (boutons, element de liste...) l'ont branche eux-memes.
+  const target = linkTargetOf(node, ctx.plan)
+  if (target !== null && !rendered.consumesLink) {
+    ctx.usesComponents = true
+    block = call('GestureDetector', [
+      { key: 'behavior', block: lit('HitTestBehavior.opaque') },
+      { key: 'onTap', block: lit(`() => ${navigateExpr(target)}`) },
+      { key: 'child', block },
+    ])
+  }
   if (node.rotation !== 0) {
     const radians = (node.rotation * Math.PI) / 180
     block = call('Transform.rotate', [
@@ -358,10 +570,74 @@ function renderNode(node: Node, ctx: RenderContext): Block | null {
   return block
 }
 
-function renderPage(page: Page, ctx: RenderContext, names: { pascal: string; snake: string }): ExportedFile {
-  const blocks = page.nodes.map((n) => renderNode(n, ctx)).filter((b): b is Block => b !== null)
-  const rootBlock: Block =
-    blocks.length === 1 ? blocks[0]! : call('Stack', [{ key: 'children', block: list(blocks) }])
+// Un ecran devient un Scaffold : la barre d'application, la barre de
+// navigation basse, le bouton flottant et le tiroir du design occupent les
+// emplacements natifs (appBar, bottomNavigationBar, floatingActionButton,
+// drawer) ; le reste forme le corps. Un Scaffold est aussi ce qui fournit
+// l'ancetre Material qu'exigent TextField, ListTile, etc.
+function scaffoldBlock(screen: FrameNode, parts: ScreenParts, ctx: RenderContext): Block {
+  const markTheme = () => {
+    ctx.usesTheme = true
+  }
+  const args: Arg[] = []
+  const fill = firstSolidFillColor(screen.fills)
+  if (fill) args.push({ key: 'backgroundColor', block: lit(colorExpr(fill, ctx.tokens, markTheme)) })
+
+  const slot = (node: ComponentNode): Block | null => renderComponentSlot(node, ctx)
+  if (parts.appBar) {
+    const bar = slot(parts.appBar)
+    if (bar) args.push({ key: 'appBar', block: bar })
+  }
+  if (parts.drawer) {
+    const drawer = containerWidget(parts.drawer, ctx)
+    if (drawer !== null) args.push({ key: 'drawer', block: drawer.widget })
+  }
+  args.push({ key: 'body', block: frameContent(screen, ctx, parts.body, parts.topInset) })
+  if (parts.bottomNav) {
+    const nav = slot(parts.bottomNav)
+    if (nav) args.push({ key: 'bottomNavigationBar', block: nav })
+  }
+  if (parts.fab) {
+    const fab = slot(parts.fab)
+    if (fab) args.push({ key: 'floatingActionButton', block: fab })
+    const centre = parts.fab.frame.x + parts.fab.frame.w / 2
+    if (Math.abs(centre - screen.frame.w / 2) < 24) {
+      args.push({ key: 'floatingActionButtonLocation', block: lit('FloatingActionButtonLocation.centerFloat') })
+    }
+  }
+  return call('Scaffold', args)
+}
+
+// Composant d'emplacement de Scaffold : rendu SANS enveloppe de taille (le
+// Scaffold dimensionne lui-meme appBar, barre basse et bouton flottant).
+function renderComponentSlot(node: ComponentNode, ctx: RenderContext): Block | null {
+  const rendered = renderComponent(node, {
+    tokens: ctx.tokens,
+    plan: ctx.plan,
+    hasDrawer: ctx.hasDrawer,
+    inFlex: false,
+    markTheme: () => {
+      ctx.usesTheme = true
+    },
+    markScheme: () => {
+      ctx.usesScheme = true
+    },
+  })
+  return rendered === null ? null : rendered.block
+}
+
+function renderUnit(
+  unit: { rootNodes: Node[]; screen: FrameNode | null; parts: ScreenParts | null },
+  ctx: RenderContext,
+  names: { pascal: string; snake: string },
+): ExportedFile {
+  let rootBlock: Block
+  if (unit.screen !== null && unit.parts !== null) {
+    rootBlock = scaffoldBlock(unit.screen, unit.parts, ctx)
+  } else {
+    const blocks = unit.rootNodes.map((n) => renderNode(n, ctx)).filter((b): b is Block => b !== null)
+    rootBlock = blocks.length === 1 ? blocks[0]! : call('Stack', [{ key: 'children', block: list(blocks) }])
+  }
 
   const className = names.pascal
   const fileName = names.snake
@@ -373,7 +649,17 @@ function renderPage(page: Page, ctx: RenderContext, names: { pascal: string; sna
   // `unused_import` a l'analyse pour tout ecran sans token de couleur.
   const themeImportLines = ctx.usesTheme ? [`import '../theme.dart';`, ''] : []
 
+  // Le code genere melange widgets constants et non constants (rappels de
+  // navigation, controleurs) : demander `const` partout y serait du bruit
+  // sans effet de style, et en forcer certains produirait des
+  // `unnecessary_const`. Neutralise EXPLICITEMENT ces deux regles de
+  // performance, uniquement dans les fichiers qui emettent des composants.
+  const ignoreLines = ctx.usesComponents
+    ? ['// ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables', '']
+    : []
+
   const lines = [
+    ...ignoreLines,
     `import 'package:flutter/material.dart';`,
     '',
     ...themeImportLines,
@@ -382,6 +668,7 @@ function renderPage(page: Page, ctx: RenderContext, names: { pascal: string; sna
     '',
     '  @override',
     '  Widget build(BuildContext context) {',
+    ...(ctx.usesScheme ? ['    final scheme = Theme.of(context).colorScheme;', ''] : []),
     ...attach('return ', rootBlock, 2, ';'),
     '  }',
     '}',
@@ -391,24 +678,80 @@ function renderPage(page: Page, ctx: RenderContext, names: { pascal: string; sna
   return { path: `lib/screens/${fileName}.dart`, contents: collapseShortCalls(lines).join('\n') }
 }
 
+// Point d'entree de l'application : un MaterialApp dont `routes` expose
+// chaque ecran sous `/<nom_de_fichier>`, l'ecran de depart etant l'ecran
+// actif (ou le premier). Les liens « au clic, aller a l'ecran X » du design
+// deviennent des `Navigator.pushNamed` vers ces routes.
+function generateMain(plan: ExportPlan, projectName: string): ExportedFile {
+  const taken = new Set(plan.screens.map((s) => s.pascal))
+  let appName = `${toPascalCase(projectName)}App`
+  while (taken.has(appName)) appName += 'Root'
+  const imports = plan.screens.map((s) => `import 'screens/${s.snake}.dart';`)
+  const entries = plan.screens.map((s) => `'${s.route}': (context) => const ${s.pascal}()`)
+  // `dart format` rassemble une table qui tient sur une ligne.
+  const oneLine = `      routes: {${entries.join(', ')}},`
+  const routesBlock =
+    oneLine.length <= 80 ? [oneLine] : ['      routes: {', ...entries.map((e) => `        ${e},`), '      },']
+  const lines = [
+    `import 'package:flutter/material.dart';`,
+    '',
+    `import 'theme.dart';`,
+    ...imports,
+    '',
+    'void main() {',
+    `  runApp(const ${appName}());`,
+    '}',
+    '',
+    `class ${appName} extends StatelessWidget {`,
+    `  const ${appName}({super.key});`,
+    '',
+    '  @override',
+    '  Widget build(BuildContext context) {',
+    '    return MaterialApp(',
+    `      title: '${escapeDartString(projectName)}',`,
+    '      theme: appTheme,',
+    `      initialRoute: '${plan.initial!.route}',`,
+    ...routesBlock,
+    '    );',
+    '  }',
+    '}',
+    '',
+  ]
+  return { path: 'lib/main.dart', contents: lines.join('\n') }
+}
+
 function exportFlutter(doc: CalqueDocument, opts: ExportOptions): ExportResult {
   const warnings: string[] = []
   const files: ExportedFile[] = []
-  const nameFor = createPageNamer()
+  const plan = planExport(doc, opts.activeScreenId)
 
-  for (const page of doc.pages) {
-    // v2 (addendum navigation §7) : n'exporte que l'ecran actif d'une page
-    // a plusieurs ecrans, avec un avertissement nomme pour chacun des
-    // autres -- voir selectActiveScreen. Sans effet sur une page sans ecran.
-    const { page: activePage, warnings: screenWarnings } = selectActiveScreen(page, opts.activeScreenId, 'flutter')
-    warnings.push(...screenWarnings)
-
-    const laidOutPage = layoutPage(activePage)
-    const ctx: RenderContext = { tokens: doc.tokens, warnings, usesTheme: false }
-    files.push(renderPage(laidOutPage, ctx, nameFor(laidOutPage.name)))
+  for (const unit of plan.units) {
+    const ctx: RenderContext = {
+      tokens: doc.tokens,
+      warnings,
+      usesTheme: false,
+      plan,
+      hasDrawer: false,
+      usesComponents: false,
+      usesScheme: false,
+    }
+    if (unit.kind === 'page') {
+      const laidOutPage = layoutPage(unit.page)
+      files.push(renderUnit({ rootNodes: laidOutPage.nodes, screen: null, parts: null }, ctx, unit.names))
+      continue
+    }
+    // L'ecran est mis en page (Row/Column/grille) avant d'etre decoupe.
+    const laidOut = layoutPage({ ...unit.page, nodes: [unit.screen] }).nodes[0] as FrameNode
+    const parts = splitScreen(laidOut)
+    ctx.hasDrawer = parts.drawer !== null
+    ctx.usesComponents = hasScaffoldParts(parts)
+    files.push(renderUnit({ rootNodes: [], screen: laidOut, parts }, ctx, unit.ref))
   }
 
   files.push(generateThemeFile(doc.tokens))
+  if (plan.initial !== null) {
+    files.push(generateMain(plan, opts.projectName))
+  }
 
   return { files, warnings }
 }

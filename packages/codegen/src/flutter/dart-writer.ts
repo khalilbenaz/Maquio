@@ -144,7 +144,8 @@ function collapseOncePass(lines: readonly string[]): { lines: string[]; changed:
   while (i < lines.length) {
     const line = lines[i]!
     const masked = maskStringLiterals(line)
-    const isOpening = line.trimEnd().endsWith('(') && parenBalance(masked) === 1
+    const trimmedEnd = line.trimEnd()
+    const isOpening = (trimmedEnd.endsWith('(') || trimmedEnd.endsWith('[')) && parenBalance(masked) === 1
 
     if (!isOpening) {
       out.push(line)
@@ -214,5 +215,26 @@ export function collapseShortCalls(lines: readonly string[]): string[] {
     current = next
     if (!changed) break
   }
-  return current
+  return wrapLongArrows(current)
+}
+
+// `dart format` coupe une fonction fleche trop longue apres `=>` et indente la
+// suite de 4 colonnes par rapport a la ligne (`onPressed: () =>` puis
+// l'expression). Les rappels de navigation (`() => Navigator.of(context)
+// .pushNamed('/x')`) depassent facilement 80 colonnes a une profondeur
+// d'imbrication reelle : on reproduit cette coupure plutot que de laisser
+// une ligne que le formateur reecrirait.
+const ARROW_LINE = /^(\s*)((?:\w+: )?\([^()]*\) =>) (.+?)(,?)$/
+
+function wrapLongArrows(lines: readonly string[]): string[] {
+  const out: string[] = []
+  for (const line of lines) {
+    const match = line.length > MAX_LINE_WIDTH ? ARROW_LINE.exec(line) : null
+    if (match === null || parenBalance(maskStringLiterals(match[3]!)) !== 0) {
+      out.push(line)
+      continue
+    }
+    out.push(`${match[1]}${match[2]}`, `${match[1]}    ${match[3]}${match[4]}`)
+  }
+  return out
 }
