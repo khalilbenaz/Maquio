@@ -56,6 +56,11 @@ function LayerRow({ node, depth, nodes, pageId, collapsed, onToggleCollapse }: R
 
   function handleSelect(e: MouseEvent) {
     e.stopPropagation()
+    // Maj ou Cmd + clic : ajoute le calque a la selection (ou l'en retire).
+    if (e.shiftKey || e.metaKey || e.ctrlKey) {
+      select(selection.includes(node.id) ? selection.filter((id) => id !== node.id) : [...selection, node.id])
+      return
+    }
     select([node.id])
   }
 

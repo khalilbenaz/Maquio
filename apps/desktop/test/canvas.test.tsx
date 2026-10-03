@@ -1005,3 +1005,45 @@ describe('Canvas - edition de texte sur le canevas', () => {
     expect(screen.queryByTestId('inline-text-editor')).toBeNull()
   })
 })
+
+describe('Canvas - un texte trace s edite aussitot', () => {
+  it('l outil Texte ouvre l editeur sur le nouveau noeud ; Entree valide la frappe', () => {
+    render(<Canvas api={apiFactice} />)
+    useEditorStore.getState().setTool('text')
+    const background = screen.getByTestId('canvas-background')
+    fireEvent.pointerDown(background, { clientX: 300, clientY: 300 })
+    fireEvent.pointerMove(window, { clientX: 400, clientY: 330 })
+    fireEvent.pointerUp(window, { clientX: 400, clientY: 330 })
+    const editeur = screen.getByTestId('inline-text-editor') as HTMLTextAreaElement
+    fireEvent.change(editeur, { target: { value: 'Bonjour' } })
+    fireEvent.keyDown(editeur, { key: 'Enter' })
+    const id = useEditorStore.getState().selection[0]!
+    const noeud = useEditorStore.getState().document.pages[0]!.nodes.find((n) => n.id === id)
+    expect(noeud).toMatchObject({ type: 'text', characters: 'Bonjour' })
+    expect(useEditorStore.getState().editingTextId).toBeNull()
+  })
+})
+
+describe('Canvas - Maj + corps d ecran', () => {
+  it('Maj + simple clic sur un ecran bascule sa presence, Maj + trace ajoute sans le retirer', () => {
+    const doc = createDocument('d')
+    const dev: DevicePreset = { id: 'd', label: 'd', width: 393, height: 852, pixelRatio: 3 }
+    const r: RectNode = { id: 'r1', name: 'r1', type: 'rect', frame: { x: 10, y: 10, w: 50, h: 50 }, visible: true, locked: false, opacity: 1, rotation: 0, fills: [], strokes: [], cornerRadius: 0 }
+    const ecran = createScreenNode('E', dev, { x: 0, y: 0, w: 393, h: 852 }, [r])
+    doc.pages[0]!.nodes = [ecran]
+    useEditorStore.getState().load(doc)
+    render(<Canvas api={apiFactice} />)
+    useEditorStore.getState().select(['r1'])
+    const el = screen.getByTestId(`node-${ecran.id}`)
+    fireEvent.pointerDown(el, { clientX: 200, clientY: 400, shiftKey: true })
+    fireEvent.pointerUp(window)
+    expect(useEditorStore.getState().selection).toEqual(['r1', ecran.id])
+    fireEvent.pointerDown(el, { clientX: 200, clientY: 400, shiftKey: true })
+    fireEvent.pointerUp(window)
+    expect(useEditorStore.getState().selection).toEqual(['r1'])
+    fireEvent.pointerDown(el, { clientX: 0, clientY: 0, shiftKey: true })
+    fireEvent.pointerMove(window, { clientX: 100, clientY: 100 })
+    fireEvent.pointerUp(window)
+    expect(useEditorStore.getState().selection).toEqual(['r1'])
+  })
+})
