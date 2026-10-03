@@ -223,7 +223,7 @@ describe('garde-fou flutter analyze (preuve de compilation reelle)', () => {
     )
     issues = parseAnalyzeOutput(`${analyzeResult.stdout ?? ''}\n${analyzeResult.stderr ?? ''}`)
     elapsedMs = Date.now() - start
-  })
+  }, 300_000) // pub get + analyze a froid sur runner neuf : bien au-dela des 10 s par defaut
 
   afterAll(() => {
     if (!FLUTTER_AVAILABLE) return
@@ -292,6 +292,6 @@ describe('garde-fou flutter analyze (preuve de compilation reelle)', () => {
   // voir le rapport pour le temps mesure localement et une piste de
   // bornage si jamais il derape.
   runIfFlutterAvailable('reste raisonnablement rapide', () => {
-    expect(elapsedMs).toBeLessThan(60_000)
+    expect(elapsedMs).toBeLessThan(240_000)
   })
 })
