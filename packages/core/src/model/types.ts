@@ -1,5 +1,6 @@
 // Types du modele de document Calque (Tache 2).
 // Ce sont les formes canoniques : les schemas Zod de schema.ts en sont le miroir exact.
+import type { ComponentKind, ComponentPropsMap, ContainerSpec } from '../components/props'
 
 export type Rect = { x: number; y: number; w: number; h: number }
 
@@ -58,6 +59,12 @@ export type FrameNode = NodeBase & {
   // interprete comme "ecran" que pour les frames de premier niveau), mais
   // seules les commandes/l'interface qui creent des ecrans en posent un.
   device?: DevicePreset
+  // v3 (composants mobiles) : present <=> cette frame est un CONTENEUR
+  // SEMANTIQUE (carte, liste, grille, zone defilante, zone sure, tiroir,
+  // feuille basse) exporte vers le widget natif correspondant plutot que
+  // vers un simple groupe. Un conteneur reste une frame : `layout`,
+  // `fills`, `children`... s'appliquent tels quels.
+  container?: ContainerSpec
 }
 
 export type TextStyle = {
@@ -92,7 +99,14 @@ export type ImageNode = NodeBase & { type: 'image'; src: string; fit: 'cover' | 
 
 export type LineNode = NodeBase & { type: 'line'; stroke: Stroke }
 
-export type Node = FrameNode | TextNode | RectNode | EllipseNode | ImageNode | LineNode
+// v3 (composants mobiles) : widget semantique feuille. `kind` designe le
+// widget natif, `props` ses proprietes (voir components/props.ts) -- la
+// paire est une union discriminee : `props` a la forme exacte de `kind`.
+export type ComponentNode = NodeBase & { type: 'component' } & {
+  [K in ComponentKind]: { kind: K; props: ComponentPropsMap[K] }
+}[ComponentKind]
+
+export type Node = FrameNode | TextNode | RectNode | EllipseNode | ImageNode | LineNode | ComponentNode
 
 export type DevicePreset = { id: string; label: string; width: number; height: number; pixelRatio: number }
 
