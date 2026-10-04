@@ -19,7 +19,12 @@ export function cheminIcone(): string {
 }
 
 export function creerFenetrePrincipale(backgroundColor: string): BrowserWindow {
+  // Parcours de bout en bout (MAQUIO_E2E_HIDDEN=1) : la fenetre ne s'affiche
+  // pas et ne prend jamais le focus pendant que l'utilisateur travaille ; le
+  // rendu continue (pas de ralentissement en arriere-plan).
+  const cachee = process.env['MAQUIO_E2E_HIDDEN'] === '1'
   const fenetre = new BrowserWindow({
+    show: !cachee,
     width: 1280,
     height: 800,
     // Aligne sur le theme (--maquio-chrome-bg) : aucun flash avant le premier rendu.
@@ -31,6 +36,7 @@ export function creerFenetrePrincipale(backgroundColor: string): BrowserWindow {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      backgroundThrottling: !cachee,
     },
   })
 

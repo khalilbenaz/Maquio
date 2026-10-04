@@ -39,6 +39,8 @@ export const apiFactice: MaquioApi = {
   }),
   setFigmaToken: async () => {},
   setClaudeCustomPath: async () => ({ claudeAvailable: true, claudePath: '/usr/local/bin/claude' }),
+  redetectClaude: async () => ({ claudeAvailable: true, claudePath: '/usr/local/bin/claude' }),
+  chooseClaudeBinary: async () => null,
   // Le plus inerte possible, comme les autres methodes : aucun fichier
   // choisi par defaut (equivaut a une annulation). Les tests qui ont
   // besoin d'un choix reel surchargent cette methode (voir la note en

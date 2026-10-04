@@ -34,6 +34,16 @@ describe('ClaudePanel', () => {
     expect(screen.getByLabelText('Demander à Claude').hasAttribute('disabled')).toBe(true)
   })
 
+  it('« Réessayer la détection » relance la détection et réactive le panneau', async () => {
+    const redetectClaude = vi.fn(async () => ({ claudeAvailable: true, claudePath: '/opt/homebrew/bin/claude' }))
+    render(<ClaudePanel api={{ ...apiFactice, claudeAvailable: async () => false, redetectClaude }} onOpenSettings={() => {}} />)
+    fireEvent.click(await screen.findByText('Réessayer la détection'))
+    await act(async () => {})
+    expect(redetectClaude).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText(/Claude Code introuvable/)).toBeNull()
+    expect(screen.getByLabelText('Demander à Claude').hasAttribute('disabled')).toBe(false)
+  })
+
   it('applique le patch renvoye comme une action annulable', async () => {
     render(<ClaudePanel api={apiFactice} onOpenSettings={() => {}} />)
     fireEvent.change(screen.getByLabelText('Instruction'), { target: { value: 'ajoute un bouton' } })

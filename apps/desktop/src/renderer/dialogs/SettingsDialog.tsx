@@ -96,6 +96,7 @@ export function SettingsDialog({ api, onClose }: { api: MaquioApi; onClose: () =
     setClaudeStatut('loading')
     setClaudeErreur('')
     try {
+      await api.redetectClaude()
       const reglages = await api.getSettings()
       setClaudeAvailable(reglages.claudeAvailable)
       setClaudePath(reglages.claudePath)
@@ -108,11 +109,20 @@ export function SettingsDialog({ api, onClose }: { api: MaquioApi; onClose: () =
     }
   }
 
-  async function enregistrerCheminClaude() {
+  // Selecteur de fichier : le chemin choisi est valide (executable ET reponse
+  // a `--version`) puis enregistre ; un refus garde le champ rempli et la raison.
+  async function parcourirClaude() {
+    const choisi = await api.chooseClaudeBinary()
+    if (choisi === null) return
+    setCheminSaisi(choisi)
+    await enregistrerCheminClaude(choisi)
+  }
+
+  async function enregistrerCheminClaude(chemin: string = cheminSaisi) {
     setClaudeStatut('loading')
     setClaudeErreur('')
     try {
-      const resultat = await api.setClaudeCustomPath(cheminSaisi)
+      const resultat = await api.setClaudeCustomPath(chemin)
       setClaudeAvailable(resultat.claudeAvailable)
       setClaudePath(resultat.claudePath)
       ecrireStatutPartage({ available: resultat.claudeAvailable, path: resultat.claudePath })
@@ -257,9 +267,18 @@ export function SettingsDialog({ api, onClose }: { api: MaquioApi; onClose: () =
                 aria-label="Enregistrer le chemin de Claude Code"
                 className="dialog-button dialog-button-primary"
                 disabled={claudeStatut === 'loading'}
-                onClick={() => void enregistrerCheminClaude()}
+                onClick={() => void enregistrerCheminClaude(cheminSaisi)}
               >
                 Enregistrer
+              </button>
+              <button
+                type="button"
+                aria-label="Parcourir pour choisir le binaire claude"
+                className="dialog-button dialog-button-secondary"
+                disabled={claudeStatut === 'loading'}
+                onClick={() => void parcourirClaude()}
+              >
+                Parcourir…
               </button>
               <button
                 type="button"

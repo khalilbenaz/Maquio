@@ -66,6 +66,21 @@ export function ClaudePanel({ api, onOpenSettings }: { api: MaquioApi; onOpenSet
   const [derniereInstruction, setDerniereInstruction] = useState('')
   const [resume, setResume] = useState('')
   const [erreur, setErreur] = useState('')
+  const [redetection, setRedetection] = useState(false)
+
+  // « Réessayer la détection » : oublie la découverte mémorisée côté main
+  // (PATH du shell de connexion, emplacements connus) et la relance.
+  async function reessayer() {
+    setRedetection(true)
+    try {
+      const r = await api.redetectClaude()
+      setStatutClaude({ available: r.claudeAvailable, path: r.claudePath })
+    } catch {
+      setStatutClaude({ available: false, path: null })
+    } finally {
+      setRedetection(false)
+    }
+  }
 
   useEffect(() => {
     let annule = false
@@ -196,9 +211,14 @@ export function ClaudePanel({ api, onOpenSettings }: { api: MaquioApi; onOpenSet
                 seul <p>, pour que `screen.getByText(/Claude Code
                 introuvable/)` continue a designer un unique element sans
                 ambiguite avec ce bouton. */}
-            <button type="button" className="claude-panel-settings-link" onClick={onOpenSettings}>
-              Ouvrir les Réglages
-            </button>
+            <div className="claude-panel-actions">
+              <button type="button" className="claude-panel-settings-link" disabled={redetection} onClick={() => void reessayer()}>
+                {redetection ? 'Détection en cours…' : 'Réessayer la détection'}
+              </button>
+              <button type="button" className="claude-panel-settings-link" onClick={onOpenSettings}>
+                Ouvrir les Réglages
+              </button>
+            </div>
           </>
         ) : null}
 

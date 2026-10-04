@@ -51,6 +51,8 @@ export async function validateClaudeBinaryPath(path: string, fs: ClaudePathFs): 
 // ProcessClaudeRunner (voir main.ts).
 export function createClaudeWhich(opts: {
   getCustomPath: () => Promise<string | null>
+  /** Chemin impose par la variable d'environnement MAQUIO_CLAUDE_PATH (rang 2). */
+  getEnvPath?: () => string | undefined
   fallback: (binary: string) => Promise<string | null>
   validate: (path: string) => Promise<ClaudePathValidation>
 }): (binary: string) => Promise<string | null> {
@@ -59,6 +61,11 @@ export function createClaudeWhich(opts: {
     if (custom !== null) {
       const validation = await opts.validate(custom)
       if (validation.ok) return custom
+    }
+    const depuisEnv = opts.getEnvPath?.()
+    if (depuisEnv !== undefined && depuisEnv.trim() !== '') {
+      const validation = await opts.validate(depuisEnv.trim())
+      if (validation.ok) return depuisEnv.trim()
     }
     return opts.fallback(binary)
   }
