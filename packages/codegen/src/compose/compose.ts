@@ -42,7 +42,11 @@ import { formatNumber } from '../shared/format-number'
 import { pad } from '../shared/indent'
 import { unsupportedPropertyWarning } from '../shared/lost-property-warning'
 import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
-import { linkTargetOf, planExport, splitScreen } from '../shared/screens'
+import { planExport, splitScreen } from '../shared/screens'
+import { interactionFor, isNativeTransition } from '../shared/interactions'
+import type { OverlayRef, RInteraction } from '../shared/interactions'
+import { ANIMATION_IMPORTS, destinationTransitions } from './interactions'
+import type { Transition } from '@calque/core'
 import type { ExportPlan, ScreenParts } from '../shared/screens'
 import { PREVIEW_SUPPORTED_NODE_TYPES, unsupportedNodeWarning } from '../shared/preview-coverage'
 import { planAssets } from '../shared/assets'
@@ -66,6 +70,54 @@ type RenderContext = {
   usesNavigation: boolean
   // Une API experimentale de Material 3 est utilisee : @OptIn sur l'ecran.
   experimental: boolean
+  // combinedClickable (appui long) : API experimentale de foundation.
+  experimentalFoundation: boolean
+  // Overlays (dialogue, feuille basse, snackbar) ouvertes par une interaction de cet ecran.
+  overlayUses: Map<string, { ref: OverlayRef; transition: Transition }>
+  usesOverlay: boolean
+  usesUriHandler: boolean
+  // Transition de destination par ecran cible (une seule par ecran dans NavHost).
+  navTransitions: Map<string, Transition>
+  // Noeud overlay en cours de rendu comme gabarit (exempte du saut de renderNode).
+  allowOverlay?: string
+}
+
+// Instruction Kotlin d'une interaction.
+function kAction(ri: RInteraction, ctx: RenderContext): string {
+  const a = ri.action
+  switch (a.type) {
+    case 'navigate': {
+      ctx.usesNavigation = true
+      if (!isNativeTransition(ri.transition)) {
+        const known = ctx.navTransitions.get(a.screen.id)
+        if (known === undefined) ctx.navTransitions.set(a.screen.id, ri.transition)
+        else if (JSON.stringify(known) !== JSON.stringify(ri.transition)) {
+          const w = `Compose : plusieurs transitions différentes vers l'écran « ${a.screen.name} » : NavHost n'en accepte qu'une par destination, la première est utilisée`
+          if (!ctx.warnings.includes(w)) ctx.warnings.push(w)
+        }
+      }
+      return `navController.navigate(${kotlinString(a.screen.snake)})`
+    }
+    case 'back':
+      ctx.usesNavigation = true
+      return 'navController.popBackStack()'
+    case 'closeOverlay':
+      ctx.usesOverlay = true
+      return 'overlay = null'
+    case 'openOverlay':
+      ctx.usesOverlay = true
+      ctx.overlayUses.set(a.overlay.id, { ref: a.overlay, transition: ri.transition })
+      return `overlay = ${kotlinString(a.overlay.name)}`
+    case 'openUrl':
+      ctx.usesUriHandler = true
+      return `uriHandler.openUri(${kotlinString(a.url)})`
+  }
+}
+
+function kActs(node: Node, ctx: RenderContext): { tap: string | null; longPress: string | null } {
+  const tap = interactionFor(node, ctx.plan, 'tap')
+  const long = interactionFor(node, ctx.plan, 'longPress')
+  return { tap: tap === null ? null : kAction(tap, ctx), longPress: long === null ? null : kAction(long, ctx) }
 }
 
 function envOf(ctx: RenderContext, inFlex: boolean): CEnv {
@@ -82,6 +134,7 @@ function envOf(ctx: RenderContext, inFlex: boolean): CEnv {
       markExperimental: () => {
         ctx.experimental = true
       },
+      act: (n) => kActs(n, ctx),
     },
   }
 }
@@ -460,20 +513,30 @@ function componentModifier(node: ComponentNode, ctx: RenderContext, extraMods: s
     ctx.imports.add('androidx.compose.ui.draw.rotate')
     chain += `.rotate(${formatNumber(node.rotation)}f)`
   }
-  const target = linkTargetOf(node, ctx.plan)
-  if (target !== null && !selfLinking) {
-    ctx.imports.add('androidx.compose.foundation.clickable')
-    chain += `.clickable { ${navigateExpr(envOf(ctx, false), target)} }`
-  }
+  const acts = kActs(node, ctx)
+  chain += gestureMods(acts, selfLinking, ctx).join('')
   return chain
 }
 
-// Clic de navigation d'un noeud ordinaire (frame, texte, forme, image).
+// Gestes d'un noeud : clic (sauf composants qui gerent leur propre bouton) et
+// appui long (`combinedClickable`, API experimentale de foundation).
+function gestureMods(acts: { tap: string | null; longPress: string | null }, selfLinking: boolean, ctx: RenderContext): string[] {
+  if (acts.longPress !== null) {
+    ctx.imports.add('androidx.compose.foundation.combinedClickable')
+    ctx.experimentalFoundation = true
+    const tap = selfLinking || acts.tap === null ? '{}' : `{ ${acts.tap} }`
+    return [`.combinedClickable(onClick = ${tap}, onLongClick = { ${acts.longPress} })`]
+  }
+  if (acts.tap !== null && !selfLinking) {
+    ctx.imports.add('androidx.compose.foundation.clickable')
+    return [`.clickable { ${acts.tap} }`]
+  }
+  return []
+}
+
+// Interactions d'un noeud ordinaire (frame, texte, forme, image).
 function linkMods(node: Node, ctx: RenderContext): string[] {
-  const target = linkTargetOf(node, ctx.plan)
-  if (target === null) return []
-  ctx.imports.add('androidx.compose.foundation.clickable')
-  return [`.clickable { ${navigateExpr(envOf(ctx, false), target)} }`]
+  return gestureMods(kActs(node, ctx), false, ctx)
 }
 
 const SELF_LINKING = new Set(['button', 'iconButton', 'fab', 'chip', 'listTile'])
@@ -609,6 +672,8 @@ function renderContainer(frame: FrameNode, ctx: RenderContext, depth: number, ex
 
 function renderNode(node: Node, ctx: RenderContext, depth: number, extraMods: string[], inFlex = false): string[] | null {
   if (!node.visible) return null
+  // Une overlay ouverte par une interaction est un gabarit : rendue a la demande.
+  if (ctx.plan.overlays.has(node.id) && ctx.allowOverlay !== node.id) return null
 
   if (node.type === 'component') {
     const modifier = componentModifier(node, ctx, extraMods, SELF_LINKING.has(node.kind))
@@ -646,7 +711,7 @@ function renderNode(node: Node, ctx: RenderContext, depth: number, extraMods: st
   }
 }
 
-function newContext(tokens: DesignTokens, warnings: string[], plan: ExportPlan): RenderContext {
+function newContext(tokens: DesignTokens, warnings: string[], plan: ExportPlan, shared: Map<string, Transition>): RenderContext {
   return {
     tokens,
     warnings,
@@ -655,6 +720,11 @@ function newContext(tokens: DesignTokens, warnings: string[], plan: ExportPlan):
     counter: 0,
     usesNavigation: false,
     experimental: false,
+    experimentalFoundation: false,
+    overlayUses: new Map(),
+    usesOverlay: false,
+    usesUriHandler: false,
+    navTransitions: shared,
   }
 }
 
@@ -663,8 +733,8 @@ function fileHeader(ctx: RenderContext, packageName: string | null): string[] {
   return [...(packageName ? [`package ${packageName}`, ''] : []), ...sortedImports.map((i) => `import ${i}`), '']
 }
 
-function renderPage(page: Page, tokens: DesignTokens, warnings: string[], functionName: string, plan: ExportPlan): ExportedFile {
-  const ctx = newContext(tokens, warnings, plan)
+function renderPage(page: Page, tokens: DesignTokens, warnings: string[], functionName: string, plan: ExportPlan, shared: Map<string, Transition>): ExportedFile {
+  const ctx = newContext(tokens, warnings, plan, shared)
 
   const topLevel = page.nodes.map((n) => renderNode(n, ctx, 1, [])).filter((l): l is string[] => l !== null)
 
@@ -687,8 +757,9 @@ function renderPage(page: Page, tokens: DesignTokens, warnings: string[], functi
 // Un ecran Compose : un Scaffold (topBar, bottomBar, floatingActionButton),
 // enveloppe d'un ModalNavigationDrawer quand le design a un tiroir. Le corps
 // est positionne depuis le bas de la barre d'application (innerPadding).
-function renderScreen(screen: FrameNode, tokens: DesignTokens, warnings: string[], functionName: string, plan: ExportPlan): ExportedFile {
-  const ctx = newContext(tokens, warnings, plan)
+function renderScreen(screen: FrameNode, tokens: DesignTokens, warnings: string[], functionName: string, plan: ExportPlan, shared: Map<string, Transition>): ExportedFile {
+  const ctx = newContext(tokens, warnings, plan, shared)
+  const doneOverlays = new Set<string>()
   const parts: ScreenParts = splitScreen(screen)
   const env = envOf(ctx, false)
   for (const i of ['androidx.compose.material3.Scaffold', 'androidx.compose.ui.Modifier', 'androidx.compose.foundation.layout.fillMaxSize', 'androidx.compose.foundation.layout.padding', 'androidx.navigation.NavController']) ctx.imports.add(i)
@@ -736,6 +807,66 @@ function renderScreen(screen: FrameNode, tokens: DesignTokens, warnings: string[
     bodyLines.push(...renderFrame(content, ctx, baseDepth + 1, ['.padding(innerPadding)']))
   }
 
+  // Interactions de l'ecran : etat des overlays, URL, delai.
+  const preamble: string[] = []
+  const trailing: string[] = []
+  const delay = screen.interactions?.find((i) => i.trigger.type === 'afterDelay')
+  const delayAction = interactionFor(screen, plan, 'afterDelay')
+  let delayLines: string[] = []
+  if (delay !== undefined && delay.trigger.type === 'afterDelay' && delayAction !== null) {
+    for (const i of ['androidx.compose.runtime.LaunchedEffect', 'kotlinx.coroutines.delay']) ctx.imports.add(i)
+    delayLines = ['    LaunchedEffect(Unit) {', `        delay(${delay.trigger.ms}L)`, `        ${kAction(delayAction, ctx)}`, '    }']
+  }
+  let usesSnackbar = false
+  for (let guard = 0; guard < 50; guard += 1) {
+    const use = [...ctx.overlayUses.values()].find((u) => !doneOverlays.has(u.ref.id))
+    if (use === undefined) break
+    doneOverlays.add(use.ref.id)
+    const node = use.ref.node
+    const name = kotlinString(use.ref.name)
+    if (node.type === 'component' && node.kind === 'snackbar') {
+      usesSnackbar = true
+      for (const i of ['androidx.compose.runtime.LaunchedEffect']) ctx.imports.add(i)
+      const p = node.props
+      trailing.push(
+        '    LaunchedEffect(overlay) {',
+        `        if (overlay == ${name}) {`,
+        `            snackbarHostState.showSnackbar(message = ${kotlinString(p.message)}${p.actionLabel === '' ? '' : `, actionLabel = ${kotlinString(p.actionLabel)}`})`,
+        '            overlay = null',
+        '        }',
+        '    }',
+      )
+      continue
+    }
+    // Dialogue / feuille basse : le rendu natif existant, relie a l'etat `overlay`.
+    const scratch: RenderContext = { ...ctx, allowOverlay: node.id }
+    const lines = renderNode(node, scratch, 1, []) ?? []
+    ctx.counter = scratch.counter
+    ctx.usesNavigation = ctx.usesNavigation || scratch.usesNavigation
+    ctx.experimental = ctx.experimental || scratch.experimental
+    ctx.experimentalFoundation = ctx.experimentalFoundation || scratch.experimentalFoundation
+    ctx.usesUriHandler = ctx.usesUriHandler || scratch.usesUriHandler
+    ctx.usesOverlay = true
+    const stateName = lines.map((l) => /var (show(?:Dialog|Sheet)\d+) by remember/.exec(l)?.[1]).find((x): x is string => x !== undefined)
+    for (const l of lines) {
+      if (/var show(?:Dialog|Sheet)\d+ by remember/.test(l)) continue
+      trailing.push(stateName === undefined ? l : l.replace(`if (${stateName})`, `if (overlay == ${name})`).replace(new RegExp(`${stateName} = false`, 'g'), 'overlay = null'))
+    }
+  }
+  if (usesSnackbar) {
+    for (const i of ['androidx.compose.material3.SnackbarHost', 'androidx.compose.material3.SnackbarHostState', 'androidx.compose.runtime.remember']) ctx.imports.add(i)
+    scaffoldArgs.push('snackbarHost = { SnackbarHost(snackbarHostState) }')
+    preamble.push('    val snackbarHostState = remember { SnackbarHostState() }')
+  }
+  if (ctx.usesOverlay) {
+    for (const i of ['androidx.compose.runtime.getValue', 'androidx.compose.runtime.mutableStateOf', 'androidx.compose.runtime.remember', 'androidx.compose.runtime.setValue']) ctx.imports.add(i)
+    preamble.unshift('    var overlay by remember { mutableStateOf<String?>(null) }')
+  }
+  if (ctx.usesUriHandler) {
+    ctx.imports.add('androidx.compose.ui.platform.LocalUriHandler')
+    preamble.push('    val uriHandler = LocalUriHandler.current')
+  }
+
   const scaffold = [
     `${pa}Scaffold(`,
     ...scaffoldArgs.map((a) => `${pb}${a},`),
@@ -768,12 +899,17 @@ function renderScreen(screen: FrameNode, tokens: DesignTokens, warnings: string[
   }
 
   if (ctx.experimental) ctx.imports.add('androidx.compose.material3.ExperimentalMaterial3Api')
+  if (ctx.experimentalFoundation) ctx.imports.add('androidx.compose.foundation.ExperimentalFoundationApi')
+  const optIns = [...(ctx.experimental ? ['ExperimentalMaterial3Api::class'] : []), ...(ctx.experimentalFoundation ? ['ExperimentalFoundationApi::class'] : [])]
   const lines = [
     ...fileHeader(ctx, 'screens'),
-    ...(ctx.experimental ? ['@OptIn(ExperimentalMaterial3Api::class)'] : []),
+    ...(optIns.length > 0 ? [`@OptIn(${optIns.join(', ')})`] : []),
     '@Composable',
     `fun ${functionName}(navController: NavController) {`,
+    ...preamble,
+    ...delayLines,
     ...body,
+    ...trailing,
     '}',
     '',
   ]
@@ -782,19 +918,33 @@ function renderScreen(screen: FrameNode, tokens: DesignTokens, warnings: string[
 
 // Navigation Compose : un NavHost, une destination par ecran (nom de fichier
 // en snake_case), l'ecran actif (ou le premier) en destination de depart.
-function generateNavigation(plan: ExportPlan): ExportedFile {
+function generateNavigation(plan: ExportPlan, transitions: Map<string, Transition>): ExportedFile {
+  const imports = new Set<string>([
+    'androidx.compose.runtime.Composable',
+    'androidx.navigation.compose.NavHost',
+    'androidx.navigation.compose.composable',
+    'androidx.navigation.compose.rememberNavController',
+  ])
+  const entries: string[] = []
+  for (const s of plan.screens) {
+    const t = transitions.get(s.id)
+    if (t === undefined) {
+      entries.push(`        composable(${kotlinString(s.snake)}) { ${s.pascal}(navController) }`)
+      continue
+    }
+    const d = destinationTransitions(t)
+    for (const i of [...ANIMATION_IMPORTS, ...d.imports]) imports.add(i)
+    entries.push(`        composable(`, `            ${kotlinString(s.snake)},`, ...d.args.map((a) => `            ${a},`), `        ) { ${s.pascal}(navController) }`)
+  }
   const lines = [
-    'import androidx.compose.runtime.Composable',
-    'import androidx.navigation.compose.NavHost',
-    'import androidx.navigation.compose.composable',
-    'import androidx.navigation.compose.rememberNavController',
+    ...[...imports].sort().map((i) => `import ${i}`),
     ...plan.screens.map((s) => `import screens.${s.pascal}`),
     '',
     '@Composable',
     'fun AppNavigation() {',
     '    val navController = rememberNavController()',
     `    NavHost(navController = navController, startDestination = ${kotlinString(plan.initial!.snake)}) {`,
-    ...plan.screens.map((s) => `        composable(${kotlinString(s.snake)}) { ${s.pascal}(navController) }`),
+    ...entries,
     '    }',
     '}',
     '',
@@ -844,17 +994,18 @@ function exportCompose(source: CalqueDocument, opts: ExportOptions): ExportResul
   const files: ExportedFile[] = []
   const plan = planExport(doc, opts.activeScreenId)
   plan.androidPackage = opts.androidPackage ?? DEFAULT_ANDROID_PACKAGE
+  const transitions = new Map<string, Transition>()
 
   for (const unit of plan.units) {
     if (unit.kind === 'page') {
-      files.push(renderPage(layoutPage(unit.page), doc.tokens, warnings, unit.names.pascal, plan))
+      files.push(renderPage(layoutPage(unit.page), doc.tokens, warnings, unit.names.pascal, plan, transitions))
       continue
     }
     const laidOut = layoutPage({ ...unit.page, nodes: [unit.screen] }).nodes[0] as FrameNode
-    files.push(renderScreen(laidOut, doc.tokens, warnings, unit.ref.pascal, plan))
+    files.push(renderScreen(laidOut, doc.tokens, warnings, unit.ref.pascal, plan, transitions))
   }
 
-  if (plan.initial !== null) files.push(generateNavigation(plan), generateActivity())
+  if (plan.initial !== null) files.push(generateNavigation(plan, transitions), generateActivity())
 
   return { files, warnings, assets: assetPlan.assets }
 }

@@ -8,7 +8,7 @@ import { ICONS } from '@calque/core'
 import { formatNumber } from '../shared/format-number'
 import { pad } from '../shared/indent'
 import { isRemoteUrl } from '../shared/node-helpers'
-import { itemTargets, linkTargetOf } from '../shared/screens'
+import { itemTargets } from '../shared/screens'
 import type { ExportPlan, ScreenRef } from '../shared/screens'
 import { composeColorExpr, kotlinString } from './kotlin-utils'
 
@@ -22,6 +22,8 @@ export type ComposeEnvCtx = {
   markNavigation(): void
   // Un opt-in a une API experimentale de Material 3 est necessaire.
   markExperimental(): void
+  // Expressions Kotlin des interactions d'un noeud (null : aucune).
+  act(node: import('@calque/core').Node): { tap: string | null; longPress: string | null }
 }
 
 export type CEnv = {
@@ -71,8 +73,8 @@ export function navigateExpr(env: CEnv, ref: ScreenRef, replace = false): string
     : `navController.navigate(${kotlinString(ref.snake)})`
 }
 
-function click(env: CEnv, ref: ScreenRef | null): string {
-  return ref === null ? '{}' : `{ ${navigateExpr(env, ref)} }`
+function click(_env: CEnv, expr: string | null): string {
+  return expr === null ? '{}' : `{ ${expr} }`
 }
 
 function widthMod(env: CEnv, w: number): string {
@@ -93,7 +95,7 @@ function call(depth: number, name: string, args: string[], body: string[] | null
 // (taille, decalage) fournie par l'appelant. Dialogues et feuilles ne rendent
 // rien en place (presentations).
 export function renderComposeComponent(node: ComponentNode, env: CEnv, depth: number, modifier: string): string[] {
-  const link = linkTargetOf(node, env.ctx.plan)
+  const link = env.ctx.act(node).tap
   const w = node.frame.w
   const h = node.frame.h
   const mod = `modifier = ${modifier}`
