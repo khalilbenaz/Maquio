@@ -13,11 +13,22 @@ describe('prototype bancaire', () => {
     expect(documentSchema.safeParse(doc).success).toBe(true)
     expect(parseDocument(serializeDocument(doc))).toEqual(doc)
   })
-  it('compte une vingtaine d ecrans 390 x 844', () => {
+  it('compte les 16 ecrans de la maquette (390 x 844) et la barre d onglets', () => {
     const ecrans = doc.pages[0]!.nodes
     expect(ecrans.length).toBe(BANQUE_ECRANS().length)
-    expect(ecrans.length).toBeGreaterThanOrEqual(20)
-    for (const e of ecrans) expect([e.frame.w, e.frame.h]).toEqual([390, 844])
+    expect(ecrans).toHaveLength(17)
+    for (const e of ecrans.slice(0, 16)) expect([e.frame.w, e.frame.h]).toEqual([390, 844])
+    expect(ecrans[16]!.frame.h).toBe(96)
+  })
+  it('n emploie que des composants et conteneurs semantiques du catalogue, et des textes Geist', () => {
+    const kinds = new Set<string>()
+    const fonts = new Set<string>()
+    walk(doc.pages[0]!.nodes, (n) => {
+      if (n.type === 'component') kinds.add(n.kind)
+      if (n.type === 'text') fonts.add(n.style.fontFamily)
+    })
+    for (const k of ['button', 'bottomNav', 'icon', 'switch', 'progressBar']) expect(kinds.has(k), k).toBe(true)
+    expect([...fonts]).toEqual(['Geist'])
   })
   it('n a aucune cible d interaction orpheline', () => {
     const ids = new Set<string>()

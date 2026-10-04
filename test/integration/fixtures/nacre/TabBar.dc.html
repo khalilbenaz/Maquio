@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Nacre · barre d’onglets</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<nav aria-label="Navigation principale" style="width: 390px; height: 96px; box-sizing: border-box; padding: 10px 12px 26px; background: rgba(255,255,255,0.96); border-top: 1px solid #E6E7EB; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); font-family: Geist, system-ui, sans-serif">
+  <sc-for list="{{items}}" as="t" hint-placeholder-count="5">
+    <a href="{{t.href}}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; color: {{t.ink}}; font-size: 11px; font-weight: {{t.w}}">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{{t.ink}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{t.d}}"></path></svg>{{t.label}}</a>
+  </sc-for>
+</nav>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"active":{"editor":"enum","options":["home","pay","cards","vaults","profile"],"default":"home"},"$preview":{"width":390,"height":96}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const a = this.props.active ?? 'home';
+    const defs = [
+      ['home', 'Accueil', 'Main.dc.html', 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'],
+      ['pay', 'Paiements', 'Envoyer.dc.html', 'M7 7h13l-3-3M17 17H4l3 3'],
+      ['cards', 'Cartes', 'Cartes.dc.html', 'M3 6h18v12H3zM3 10h18M7 15h3'],
+      ['vaults', 'Coffres', 'Coffres.dc.html', 'M5 4h14v16H5zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 9V7M5 8H3M5 16H3'],
+      ['profile', 'Profil', 'Profil.dc.html', 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0'],
+    ];
+    return { items: defs.map(([id, label, href, d]) => ({ label, href, d, ink: id === a ? '#4338FF' : '#6B6F7B', w: id === a ? 700 : 500 })) };
+  }
+}
+</script>
+</body>
+</html>

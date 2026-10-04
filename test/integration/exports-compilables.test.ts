@@ -91,7 +91,7 @@ const CASES: [string, string, () => MaquioDocument, boolean][] = [
   ['exemple « tous les composants »', 'exemple', documentExempleComplet, false],
   ['projet multi-ecrans avec images', 'images', projetImages, true],
   ['interactions (transitions, overlays, delai, URL)', 'interactions', documentInteractions, false],
-  ['prototype bancaire (21 ecrans)', 'banque', documentBanque, false],
+  ['prototype bancaire nacre (16 ecrans)', 'banque', documentBanque, false],
 ]
 
 describe.each(CASES)('les exports compilent (%s)', (_label, key, makeDoc, withAssets) => {
