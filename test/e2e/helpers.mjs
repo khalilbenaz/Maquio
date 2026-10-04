@@ -4,13 +4,13 @@ import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
-export async function lancer(env = {}) {
+export async function lancer(env = {}, options = {}) {
   const out = process.env.OUT ?? mkdtempSync(path.join(tmpdir(), 'maquio-e2e-'))
   mkdirSync(out, { recursive: true })
   const work = mkdtempSync(path.join(tmpdir(), 'maquio-work-'))
   const results = []
   const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? 'OK  ' : 'FAIL'} ${name} ${detail}`) }
-  const app = await electron.launch({ args: [path.resolve('apps/desktop'), `--user-data-dir=${path.join(work, 'userdata')}`], env: { ...process.env, MAQUIO_E2E_HIDDEN: '1', MAQUIO_CLAUDE_DISCOVERY: 'off', ...env } })
+  const app = await electron.launch({ args: [path.resolve('apps/desktop'), `--user-data-dir=${path.join(work, 'userdata')}`], env: { ...process.env, MAQUIO_E2E_HIDDEN: '1', MAQUIO_CLAUDE_DISCOVERY: 'off', ...env }, ...options })
   const win = await app.firstWindow()
   const errors = []
   win.on('pageerror', (e) => errors.push(e.message))
