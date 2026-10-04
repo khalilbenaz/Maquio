@@ -231,3 +231,20 @@
   opacity: 0.35;
   cursor: default;
 }
+
+/* Section Interactions */
+.interaction-row {
+  border: 1px solid var(--calque-border);
+  border-radius: 6px;
+  margin: 0 0 8px;
+  padding: 6px 8px 8px;
+}
+.interaction-remove {
+  width: 100%;
+  margin-top: 6px;
+}
+.inspector-error {
+  color: #e5534b;
+  font-size: 12px;
+  margin: 6px 0 0;
+}

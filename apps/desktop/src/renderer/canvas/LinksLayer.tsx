@@ -26,11 +26,29 @@ function nearestPointOnRect(rect: Rect, point: { x: number; y: number }): { x: n
   }
 }
 
-function collectLinkedNodes(nodes: CalqueNode[]): CalqueNode[] {
-  const result: CalqueNode[] = []
+type Connector = { key: string; testId: string; node: CalqueNode; target: string; label: string; first: boolean }
+
+const TRIGGER_SHORT = { tap: 'clic', longPress: 'appui long', afterDelay: 'délai' } as const
+const TRANSITION_SHORT = { none: 'sans transition', slide: 'glissement', push: 'poussée', fade: 'fondu', modal: 'modale' } as const
+
+// Une fleche par interaction de navigation (declencheur + transition en legende).
+function collectConnectors(nodes: CalqueNode[]): Connector[] {
+  const result: Connector[] = []
   function visit(list: CalqueNode[]): void {
     for (const n of list) {
-      if (n.link !== undefined) result.push(n)
+      let first = true
+      ;(n.interactions ?? []).forEach((it, i) => {
+        if (it.action.type !== 'navigate') return
+        result.push({
+          key: `${n.id}-${i}`,
+          testId: first ? `link-connector-${n.id}` : `link-connector-${n.id}-${i}`,
+          node: n,
+          target: it.action.target,
+          label: `${TRIGGER_SHORT[it.trigger.type]} · ${TRANSITION_SHORT[it.transition.type]}`,
+          first,
+        })
+        first = false
+      })
       if (n.type === 'frame') visit(n.children)
     }
   }
@@ -45,20 +63,29 @@ export function LinksLayer() {
 
   const nodes = pageNodesOf(document_, pageId)
   const screens = nodes.filter(isScreenNode)
-  const linkedNodes = collectLinkedNodes(nodes)
+  const connectors = collectConnectors(nodes)
 
   return (
     <g data-testid="links-layer">
-      {linkedNodes.map((node) => {
-        const target = screens.find((s) => s.id === node.link!.target)
+      {connectors.map((c) => {
+        const target = screens.find((s) => s.id === c.target)
         if (target === undefined) return null
 
-        const sourceAbs = absoluteFrame(nodes, node.id)
+        const sourceAbs = absoluteFrame(nodes, c.node.id)
         const sourceCenter = { x: sourceAbs.x + sourceAbs.w / 2, y: sourceAbs.y + sourceAbs.h / 2 }
         const endPoint = nearestPointOnRect(target.frame, sourceCenter)
+        const angle = Math.atan2(endPoint.y - sourceCenter.y, endPoint.x - sourceCenter.x)
+        const s = 9 / zoom
+        const head = [
+          [endPoint.x, endPoint.y],
+          [endPoint.x - s * Math.cos(angle - 0.4), endPoint.y - s * Math.sin(angle - 0.4)],
+          [endPoint.x - s * Math.cos(angle + 0.4), endPoint.y - s * Math.sin(angle + 0.4)],
+        ]
+          .map((p) => p.join(','))
+          .join(' ')
 
         return (
-          <g key={node.id} data-testid={`link-connector-${node.id}`}>
+          <g key={c.key} data-testid={c.testId} data-trigger-label={c.label}>
             <line
               x1={sourceCenter.x}
               y1={sourceCenter.y}
@@ -68,7 +95,10 @@ export function LinksLayer() {
               strokeWidth={1.5 / zoom}
               strokeDasharray={`${5 / zoom} ${3 / zoom}`}
             />
-            <circle cx={endPoint.x} cy={endPoint.y} r={3 / zoom} fill={ACCENT} />
+            <polygon points={head} fill={ACCENT} />
+            <text x={(sourceCenter.x + endPoint.x) / 2} y={(sourceCenter.y + endPoint.y) / 2 - 4 / zoom} fontSize={11 / zoom} fill={ACCENT} textAnchor="middle">
+              {c.label}
+            </text>
           </g>
         )
       })}

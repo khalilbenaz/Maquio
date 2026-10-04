@@ -12,6 +12,8 @@ import type { ContainerSpec } from '../components/props'
 import { translateRect, unionRects } from '../geometry/rect'
 import { layoutPage } from '../layout/autolayout'
 import { nodeSchema } from '../model/schema'
+import { DEFAULT_TRANSITION, interactionSchema } from '../model/interactions'
+import type { Interaction, Transition } from '../model/interactions'
 import {
   absoluteFrame,
   findNode,
@@ -127,14 +129,15 @@ function screenIdsOf(nodes: Node[]): Set<string> {
   return ids
 }
 
-// Tous les identifiants de noeud (n'importe quelle profondeur) dont le
-// `link.target` vise `screenId` -- utilise par `deleteNodeCommand` pour
-// retirer, dans la MEME commande annulable, tous les liens qu'une
-// suppression d'ecran rend orphelins (§3.2 de l'addendum navigation).
-function findNodesLinkingTo(nodes: Node[], screenId: string): string[] {
+// Tous les identifiants de noeud (n'importe quelle profondeur) dont une
+// interaction vise `targetId` (navigation vers un ecran, ouverture d'un
+// overlay) -- utilise par `deleteNodeCommand` pour retirer, dans la MEME
+// commande annulable, toutes les interactions qu'une suppression rend
+// orphelines (§3.2 de l'addendum navigation).
+function findNodesLinkingTo(nodes: Node[], targetId: string): string[] {
   const result: string[] = []
   walk(nodes, (n) => {
-    if (n.link?.target === screenId) result.push(n.id)
+    if (n.interactions?.some((i) => (i.action.type === 'navigate' || i.action.type === 'openOverlay') && i.action.target === targetId)) result.push(n.id)
   })
   return result
 }
@@ -152,13 +155,19 @@ export function deleteNodeCommand(pageId: string, nodeId: string): Command {
   function resolvedCommand(nodes: Node[]): Command {
     const node = findNode(nodes, nodeId)
     if (node === null) throw new NodeNotFoundError(nodeId)
-    if (!isScreenNode(node)) return removeNodeCommand(pageId, nodeId)
 
-    const linkedIds = findNodesLinkingTo(nodes, nodeId)
-    if (linkedIds.length === 0) return removeNodeCommand(pageId, nodeId)
+    // Toute interaction qui visait ce noeud (ou un noeud de son sous-arbre :
+    // un overlay) est retiree dans la meme commande annulable.
+    const doomed = new Set<string>()
+    walk([node], (n) => {
+      doomed.add(n.id)
+    })
+    const linkedIds = new Set<string>()
+    for (const id of doomed) for (const l of findNodesLinkingTo(nodes, id)) if (!doomed.has(l)) linkedIds.add(l)
+    if (linkedIds.size === 0) return removeNodeCommand(pageId, nodeId)
 
     return compositeCommand('Supprimer', [
-      ...linkedIds.map((id) => clearLinkCommand(pageId, id)),
+      ...[...linkedIds].map((id) => removeInteractionsTargetingCommand(pageId, id, doomed)),
       removeNodeCommand(pageId, nodeId),
     ])
   }
@@ -510,49 +519,137 @@ export function createScreenCommand(pageId: string, screen: FrameNode): Command 
   return { ...createNodeCommand(pageId, null, screen), label: 'Créer un écran' }
 }
 
-// v2 (addendum navigation §3.2, §5) : pose ou remplace le lien d'un noeud.
-// Les deux chemins de l'interface (inspecteur « Au clic → », poignee de
-// lien tiree sur le cadre de selection) passent tous les deux par cette
-// meme commande -- aucune autre facon de poser un lien n'existe.
-export function setLinkCommand(pageId: string, nodeId: string, target: string): Command {
+// Interactions : remplace la liste d'interactions d'un noeud. Toutes les
+// interfaces (inspecteur, poignee de lien, assistant) passent par cette
+// commande ; les regles de validite sont celles du schema (checkInteractions)
+// et sont imposees ICI aussi, pour qu'aucune commande ne produise un document
+// que le schema refuserait.
+export class InvalidInteractionError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'InvalidInteractionError'
+  }
+}
+
+function validateInteractions(nodes: Node[], nodeId: string, interactions: Interaction[]): void {
+  const node = findNode(nodes, nodeId)
+  if (node === null) throw new NodeNotFoundError(nodeId)
+  const containing = screenContaining(nodes, nodeId)
+  const screens = screenIdsOf(nodes)
+  const seen = new Set<string>()
+  for (const it of interactions) {
+    const parsed = interactionSchema.safeParse(it)
+    if (!parsed.success) throw new InvalidInteractionError(parsed.error.issues[0]?.message ?? 'Interaction invalide')
+    if (seen.has(it.trigger.type)) throw new InvalidInteractionError(`Un nœud n'a qu'un seul déclencheur « ${it.trigger.type} »`)
+    seen.add(it.trigger.type)
+    if (it.trigger.type === 'afterDelay' && !isScreenNode(node)) throw new InvalidInteractionError('Le déclencheur « après un délai » est réservé aux écrans')
+    if (it.action.type === 'navigate') {
+      if (!screens.has(it.action.target)) throw new LinkTargetNotFoundError(it.action.target)
+      if (containing === it.action.target) throw new LinkToContainingScreenError(it.action.target)
+    }
+    if (it.action.type === 'openOverlay') {
+      const target = findNode(nodes, it.action.target)
+      const ok =
+        target !== null &&
+        ((it.action.overlay === 'dialog' && target.type === 'component' && target.kind === 'dialog') ||
+          (it.action.overlay === 'snackbar' && target.type === 'component' && target.kind === 'snackbar') ||
+          (it.action.overlay === 'bottomSheet' && target.type === 'frame' && target.container?.kind === 'bottomSheet'))
+      if (!ok) throw new InvalidInteractionError(`Cible d'overlay invalide : « ${it.action.target} » n'est pas un élément « ${it.action.overlay} » de cette page`)
+    }
+  }
+}
+
+function withInteractions(node: Node, interactions: Interaction[] | undefined): Node {
+  if (interactions === undefined || interactions.length === 0) {
+    const { interactions: _drop, ...rest } = node
+    return rest as Node
+  }
+  return { ...node, interactions }
+}
+
+export function setInteractionsCommand(pageId: string, nodeId: string, interactions: Interaction[]): Command {
   return {
-    label: 'Lier',
+    label: 'Modifier les interactions',
     apply(doc: CalqueDocument): CalqueDocument {
-      const nodes = requirePage(doc, pageId).nodes
-      if (findNode(nodes, nodeId) === null) throw new NodeNotFoundError(nodeId)
-      if (!screenIdsOf(nodes).has(target)) throw new LinkTargetNotFoundError(target)
-      if (screenContaining(nodes, nodeId) === target) throw new LinkToContainingScreenError(target)
-      return updateNodeIn(doc, pageId, nodeId, (node) => ({ ...node, link: { target } }))
+      validateInteractions(requirePage(doc, pageId).nodes, nodeId, interactions)
+      return updateNodeIn(doc, pageId, nodeId, (node) => withInteractions(node, interactions))
     },
     invert(doc: CalqueDocument): Command {
-      const nodes = requirePage(doc, pageId).nodes
-      const node = findNode(nodes, nodeId)
+      const node = findNode(requirePage(doc, pageId).nodes, nodeId)
       if (node === null) throw new NodeNotFoundError(nodeId)
-      return node.link === undefined ? clearLinkCommand(pageId, nodeId) : setLinkCommand(pageId, nodeId, node.link.target)
+      return setInteractionsCommand(pageId, nodeId, node.interactions ?? [])
     },
   }
 }
 
-// Retire le lien d'un noeud (s'il en a un ; un noeud sans lien reste
-// inchange). Distincte de `updateNodeCommand({ link: undefined })` : un
-// patch fusionne (`{ ...node, ...patch }`) laisserait la cle `link` presente
-// avec la valeur `undefined` plutot que de la retirer -- cette fabrique
-// retire vraiment la cle, pour qu'un noeud sans lien serialise exactement
-// comme un noeud qui n'en a jamais eu.
+// Retire (dans une suppression) les interactions d'un noeud qui visent un
+// des noeuds `doomed`, sans revalider le reste (la cible n'existe deja plus).
+function removeInteractionsTargetingCommand(pageId: string, nodeId: string, doomed: Set<string>): Command {
+  return {
+    label: 'Retirer les interactions',
+    apply(doc: CalqueDocument): CalqueDocument {
+      return updateNodeIn(doc, pageId, nodeId, (node) =>
+        withInteractions(
+          node,
+          (node.interactions ?? []).filter((i) => !((i.action.type === 'navigate' || i.action.type === 'openOverlay') && doomed.has(i.action.target))),
+        ),
+      )
+    },
+    invert(doc: CalqueDocument): Command {
+      const node = findNode(requirePage(doc, pageId).nodes, nodeId)
+      if (node === null) throw new NodeNotFoundError(nodeId)
+      return restoreInteractionsCommand(pageId, nodeId, node.interactions)
+    },
+  }
+}
+
+// Remet une liste d'interactions SANS validation (inversion exacte d'une
+// suppression : la cible est recreee juste avant, dans l'ordre inverse).
+function restoreInteractionsCommand(pageId: string, nodeId: string, interactions: Interaction[] | undefined): Command {
+  return {
+    label: 'Rétablir les interactions',
+    apply: (doc) => updateNodeIn(doc, pageId, nodeId, (node) => withInteractions(node, interactions)),
+    invert(doc) {
+      const node = findNode(requirePage(doc, pageId).nodes, nodeId)
+      if (node === null) throw new NodeNotFoundError(nodeId)
+      return restoreInteractionsCommand(pageId, nodeId, node.interactions)
+    },
+  }
+}
+
+// Raccourci : pose (ou remplace) l'interaction « tap -> aller a l'ecran X »,
+// les autres interactions du noeud restent intactes. Chemin commun de
+// l'inspecteur et de la poignee de lien du canevas.
+export function setLinkCommand(pageId: string, nodeId: string, target: string, transition: Transition = DEFAULT_TRANSITION): Command {
+  return {
+    label: 'Lier',
+    apply(doc: CalqueDocument): CalqueDocument {
+      const node = findNode(requirePage(doc, pageId).nodes, nodeId)
+      if (node === null) throw new NodeNotFoundError(nodeId)
+      const others = (node.interactions ?? []).filter((i) => !(i.trigger.type === 'tap' && i.action.type === 'navigate'))
+      return setInteractionsCommand(pageId, nodeId, [{ trigger: { type: 'tap' }, action: { type: 'navigate', target }, transition }, ...others]).apply(doc)
+    },
+    invert(doc: CalqueDocument): Command {
+      const node = findNode(requirePage(doc, pageId).nodes, nodeId)
+      if (node === null) throw new NodeNotFoundError(nodeId)
+      return restoreInteractionsCommand(pageId, nodeId, node.interactions)
+    },
+  }
+}
+
+// Retire l'interaction « tap -> navigate » d'un noeud (les autres restent).
 export function clearLinkCommand(pageId: string, nodeId: string): Command {
   return {
     label: 'Retirer le lien',
     apply(doc: CalqueDocument): CalqueDocument {
-      return updateNodeIn(doc, pageId, nodeId, (node) => {
-        const { link: _link, ...rest } = node
-        return rest as Node
-      })
+      return updateNodeIn(doc, pageId, nodeId, (node) =>
+        withInteractions(node, (node.interactions ?? []).filter((i) => !(i.trigger.type === 'tap' && i.action.type === 'navigate'))),
+      )
     },
     invert(doc: CalqueDocument): Command {
-      const nodes = requirePage(doc, pageId).nodes
-      const node = findNode(nodes, nodeId)
+      const node = findNode(requirePage(doc, pageId).nodes, nodeId)
       if (node === null) throw new NodeNotFoundError(nodeId)
-      return node.link === undefined ? clearLinkCommand(pageId, nodeId) : setLinkCommand(pageId, nodeId, node.link.target)
+      return restoreInteractionsCommand(pageId, nodeId, node.interactions)
     },
   }
 }

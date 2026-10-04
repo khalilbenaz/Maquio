@@ -13,6 +13,7 @@ import {
   createScreenNode,
   findNode,
 } from '@calque/core'
+import { tapNavigation } from '@calque/core'
 import type { ComponentNode, FrameNode, Node } from '@calque/core'
 import { InspectorPanel } from '../src/renderer/panels/InspectorPanel'
 import { useEditorStore } from '../src/renderer/state/editorStore'
@@ -225,12 +226,12 @@ describe('Inspecteur : proprietes d un composant', () => {
     expect((props(nav.id).items as unknown[]).length).toBe(2)
   })
 
-  it('« Au clic → » reste disponible sur un composant (liens existants reutilises)', () => {
+  it('la section Interactions est disponible sur un composant : ajouter pose un lien tap -> navigate', () => {
     const bouton = ajouter(createComponentNode('button', { x: 0, y: 0, w: 160, h: 48 }))
     render(<InspectorPanel api={apiFactice} />)
     selectionner(bouton)
-    fireEvent.change(screen.getByLabelText('Au clic →'), { target: { value: profil.id } })
-    expect(courant(bouton.id).link).toEqual({ target: profil.id })
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter une interaction' }))
+    expect(tapNavigation(courant(bouton.id).interactions)?.target).toBeDefined()
   })
 })
 

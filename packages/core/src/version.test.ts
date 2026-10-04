@@ -5,7 +5,7 @@ import { DOCUMENT_VERSION } from './index'
 // des ecrans multiples et des liens -- ce test decrivait la version v1,
 // corrige pour verifier la version courante.
 describe('DOCUMENT_VERSION', () => {
-  it('vaut 3 pour la v3 du format (composants mobiles)', () => {
-    expect(DOCUMENT_VERSION).toBe(3)
+  it('vaut 4 pour la v4 du format (interactions de prototype)', () => {
+    expect(DOCUMENT_VERSION).toBe(4)
   })
 })

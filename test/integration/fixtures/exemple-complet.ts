@@ -6,6 +6,7 @@
 // `exemples/tous-les-composants.calque`.
 import {
   COMPONENT_KINDS,
+  tapLink,
   DEVICE_PRESETS,
   PALETTE_ITEMS,
   createDocument,
@@ -66,7 +67,7 @@ function stabiliser(doc: CalqueDocument): CalqueDocument {
   const retarget = (nodes: Node[]): Node[] =>
     nodes.map((node) => {
       let next: Node = node
-      if (next.link) next = { ...next, link: { target: map.get(next.link.target) ?? next.link.target } }
+      if (next.interactions) next = { ...next, interactions: next.interactions.map((i) => (i.action.type === 'navigate' ? { ...i, action: { ...i.action, target: map.get(i.action.target) ?? i.action.target } } : i)) }
       if (next.type === 'component' && (next.kind === 'bottomNav' || next.kind === 'tabs')) {
         const items = (next.props.items as { target?: string }[]).map((item) =>
           item.target === undefined ? item : { ...item, target: map.get(item.target) ?? item.target },
@@ -106,7 +107,7 @@ function construireExemple(): CalqueDocument {
     } as ComponentNode
   }
   const cibles = { accueil: accueilBase.id, formulaire: formulaireBase.id, details: detailsBase.id }
-  const link = (node: Node, target: string): Node => ({ ...node, link: { target } })
+  const link = (node: Node, target: string): Node => ({ ...node, interactions: [tapLink(target)] })
 
   // --- Accueil ---
   const drawer = within(make('drawer', {}, 'Tiroir') as FrameNode, [

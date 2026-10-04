@@ -3,6 +3,7 @@
 // « Scaffold » (barre d'application, barre de navigation basse, bouton
 // flottant, tiroir) et corps. Calcule une seule fois par document pour que
 // les quatre generateurs nomment et relient les ecrans de la meme facon.
+import { tapNavigation } from '@calque/core'
 import type { CalqueDocument, ComponentNode, FrameNode, Node, Page } from '@calque/core'
 import { createPageNamer } from './naming'
 
@@ -115,8 +116,9 @@ export function hasScaffoldParts(parts: ScreenParts): boolean {
 
 // Cible de navigation d'un noeud (clic), ou null.
 export function linkTargetOf(node: Node, plan: ExportPlan): ScreenRef | null {
-  if (node.link === undefined) return null
-  return plan.byId.get(node.link.target) ?? null
+  const nav = tapNavigation(node.interactions)
+  if (nav === null) return null
+  return plan.byId.get(nav.target) ?? null
 }
 
 // Entrees d'une barre (bottomNav / tabs) : cible resolue ou null.

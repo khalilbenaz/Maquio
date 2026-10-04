@@ -489,7 +489,7 @@ describe('FrameNode.device et NodeBase.link (v2, addendum navigation)', () => {
       fills: [],
       strokes: [],
       cornerRadius: 0,
-      ...(link ? { link } : {}),
+      ...(link ? { interactions: [{ trigger: { type: 'tap' }, action: { type: 'navigate', target: link.target }, transition: { type: 'push', durationMs: 300, easing: 'easeInOut' } }] } : {}),
     }
   }
 
@@ -540,7 +540,7 @@ describe('FrameNode.device et NodeBase.link (v2, addendum navigation)', () => {
   })
 
   it('refuse un ecran qui se lie a lui-meme directement (pas seulement un de ses descendants)', () => {
-    const auto = { ...screen('ecranA'), link: { target: 'ecranA' } }
+    const auto = { ...screen('ecranA'), interactions: [{ trigger: { type: 'tap' }, action: { type: 'navigate', target: 'ecranA' }, transition: { type: 'none' } }] } as FrameNode
     const doc = documentWith([auto, screen('ecranB')])
     expect(() => documentSchema.parse(doc)).toThrow()
   })

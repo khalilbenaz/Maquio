@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { tapLink } from '../model/interactions'
 import {
   findNode,
   findParent,
@@ -280,12 +281,12 @@ describe('cloneNodeWithNewIds (v2, addendum navigation)', () => {
 
   it('un ecran clone garde son device et son lien vers un noeud tiers, avec un nouvel id', () => {
     const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
-    const bouton = { ...leaf('bouton', 10, 10), link: { target: 'autre-ecran' } }
+    const bouton = { ...leaf('bouton', 10, 10), interactions: [tapLink('autre-ecran')] }
     const screen: FrameNode = { ...frame('ecran', 0, 0, [bouton]), device }
 
     const clone = cloneNodeWithNewIds(screen) as FrameNode
     expect(clone.device).toEqual(device)
     expect(clone.id).not.toBe('ecran')
-    expect(clone.children[0]!.link).toEqual({ target: 'autre-ecran' })
+    expect(clone.children[0]!.interactions).toEqual([tapLink('autre-ecran')])
   })
 })

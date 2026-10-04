@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createDocument } from '../model/document'
 import { createScreenNode } from '../model/screen'
+import { tapNavigation } from '../model/interactions'
 import { findNode, findParent, absoluteFrame, NodeNotFoundError, NotAFrameError } from '../tree/tree'
 import {
   PageNotFoundError,
@@ -185,7 +186,7 @@ describe('reparentNodeCommand', () => {
     const moved = reparentNodeCommand(pageId, 'bouton', ecranC.id, 0, { x: 20, y: 20, w: 10, h: 10 }).apply(d)
     const boutonDeplace = findNode(moved.pages[0]!.nodes, 'bouton')!
     expect(findParent(moved.pages[0]!.nodes, 'bouton')?.id).toBe(ecranC.id)
-    expect(boutonDeplace.link).toEqual({ target: ecranB.id })
+    expect(tapNavigation(boutonDeplace.interactions)?.target).toBe(ecranB.id)
   })
 })
 
@@ -537,7 +538,7 @@ describe('setLinkCommand / clearLinkCommand (v2, addendum navigation §3.2, §5)
   it('pose un lien valide vers un autre ecran de la page', () => {
     const { doc, pageId, ecranB } = docAvecDeuxEcrans()
     const linked = setLinkCommand(pageId, 'bouton', ecranB.id).apply(doc)
-    expect(findNode(linked.pages[0]!.nodes, 'bouton')?.link).toEqual({ target: ecranB.id })
+    expect(tapNavigation(findNode(linked.pages[0]!.nodes, 'bouton')?.interactions)?.target).toBe(ecranB.id)
   })
 
   it('un seul annuler retire le lien pose', () => {
@@ -545,7 +546,7 @@ describe('setLinkCommand / clearLinkCommand (v2, addendum navigation §3.2, §5)
     const cmd = setLinkCommand(pageId, 'bouton', ecranB.id)
     const linked = cmd.apply(doc)
     const back = cmd.invert(doc).apply(linked)
-    expect(findNode(back.pages[0]!.nodes, 'bouton')?.link).toBeUndefined()
+    expect(tapNavigation(findNode(back.pages[0]!.nodes, 'bouton')?.interactions)).toBeNull()
     expect(back).toEqual(doc)
   })
 
@@ -558,10 +559,10 @@ describe('setLinkCommand / clearLinkCommand (v2, addendum navigation §3.2, §5)
     const withC = createNodeCommand(pageId, null, ecranC).apply(first)
     const replaceValide = setLinkCommand(pageId, 'bouton', ecranC.id)
     const replaced = replaceValide.apply(withC)
-    expect(findNode(replaced.pages[0]!.nodes, 'bouton')?.link).toEqual({ target: ecranC.id })
+    expect(tapNavigation(findNode(replaced.pages[0]!.nodes, 'bouton')?.interactions)?.target).toBe(ecranC.id)
 
     const back = replaceValide.invert(withC).apply(replaced)
-    expect(findNode(back.pages[0]!.nodes, 'bouton')?.link).toEqual({ target: ecranB.id })
+    expect(tapNavigation(findNode(back.pages[0]!.nodes, 'bouton')?.interactions)?.target).toBe(ecranB.id)
   })
 
   it('refuse une cible qui n existe pas dans la page (LinkTargetNotFoundError)', () => {
@@ -585,10 +586,10 @@ describe('setLinkCommand / clearLinkCommand (v2, addendum navigation §3.2, §5)
 
     const cleared = clearLinkCommand(pageId, 'bouton').apply(linked)
     const node = findNode(cleared.pages[0]!.nodes, 'bouton')!
-    expect('link' in node).toBe(false)
+    expect('interactions' in node).toBe(false)
 
     const back = clearLinkCommand(pageId, 'bouton').invert(linked).apply(cleared)
-    expect(findNode(back.pages[0]!.nodes, 'bouton')?.link).toEqual({ target: ecranB.id })
+    expect(tapNavigation(findNode(back.pages[0]!.nodes, 'bouton')?.interactions)?.target).toBe(ecranB.id)
   })
 
   it('clearLinkCommand ne fait rien de visible sur un noeud sans lien (idempotent)', () => {
@@ -632,9 +633,9 @@ describe('deleteNodeCommand sur un ecran : cascade de liens (v2, addendum naviga
     const apres = deleteNodeCommand(pageId, cible).apply(doc)
 
     expect(findNode(apres.pages[0]!.nodes, cible)).toBeNull()
-    expect(findNode(apres.pages[0]!.nodes, 'btn1')?.link).toBeUndefined()
-    expect(findNode(apres.pages[0]!.nodes, 'btn2')?.link).toBeUndefined()
-    expect(findNode(apres.pages[0]!.nodes, 'btn3')?.link).toBeUndefined()
+    expect(findNode(apres.pages[0]!.nodes, 'btn1')?.interactions).toBeUndefined()
+    expect(findNode(apres.pages[0]!.nodes, 'btn2')?.interactions).toBeUndefined()
+    expect(findNode(apres.pages[0]!.nodes, 'btn3')?.interactions).toBeUndefined()
   })
 
   it('un seul annuler restaure l ecran ET ses trois liens', () => {
@@ -647,9 +648,9 @@ describe('deleteNodeCommand sur un ecran : cascade de liens (v2, addendum naviga
     const restaure = inverse.apply(apres)
 
     expect(findNode(restaure.pages[0]!.nodes, cible)).not.toBeNull()
-    expect(findNode(restaure.pages[0]!.nodes, 'btn1')?.link).toEqual({ target: cible })
-    expect(findNode(restaure.pages[0]!.nodes, 'btn2')?.link).toEqual({ target: cible })
-    expect(findNode(restaure.pages[0]!.nodes, 'btn3')?.link).toEqual({ target: cible })
+    expect(tapNavigation(findNode(restaure.pages[0]!.nodes, 'btn1')?.interactions)?.target).toBe(cible)
+    expect(tapNavigation(findNode(restaure.pages[0]!.nodes, 'btn2')?.interactions)?.target).toBe(cible)
+    expect(tapNavigation(findNode(restaure.pages[0]!.nodes, 'btn3')?.interactions)?.target).toBe(cible)
     expect(restaure).toEqual(doc)
   })
 

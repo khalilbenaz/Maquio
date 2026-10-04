@@ -7,6 +7,7 @@
 // branche de litteraux manquante) sans erreur. C'est schema.test.ts, qui
 // enumere explicitement chaque valeur attendue, qui detecte cette derive.
 import { z } from 'zod'
+import { interactionSchema } from './interactions'
 import { COMPONENT_KINDS, COMPONENT_PROPS_SCHEMAS, containerSpecSchema } from '../components/props'
 import type {
   CalqueDocument,
@@ -127,7 +128,7 @@ export const textStyleSchema: z.ZodType<TextStyle> = z
 // PAS etre verifies ici (un schema de noeud n'a pas de vue sur le reste du
 // document) : c'est pageSchema, plus bas, qui l'impose via superRefine, et
 // setLinkCommand qui l'impose cote commandes.
-const linkSchema: z.ZodType<{ target: string }> = z.object({ target: z.string() }).strict()
+const interactionsSchema = z.array(interactionSchema).max(8)
 
 const nodeBaseShape = {
   id: z.string(),
@@ -139,7 +140,7 @@ const nodeBaseShape = {
   // par les generateurs de code par plateforme).
   opacity: z.number().min(0).max(1),
   rotation: z.number(),
-  link: linkSchema.optional(),
+  interactions: interactionsSchema.optional(),
 } satisfies Record<keyof NodeBase, z.ZodTypeAny>
 
 // Deplace ici (avant frameNodeSchema, qui en a desormais besoin pour son
@@ -274,35 +275,51 @@ export const nodeSchema: z.ZodType<Node> = nodeUnionSchema.superRefine((node, ct
   }
 }) as unknown as z.ZodType<Node>
 
-// v2 (addendum navigation, §3.2) : verifie tout lien porte par un noeud de
-// cette page -- cible existante, de la meme page, differente de l'ecran qui
-// contient le noeud. Parcours ecrit a la main (pas tree.ts : model/ ne doit
-// dependre d'aucune couche superieure) ; `containingScreenId` suit l'ecran
-// de premier niveau (frame + `device`) sous lequel la recursion se trouve,
-// null tant qu'on n'en a pas encore traverse un (noeud de premier niveau
-// sans `device`, ou l'un de ses descendants).
-function checkLinks(page: Page, ctx: z.RefinementCtx): void {
+// Verifie les interactions de chaque noeud de cette page : cibles de
+// navigation (ecran existant de la page, jamais l'ecran qui contient le
+// noeud), cibles d'overlay (noeud du bon type), un seul declencheur de
+// chaque sorte, `afterDelay` reserve aux ecrans. Parcours ecrit a la main
+// (pas tree.ts : model/ ne depend d'aucune couche superieure).
+function checkInteractions(page: Page, ctx: z.RefinementCtx): void {
   const screenIds = new Set(
     page.nodes.filter((n): n is FrameNode => n.type === 'frame' && n.device !== undefined).map((n) => n.id),
   )
+  // Noeuds pouvant servir d'overlay, par type.
+  const overlays = { dialog: new Set<string>(), bottomSheet: new Set<string>(), snackbar: new Set<string>() }
+  const collect = (n: Node) => {
+    if (n.type === 'component' && n.kind === 'dialog') overlays.dialog.add(n.id)
+    if (n.type === 'component' && n.kind === 'snackbar') overlays.snackbar.add(n.id)
+    if (n.type === 'frame') {
+      if (n.container?.kind === 'bottomSheet') overlays.bottomSheet.add(n.id)
+      n.children.forEach(collect)
+    }
+  }
+  page.nodes.forEach(collect)
 
   function visit(node: Node, containingScreenId: string | null, path: (string | number)[]): void {
-    if (node.link !== undefined) {
-      const { target } = node.link
-      if (!screenIds.has(target)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: [...path, 'link', 'target'],
-          message: `Cible de lien invalide : "${target}" n'est pas un écran de cette page`,
-        })
-      } else if (target === containingScreenId) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: [...path, 'link', 'target'],
-          message: "Cible de lien invalide : un nœud ne peut pas être lié à l'écran qui le contient",
-        })
+    const isScreen = node.type === 'frame' && node.device !== undefined && path.length === 2
+    const seen = new Set<string>()
+    ;(node.interactions ?? []).forEach((it, i) => {
+      const at = [...path, 'interactions', i]
+      if (seen.has(it.trigger.type)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [...at, 'trigger'], message: `Interaction en double : un nœud n'a qu'un seul déclencheur « ${it.trigger.type} »` })
       }
-    }
+      seen.add(it.trigger.type)
+      if (it.trigger.type === 'afterDelay' && !isScreen) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [...at, 'trigger'], message: 'Le déclencheur « après un délai » est réservé aux écrans' })
+      }
+      if (it.action.type === 'navigate') {
+        const { target } = it.action
+        if (!screenIds.has(target)) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: [...at, 'action', 'target'], message: `Cible de lien invalide : "${target}" n'est pas un écran de cette page` })
+        } else if (target === containingScreenId) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: [...at, 'action', 'target'], message: "Cible de lien invalide : un nœud ne peut pas être lié à l'écran qui le contient" })
+        }
+      }
+      if (it.action.type === 'openOverlay' && !overlays[it.action.overlay].has(it.action.target)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [...at, 'action', 'target'], message: `Cible d'overlay invalide : "${it.action.target}" n'est pas un élément « ${it.action.overlay} » de cette page` })
+      }
+    })
     // v3 : les entrees d'une barre de navigation ou d'onglets portent leur
     // propre cible. Contrairement a un lien de noeud, une entree PEUT viser
     // l'ecran qui la contient (c'est l'onglet courant) : seule l'existence
@@ -338,7 +355,7 @@ const pageSchema: z.ZodType<Page> = z
     nodes: z.array(nodeSchema),
   })
   .strict()
-  .superRefine(checkLinks)
+  .superRefine(checkInteractions)
 
 const designTokensSchema: z.ZodType<DesignTokens> = z
   .object({

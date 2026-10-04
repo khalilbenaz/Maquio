@@ -3,7 +3,7 @@
 // res/drawable). Les sources sont des noms relatifs a `<document>.ressources/`
 // (voir `ressourcesImages`), deux fichiers de meme nom venant de dossiers
 // differents (`logo.png` relatif et `/tmp/autre/logo.png` absolu).
-import { DEVICE_PRESETS, PALETTE_ITEMS, createDocument, createScreenNode } from '@calque/core'
+import { DEVICE_PRESETS, tapLink, PALETTE_ITEMS, createDocument, createScreenNode } from '@calque/core'
 import type { CalqueDocument, ImageNode, Node } from '@calque/core'
 
 // PNG 1x1 valide.
@@ -30,7 +30,7 @@ export function documentProjetImages(absoluteLogo: string): CalqueDocument {
     bouton,
   ])
   const detail = createScreenNode('Détail', DEVICE_PRESETS.iphone15, { x: 500, y: 0, w: 393, h: 852 }, [image('Logo', 'logo.png', 20, 40)])
-  const lie = { ...bouton, link: { target: detail.id } } as Node
+  const lie = { ...bouton, interactions: [tapLink(detail.id)] } as Node
   accueil.children = accueil.children.map((c) => (c.id === bouton.id ? lie : c))
   return { ...d, pages: [{ ...d.pages[0]!, nodes: [accueil, detail] }] }
 }
