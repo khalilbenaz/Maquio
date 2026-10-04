@@ -13,8 +13,8 @@ import { createDocument, parseDocument, serializeDocument } from '@maquio/core'
 import type { MaquioApi } from '../shared/api'
 import { messageOfError } from '../shared/errors'
 import { useEditorStore } from './state/editorStore'
-import { LEFT_MAX, LEFT_MIN, RAIL_WIDTH, RIGHT_MAX, RIGHT_MIN, useUiPrefs } from './state/uiPrefsStore'
-import { CollapseButton, ICON_CLAUDE, ICON_INSPECTOR, ICON_LEFT, PanelRail } from './panels/PanelRail'
+import { LEFT_MAX, LEFT_MIN, RIGHT_MAX, RIGHT_MIN, useUiPrefs } from './state/uiPrefsStore'
+import { CollapseButton, SHORTCUT_INSPECTOR, SHORTCUT_LEFT } from './panels/PanelRail'
 import { useClaudeStatusStore } from './state/claudeStatusStore'
 import { Canvas } from './canvas/Canvas'
 import { LayersPanel } from './panels/LayersPanel'
@@ -42,12 +42,6 @@ import './App.css'
 // lui-meme n'en a aucun ; `Editeur`, qui en a, n'est jamais monte que
 // lorsque `api` existe).
 // Raccourcis affiches dans les infobulles (Cmd sur macOS, Ctrl ailleurs).
-const MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform)
-const MOD = MAC ? 'Cmd' : 'Ctrl'
-const ALT = MAC ? 'Option' : 'Alt'
-const SHORTCUT_LEFT = `${MOD}+${ALT}+1`
-const SHORTCUT_INSPECTOR = `${MOD}+${ALT}+2`
-const SHORTCUT_CLAUDE = `${MOD}+J`
 
 export function App() {
   const api = window.maquio
@@ -203,7 +197,6 @@ function Editeur({ api }: { api: MaquioApi }) {
   const leftCollapsed = useUiPrefs((s) => s.leftCollapsed)
   const inspectorCollapsed = useUiPrefs((s) => s.inspectorCollapsed)
   const claudeCollapsed = useUiPrefs((s) => s.claudeCollapsed)
-  const phaseClaude = useClaudeStatusStore((s) => s.phase)
   const leftHidden = focus || leftCollapsed
   const inspHidden = focus || inspectorCollapsed
   const claudeHidden = focus || claudeCollapsed
@@ -351,11 +344,8 @@ function Editeur({ api }: { api: MaquioApi }) {
           className="maquio-column-layers"
           data-testid="left-column"
           data-collapsed={leftHidden ? 'true' : 'false'}
-          style={{ width: focus ? 0 : leftCollapsed ? RAIL_WIDTH : leftWidth }}
+          style={{ width: focus ? 0 : leftCollapsed ? 0 : leftWidth }}
         >
-          {leftCollapsed && !focus ? (
-            <PanelRail side="left" testId="left-rail" items={[{ id: 'left', label: 'Déplier le panneau de gauche', shortcut: SHORTCUT_LEFT, icon: ICON_LEFT, onClick: () => useUiPrefs.getState().togglePanel('left') }]} />
-          ) : null}
           <div className="panel-content" inert={leftHidden} aria-hidden={leftHidden} data-testid="left-panel">
             <div className="maquio-left-tabs" role="tablist" aria-label="Panneau de gauche">
               {(['calques', 'composants'] as const).map((onglet) => (
@@ -399,29 +389,8 @@ function Editeur({ api }: { api: MaquioApi }) {
           className="maquio-column-right"
           data-testid="right-column"
           data-collapsed={colonneDroiteReduite ? 'true' : 'false'}
-          style={{ width: focus ? 0 : colonneDroiteReduite ? RAIL_WIDTH : rightWidth }}
+          style={{ width: focus ? 0 : colonneDroiteReduite ? 0 : rightWidth }}
         >
-          {colonneDroiteReduite && !focus ? (
-            <PanelRail
-              side="right"
-              testId="right-rail"
-              items={[
-                { id: 'inspector', label: "Déplier l'inspecteur", shortcut: SHORTCUT_INSPECTOR, icon: ICON_INSPECTOR, onClick: () => useUiPrefs.getState().togglePanel('inspector') },
-                {
-                  id: 'claude',
-                  label: 'Déplier le panneau Claude',
-                  shortcut: SHORTCUT_CLAUDE,
-                  icon: ICON_CLAUDE,
-                  onClick: () => {
-                    useUiPrefs.getState().togglePanel('claude')
-                    const st = useClaudeStatusStore.getState()
-                    if (st.phase === 'done' || st.phase === 'error') st.setPhase('idle')
-                  },
-                  badge: phaseClaude !== 'idle' ? <span data-testid="claude-badge" data-phase={phaseClaude} role="status" aria-label={phaseClaude === 'loading' ? 'Claude travaille' : phaseClaude === 'done' ? 'Claude a terminé' : 'Claude a échoué'} className={`claude-badge claude-badge-${phaseClaude}`} /> : undefined,
-                },
-              ]}
-            />
-          ) : null}
           <div className={colonneDroiteReduite ? 'panel-content panel-content-hidden' : 'panel-content'} inert={colonneDroiteReduite} aria-hidden={colonneDroiteReduite}>
             {!colonneDroiteReduite ? (
               <div
@@ -440,19 +409,13 @@ function Editeur({ api }: { api: MaquioApi }) {
                 onKeyDown={(e) => clavierRedimensionnement(e, 'right')}
               />
             ) : null}
-            <div className={inspHidden ? 'inspector-shell inspector-shell-collapsed' : 'inspector-shell'}>
+            <div className="inspector-shell" hidden={inspHidden} inert={inspHidden} aria-hidden={inspHidden} data-testid="inspector-panel">
               <div className="panel-header">
                 <span className="panel-header-title">Inspecteur</span>
                 <span className="panel-header-spacer" />
-                {inspHidden ? (
-                  <button type="button" className="panel-collapse" aria-label="Déplier l'inspecteur" title={`Déplier l'inspecteur (${SHORTCUT_INSPECTOR})`} onClick={() => useUiPrefs.getState().togglePanel('inspector')}>
-                    ▾
-                  </button>
-                ) : (
-                  <CollapseButton label="Replier l'inspecteur" shortcut={SHORTCUT_INSPECTOR} direction="right" onClick={() => useUiPrefs.getState().togglePanel('inspector')} />
-                )}
+                <CollapseButton label="Replier l'inspecteur" shortcut={SHORTCUT_INSPECTOR} direction="right" onClick={() => useUiPrefs.getState().togglePanel('inspector')} />
               </div>
-              <div className="panel-content" inert={inspHidden} aria-hidden={inspHidden} hidden={inspHidden} data-testid="inspector-panel">
+              <div className="panel-content">
                 <InspectorPanel api={api} />
               </div>
             </div>

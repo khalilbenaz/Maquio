@@ -18,6 +18,7 @@ import type { MaquioDocument, Command } from '@maquio/core'
 import { useEditorStore } from '../state/editorStore'
 import { useClaudeStatusStore } from '../state/claudeStatusStore'
 import { useUiPrefs } from '../state/uiPrefsStore'
+import { CollapseButton, SHORTCUT_CLAUDE } from './PanelRail'
 import type { MaquioApi } from '../../shared/api'
 import { translateUnknownError, messageOfError } from '../../shared/errors'
 import './ClaudePanel.css'
@@ -168,39 +169,19 @@ export function ClaudePanel({ api, onOpenSettings }: { api: MaquioApi; onOpenSet
   return (
     <section
       aria-label="Assistant Claude Code"
-      className={replie ? 'claude-panel claude-panel-collapsed' : 'claude-panel'}
+      className="claude-panel"
+      hidden={replie}
+      inert={replie}
     >
       <div className="claude-panel-header">
-        {replie ? (
-          <button type="button" className="claude-panel-bar" aria-label="Déplier le panneau Claude" aria-expanded={false} title="Déplier Claude (Cmd/Ctrl+J)" onClick={deplier}>
-            <span className={disponible ? 'claude-panel-dot claude-panel-dot-on' : 'claude-panel-dot claude-panel-dot-off'} />
-            <span className="claude-panel-title">Claude Code</span>
-            {phase !== 'idle' ? (
-              <span
-                data-testid="claude-badge"
-                data-phase={phase}
-                role="status"
-                aria-label={phase === 'loading' ? 'Claude travaille' : phase === 'done' ? 'Claude a terminé' : 'Claude a échoué'}
-                className={`claude-badge claude-badge-${phase}`}
-              />
-            ) : null}
-            <span className="claude-panel-header-spacer" />
-            <span aria-hidden="true">▴</span>
-          </button>
-        ) : (
-          <>
-            <span className={disponible ? 'claude-panel-dot claude-panel-dot-on' : 'claude-panel-dot claude-panel-dot-off'} />
-            <span className="claude-panel-title">Claude Code</span>
-            <span className="claude-panel-header-spacer" />
-            <span className="claude-panel-status">{disponible ? 'connecté' : 'non connecté'}</span>
-            <button type="button" className="claude-panel-fold" aria-label="Replier le panneau Claude" aria-expanded={true} title="Replier Claude (Cmd/Ctrl+J)" onClick={deplier}>
-              ▾
-            </button>
-          </>
-        )}
+        <span className={disponible ? 'claude-panel-dot claude-panel-dot-on' : 'claude-panel-dot claude-panel-dot-off'} />
+        <span className="claude-panel-title">Claude Code</span>
+        <span className="claude-panel-header-spacer" />
+        <span className="claude-panel-status">{disponible ? 'connecté' : 'non connecté'}</span>
+        <CollapseButton label="Replier le panneau Claude" shortcut={SHORTCUT_CLAUDE} direction="right" onClick={deplier} />
       </div>
 
-      <div className="claude-panel-body" hidden={replie}>
+      <div className="claude-panel-body">
         {!disponible ? (
           <>
             <p role="alert" className="claude-panel-alert">

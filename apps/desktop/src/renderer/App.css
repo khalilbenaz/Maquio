@@ -219,7 +219,15 @@
 /* --- Panneaux repliables ----------------------------------------------- */
 .maquio-column-layers,
 .maquio-column-right {
-  transition: width 160ms ease;
+  transition: width 160ms ease, opacity 160ms ease, visibility 0s linear 0s;
+}
+/* Replie : plus rien sur le bord. La largeur et l'opacite s'estompent, puis la colonne devient invisible. */
+.maquio-column-layers[data-collapsed='true'],
+.maquio-column-right[data-collapsed='true'] {
+  opacity: 0;
+  visibility: hidden;
+  border: 0;
+  transition: width 160ms ease, opacity 160ms ease, visibility 0s linear 160ms;
 }
 .maquio-resizing .maquio-column-layers,
 .maquio-resizing .maquio-column-right {
@@ -234,9 +242,6 @@
 
 .maquio-column-layers {
   min-width: 0;
-}
-.maquio-column-layers[data-collapsed='true'] > .panel-content {
-  display: none;
 }
 .maquio-body[data-focus='true'] .maquio-column-layers,
 .maquio-body[data-focus='true'] .maquio-column-right {
@@ -257,44 +262,6 @@
 }
 .maquio-column-right {
   overflow: visible;
-}
-.maquio-column-right[data-collapsed='true'] {
-  overflow: hidden;
-}
-
-.panel-rail {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 0;
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-  background: var(--maquio-chrome-bg);
-}
-.panel-rail-button {
-  position: relative;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--maquio-text-muted);
-  cursor: pointer;
-  padding: 0;
-}
-.panel-rail-button:hover {
-  background: var(--maquio-border);
-  color: var(--maquio-text);
-}
-.panel-rail-button .claude-badge {
-  position: absolute;
-  top: 2px;
-  right: 2px;
 }
 
 .panel-collapse {
@@ -344,8 +311,9 @@
   flex: 1 1 0;
   min-height: 0;
 }
-.inspector-shell-collapsed {
-  flex: 0 0 auto;
+.inspector-shell[hidden],
+.claude-panel[hidden] {
+  display: none !important;
 }
 
 .maquio-left-resizer {

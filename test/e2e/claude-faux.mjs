@@ -97,7 +97,7 @@ check('claude : le panneau est de nouveau utilisable apres l annulation', await 
 // 7. pastille repliee
 await regler(faux.ok)
 await demander('x'); await win.getByRole('button', { name: 'Replier le panneau Claude' }).click()
-await win.getByTestId('claude-badge').waitFor({ timeout: 20000 })
+await win.getByTestId('claude-badge').waitFor({ timeout: 20000 }) // pastille sur la bascule Claude de la barre d outils
 await pause(600)
 check('claude : panneau replie, la pastille de resultat s affiche a la fin', (await win.getByTestId('claude-badge').getAttribute('data-phase')) === 'done')
 await t.fin()

@@ -1,36 +1,14 @@
-// Fine barre d'un panneau replie, sur son bord : une icone par panneau
-// replie, avec infobulle ; un clic rouvre le panneau.
-import type { ReactNode } from 'react'
+// Icones des panneaux, raccourcis et bouton de repli de l'en-tete d'un panneau
+// OUVERT. Un panneau replie ne laisse rien sur le bord de la fenetre : on le
+// rouvre depuis le groupe d'icones de la barre d'outils (PanelToggles) ou au
+// clavier.
 
-export type RailItem = {
-  id: string
-  label: string
-  shortcut: string
-  icon: ReactNode
-  onClick: () => void
-  // Pastille d'activite / de resultat (panneau Claude).
-  badge?: ReactNode
-}
-
-export function PanelRail({ items, side, testId }: { items: RailItem[]; side: 'left' | 'right'; testId: string }) {
-  return (
-    <div className={`panel-rail panel-rail-${side}`} data-testid={testId}>
-      {items.map((item) => (
-        <button
-          key={item.id}
-          type="button"
-          className="panel-rail-button"
-          aria-label={item.label}
-          title={`${item.label} (${item.shortcut})`}
-          onClick={item.onClick}
-        >
-          {item.icon}
-          {item.badge}
-        </button>
-      ))}
-    </div>
-  )
-}
+const MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform)
+const MOD = MAC ? 'Cmd' : 'Ctrl'
+const ALT = MAC ? 'Option' : 'Alt'
+export const SHORTCUT_LEFT = `${MOD}+${ALT}+1`
+export const SHORTCUT_INSPECTOR = `${MOD}+${ALT}+2`
+export const SHORTCUT_CLAUDE = `${MOD}+J`
 
 const svg = { width: 18, height: 18, viewBox: '0 0 18 18', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round' } as const
 
