@@ -19,6 +19,8 @@ const NOMS_CIBLES: Record<ExporterId, string> = {
   'react-native': 'React Native',
   swiftui: 'SwiftUI',
   compose: 'Jetpack Compose',
+  svg: 'SVG (un fichier par écran)',
+  figma: 'Figma (plugin Import Calque)',
 }
 
 function CloseIcon() {

@@ -179,3 +179,41 @@ describe('export : copie des images locales', () => {
     expect(out!.warnings.some((w) => w.includes('absente.png'))).toBe(true)
   })
 })
+
+describe('export SVG et Figma : contenu des images embarque', () => {
+  it('lit l image (memes regles de securite que la copie) et l embarque', async () => {
+    const { createDocument, createScreenNode, DEVICE_PRESETS } = await import('@calque/core')
+    const d = createDocument('Doc')
+    const image = { id: 'i', name: 'i', type: 'image' as const, frame: { x: 0, y: 0, w: 10, h: 10 }, visible: true, locked: false, opacity: 1, rotation: 0, src: 'logo.png', fit: 'cover' as const }
+    const ecran = createScreenNode('Accueil', DEVICE_PRESETS.iphone15, { x: 0, y: 0, w: 393, h: 852 }, [image])
+    const json = serializeDocument({ ...d, pages: [{ ...d.pages[0]!, nodes: [ecran] }] })
+    const written: Record<string, string> = {}
+    const readBinary = vi.fn(async () => Uint8Array.from([1, 2, 3]))
+    const handler = createExportHandler({
+      writeFile: async (p, c) => { written[p] = c },
+      mkdir: async () => {},
+      chooseDirectory: async () => '/out',
+      pathExists: async (p) => p.includes('.ressources'),
+      readBinary,
+    })
+    const out = await handler({ exporterId: 'svg', json, projectName: 'demo', documentPath: '/docs/mon.calque' })
+    expect(readBinary).toHaveBeenCalledWith('/docs/mon.ressources/logo.png')
+    expect(out!.files).toEqual(['svg/accueil.svg'])
+    expect(written['/out/svg/accueil.svg']).toContain('data:image/png;base64,AQID')
+    const fig = await handler({ exporterId: 'figma', json, projectName: 'demo', documentPath: '/docs/mon.calque' })
+    expect(fig!.files).toEqual(['demo.figma.json'])
+    expect(JSON.parse(written['/out/demo.figma.json']!).images['logo.png'].data).toBe('AQID')
+  })
+  it('un chemin hors des ressources n est jamais lu', async () => {
+    const { createDocument, createScreenNode, DEVICE_PRESETS } = await import('@calque/core')
+    const d = createDocument('Doc')
+    const image = { id: 'i', name: 'i', type: 'image' as const, frame: { x: 0, y: 0, w: 10, h: 10 }, visible: true, locked: false, opacity: 1, rotation: 0, src: '../../etc/secret.png', fit: 'cover' as const }
+    const ecran = createScreenNode('A', DEVICE_PRESETS.iphone15, { x: 0, y: 0, w: 393, h: 852 }, [image])
+    const readBinary = vi.fn(async () => Uint8Array.from([1]))
+    const out = await createExportHandler({ writeFile: async () => {}, mkdir: async () => {}, chooseDirectory: async () => '/out', pathExists: async () => false, readBinary })({
+      exporterId: 'svg', json: serializeDocument({ ...d, pages: [{ ...d.pages[0]!, nodes: [ecran] }] }), projectName: 'demo', documentPath: '/docs/mon.calque',
+    })
+    expect(readBinary).not.toHaveBeenCalled()
+    expect(out!.warnings.some((w) => w.includes('secret.png'))).toBe(true)
+  })
+})

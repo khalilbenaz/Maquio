@@ -1,3 +1,7 @@
 export * from './types'
 export * from './registry'
 export * from './flutter/flutter'
+export { buildFigmaBundle, FIGMA_BUNDLE_FORMAT, FIGMA_BUNDLE_VERSION } from './figma/figma'
+export type { FigmaBundle } from './figma/figma'
+export { localImageSources } from './shared/image-data'
+export { screenToSvg } from './svg/svg'

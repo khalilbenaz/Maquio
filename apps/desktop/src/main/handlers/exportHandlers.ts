@@ -10,7 +10,7 @@
 // ecrit : chooseDirectory/confirmOverwrite sont toujours resolus avant le
 // premier appel a writeFile.
 import { basename, dirname, extname, isAbsolute, join, relative, sep } from 'node:path'
-import { getExporter } from '@calque/codegen'
+import { getExporter, localImageSources } from '@calque/codegen'
 import type { ExporterId, ExportResult } from '@calque/codegen'
 import { DocumentVersionError, parseDocument } from '@calque/core'
 import { translateUnknownError } from '../../shared/errors'
@@ -60,6 +60,8 @@ export function createExportHandler(deps: {
   confirmOverwrite?: (existingFiles: string[]) => Promise<boolean>
   // Copie des images locales dans le projet exporte.
   copyFile?: (source: string, dest: string) => Promise<void>
+  // Lecture binaire (SVG et Figma embarquent le contenu des images).
+  readBinary?: (path: string) => Promise<Uint8Array>
   isApprovedImagePath?: (path: string) => boolean
 }) {
   return async (input: {
@@ -78,12 +80,33 @@ export function createExportHandler(deps: {
       throw translateExportError(err)
     }
 
+    // Sorties autonomes (SVG, Figma) : le contenu des images est lu ICI, avec
+    // les memes regles de securite que la copie (jamais hors des ressources).
+    const preloaded = new Map<string, Uint8Array>()
+    if ((input.exporterId === 'svg' || input.exporterId === 'figma') && deps.readBinary !== undefined) {
+      for (const src of localImageSources(document)) {
+        const resolved = resolveAssetSource(src, input.documentPath ?? null, deps.isApprovedImagePath ?? (() => false))
+        if ('reason' in resolved || !(await deps.pathExists(resolved.path))) {
+          continue
+        }
+        try {
+          preloaded.set(src, await deps.readBinary(resolved.path))
+        } catch {
+          // illisible : l'exportateur le signalera (image introuvable)
+        }
+      }
+    }
+
     let result: ExportResult
     try {
       // L'ecran actif choisit l'ecran de DEPART de la navigation generee
       // (tous les ecrans sont exportes) -- sans effet sur un document sans
       // ecran (v1 non migre).
-      result = exporter.export(document, { projectName: input.projectName, activeScreenId: input.activeScreenId })
+      result = exporter.export(document, {
+        projectName: input.projectName,
+        activeScreenId: input.activeScreenId,
+        loadImage: (src) => preloaded.get(src) ?? null,
+      })
     } catch (err) {
       throw translateExportError(err)
     }

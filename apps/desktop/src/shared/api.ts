@@ -12,7 +12,7 @@
 // Aucun nom de canal ne doit etre ecrit en dur ailleurs dans le code.
 
 // Duplique de @calque/codegen (ExporterId), voir la note ci-dessus.
-export type ExporterId = 'flutter' | 'react-native' | 'swiftui' | 'compose'
+export type ExporterId = 'flutter' | 'react-native' | 'swiftui' | 'compose' | 'svg' | 'figma'
 
 // Duplique de @calque/codegen (Exporter, prive de sa methode export() qui
 // ne traverserait pas l'IPC) : ce que listExporters() rend au renderer

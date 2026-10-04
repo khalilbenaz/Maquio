@@ -216,6 +216,7 @@ function enregistrerLesGestionnaires(): void {
       pathExists,
       confirmOverwrite: confirmOverwrite(win),
       copyFile: (source, dest) => copyFile(source, dest),
+      readBinary: (p) => readFile(p),
       isApprovedImagePath: (p) => cheminsImagesApprouves.has(p),
     })(input)
   })
