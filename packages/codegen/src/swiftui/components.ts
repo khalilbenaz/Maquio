@@ -10,7 +10,7 @@ import { ICONS } from '@calque/core'
 import { formatNumber } from '../shared/format-number'
 import { pad } from '../shared/indent'
 import { isRemoteUrl } from '../shared/node-helpers'
-import { itemTargets, linkTargetOf } from '../shared/screens'
+import { itemTargets } from '../shared/screens'
 import type { ExportPlan, ScreenRef } from '../shared/screens'
 import { colorTokenComment, swiftColorExpr, swiftString } from './swift-utils'
 
@@ -38,6 +38,8 @@ export type SwiftEnvCtx = {
   presentations: string[][]
   // `navigator` est reference.
   markNavigator(): void
+  // Expressions Swift des interactions d'un noeud (null : aucune).
+  act(node: import('@calque/core').Node): { tap: string | null; longPress: string | null }
   nextIndex(): number
   // Rend les enfants d'un conteneur (callback du moteur principal).
   renderChildren(children: ComponentNodeChildren, depth: number): string[]
@@ -66,8 +68,8 @@ export function goExpr(env: SwEnv, ref: ScreenRef): string {
   return `navigator.go(.${routeCase(ref)})`
 }
 
-function action(env: SwEnv, ref: ScreenRef | null): string {
-  return ref === null ? '{}' : `{ ${goExpr(env, ref)} }`
+function action(_env: SwEnv, expr: string | null): string {
+  return expr === null ? '{}' : `{ ${expr} }`
 }
 
 function epochSeconds(value: string): number {
@@ -85,7 +87,7 @@ export function renderSwiftComponent(node: ComponentNode, env: SwEnv, depth: num
 }
 
 function renderBare(node: ComponentNode, env: SwEnv, depth: number): string[] {
-  const link = linkTargetOf(node, env.ctx.plan)
+  const link = env.ctx.act(node).tap
   const p0 = pad(depth)
   const p1 = pad(depth + 1)
   const p2 = pad(depth + 2)
