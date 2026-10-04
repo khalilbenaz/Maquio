@@ -15,7 +15,7 @@ import { app, BrowserWindow, ipcMain, Menu, safeStorage } from 'electron'
 import { AiService, ProcessClaudeRunner } from '@calque/ai'
 import { FigmaClient } from '@calque/figma'
 import { listExporters } from '@calque/codegen'
-import { creerFenetrePrincipale } from './window'
+import { cheminIcone, creerFenetrePrincipale } from './window'
 import { isTrustedSender, UntrustedSenderError } from './security'
 import { nodeSpawn } from './adapters/nodeSpawn'
 import { nodeFetch } from './adapters/nodeFetch'
@@ -339,6 +339,9 @@ async function demarrer(): Promise<void> {
       pathExists,
     },
   })
+
+  // Dock macOS (en developpement, l'application n'a pas d'icone d'empaquetage).
+  if (process.platform === 'darwin') app.dock?.setIcon(cheminIcone())
 
   enregistrerLesGestionnaires()
   Menu.setApplicationMenu(construireLeMenu())

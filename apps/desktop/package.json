@@ -22,7 +22,19 @@
       "dist/**/*"
     ],
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "build"
+    },
+    "mac": {
+      "icon": "build/icon.icns",
+      "category": "public.app-category.developer-tools"
+    },
+    "win": {
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "category": "Development"
     }
   },
   "dependencies": {
