@@ -42,7 +42,12 @@ import { createUniqueIdentifierNamer } from '../shared/identifier'
 import { planAssets } from '../shared/assets'
 import type { AssetTarget } from '../shared/assets'
 import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
-import { linkTargetOf, planExport, splitScreen } from '../shared/screens'
+import { planExport, splitScreen } from '../shared/screens'
+import { interactionFor, isNativeTransition } from '../shared/interactions'
+import type { RInteraction } from '../shared/interactions'
+import { OVERLAY_STATE, TRANSITIONS_TS, easingWarning, modalAnimation, transitionParams } from './interactions'
+import type { OverlayUse } from './interactions'
+import { M3 } from './components'
 import type { ExportPlan, ScreenParts } from '../shared/screens'
 import { renderRnComponent } from './components'
 import type { RnCtx, RnEnv } from './components'
@@ -67,6 +72,10 @@ type RenderContext = {
   // Etat local du tiroir de l'ecran (`setDrawerOpen`), ou null.
   openDrawer: string | null
   usesNavigationParam: boolean
+  // Overlays (dialogue, feuille basse, snackbar) ouvertes par une interaction de cet ecran.
+  overlayUses: Map<string, OverlayUse>
+  // Etat partage de l'export (transitions personnalisees utilisees...).
+  shared: { usesTransitions: boolean }
   // Correction Critical 1 : une seule instance par page, partagee par tous
   // les noeuds ET par la cle de repli 'root' du multi-racine (voir plus
   // bas) -- c'est ce qui garantit l'unicite des cles de style meme quand
@@ -235,9 +244,43 @@ function withNodeEffects(node: Node, props: StyleProp[], absolutePos: { x: numbe
   return out
 }
 
-function navCall(ctx: RenderContext, targetPascal: string): string {
-  ctx.usesNavigationParam = true
-  return `() => navigation.navigate(${jsString(targetPascal)})`
+// Expression JS d'une interaction (corps d'un gestionnaire).
+function rnAction(ri: RInteraction, ctx: RenderContext): string {
+  const a = ri.action
+  switch (a.type) {
+    case 'navigate': {
+      ctx.usesNavigationParam = true
+      if (isNativeTransition(ri.transition)) return `navigation.navigate(${jsString(a.screen.pascal)})`
+      ctx.shared.usesTransitions = true
+      const t = ri.transition
+      if (t.type !== 'none' && t.easing !== 'easeInOut') {
+        const w = easingWarning(t.easing)
+        if (!ctx.warnings.includes(w)) ctx.warnings.push(w)
+      }
+      return `navigation.navigate(${jsString(a.screen.pascal)}, ${transitionParams(t)})`
+    }
+    case 'back':
+      ctx.usesNavigationParam = true
+      return 'navigation.goBack()'
+    case 'closeOverlay':
+      return 'setOverlay(null)'
+    case 'openOverlay': {
+      ctx.overlayUses.set(a.overlay.id, { ref: a.overlay, transition: ri.transition })
+      ctx.extraImports.add("import { useState } from 'react';")
+      if (!ctx.hooks.includes(OVERLAY_STATE)) ctx.hooks.unshift(OVERLAY_STATE)
+      return `setOverlay(${jsString(a.overlay.name)})`
+    }
+    case 'openUrl':
+      ctx.usedComponents.add('Linking')
+      return `Linking.openURL(${jsString(a.url)})`
+  }
+}
+
+// Attributs JSX ` onPress={() => ...} onLongPress={() => ...}` d'un noeud, ou ''.
+function pressAttrs(node: Node, ctx: RenderContext): string {
+  const tap = interactionFor(node, ctx.plan, 'tap')
+  const long = interactionFor(node, ctx.plan, 'longPress')
+  return `${tap === null ? '' : ` onPress={() => ${rnAction(tap, ctx)}}`}${long === null ? '' : ` onLongPress={() => ${rnAction(long, ctx)}}`}`
 }
 
 // Conteneur semantique d'une frame : le composant natif correspondant.
@@ -251,8 +294,8 @@ function renderContainer(
   const pad = '  '.repeat(depth)
   const at = (d: number) => '  '.repeat(depth + d)
   const key = ctx.styleKey(frame.id)
-  const link = linkTargetOf(frame, ctx.plan)
-  const onPress = link === null ? '' : ` onPress={${navCall(ctx, link.pascal)}}`
+  const onPress = pressAttrs(frame, ctx)
+  const link = onPress === '' ? null : onPress
   const push = (k: string, props: StyleProp[]) => ctx.styles.push({ key: k, props })
   const isAbsolute = frame.layout.mode === 'absolute'
   const flow = (children: Node[], d: number, interleave: string[] | null = null): string[] => {
@@ -353,17 +396,19 @@ function renderNode(
   inFlow = false,
 ): string[] | null {
   if (!node.visible) return null
+  // Une overlay ouverte par une interaction est un gabarit : rendue a la demande, pas en place.
+  if (ctx.plan.overlays.has(node.id)) return null
 
   if (node.type === 'component') {
-    const env: RnEnv = { ctx: rnCtx(ctx), plan: ctx.plan, inFlex: inFlow, openDrawer: ctx.openDrawer }
+    const env: RnEnv = { ctx: rnCtx(ctx), plan: ctx.plan, inFlex: inFlow, openDrawer: ctx.openDrawer, press: (n) => pressAttrs(n, ctx) }
     return renderRnComponent(node, env, depth, absolutePos)
   }
   if (node.type === 'frame' && node.container !== undefined) {
     return renderContainer(node, ctx, depth, absolutePos)
   }
 
-  const link = linkTargetOf(node, ctx.plan)
-  const onPress = link === null ? '' : ` onPress={${navCall(ctx, link.pascal)}}`
+  const onPress = pressAttrs(node, ctx)
+  const link = onPress === '' ? null : onPress
   const viewTag = link === null ? 'View' : 'Pressable'
   let ownProps: StyleProp[]
 
@@ -493,7 +538,7 @@ function renderStylesBlock(ctx: RenderContext): string[] {
   return lines
 }
 
-function newContext(tokens: DesignTokens, warnings: string[], plan: ExportPlan): RenderContext {
+function newContext(tokens: DesignTokens, warnings: string[], plan: ExportPlan, shared: RenderContext['shared']): RenderContext {
   return {
     tokens,
     warnings,
@@ -505,6 +550,8 @@ function newContext(tokens: DesignTokens, warnings: string[], plan: ExportPlan):
     plan,
     openDrawer: null,
     usesNavigationParam: false,
+    overlayUses: new Map(),
+    shared,
     styleKey: createUniqueIdentifierNamer('node'),
   }
 }
@@ -546,8 +593,8 @@ function assembleFile(
   return { path: `src/screens/${componentName}.tsx`, contents: lines.join('\n') }
 }
 
-function renderPage(page: Page, tokens: DesignTokens, warnings: string[], componentName: string, plan: ExportPlan): ExportedFile {
-  const ctx = newContext(tokens, warnings, plan)
+function renderPage(page: Page, tokens: DesignTokens, warnings: string[], componentName: string, plan: ExportPlan, shared: RenderContext['shared']): ExportedFile {
+  const ctx = newContext(tokens, warnings, plan, shared)
 
   const topLevel = page.nodes.map((n) => renderNode(n, ctx, 2, null)).filter((l): l is string[] => l !== null)
 
@@ -576,8 +623,8 @@ function renderPage(page: Page, tokens: DesignTokens, warnings: string[], compon
 // Un ecran : racine plein ecran, barre d'application en haut, corps, barre
 // de navigation basse, bouton flottant et tiroir (etat local) en
 // superposition. C'est l'equivalent React Native d'un Scaffold.
-function renderScreen(screen: FrameNode, tokens: DesignTokens, warnings: string[], ref: { pascal: string }, plan: ExportPlan): ExportedFile {
-  const ctx = newContext(tokens, warnings, plan)
+function renderScreen(screen: FrameNode, tokens: DesignTokens, warnings: string[], ref: { pascal: string }, plan: ExportPlan, shared: RenderContext['shared']): ExportedFile {
+  const ctx = newContext(tokens, warnings, plan, shared)
   const parts: ScreenParts = splitScreen(screen)
   ctx.usedComponents.add('View')
 
@@ -620,20 +667,165 @@ function renderScreen(screen: FrameNode, tokens: DesignTokens, warnings: string[
       '      ) : null}',
     )
   }
+  // « Apres un delai » : minuteur arme a l'affichage de l'ecran.
+  const delay = screen.interactions?.find((i) => i.trigger.type === 'afterDelay')
+  const delayAction = interactionFor(screen, plan, 'afterDelay')
+  if (delay !== undefined && delay.trigger.type === 'afterDelay' && delayAction !== null) {
+    ctx.extraImports.add("import { useEffect } from 'react';")
+    const body = rnAction(delayAction, ctx)
+    ctx.hooks.push('useEffect(() => {', `  const timer = setTimeout(() => ${body}, ${delay.trigger.ms});`, '  return () => clearTimeout(timer);', '}, [navigation]);')
+  }
+  lines.push(...renderOverlays(ctx, 3))
   lines.push('    </View>')
 
   return assembleFile(ctx, ref.pascal, lines, { routeName: ref.pascal })
 }
 
-function generateNavigation(plan: ExportPlan): ExportedFile {
-  const lines = ['export type RootStackParamList = {', ...plan.screens.map((s) => `  ${s.pascal}: undefined;`), '};', '']
+// Overlays ouvertes par les interactions de l'ecran : un gabarit rendu a la
+// demande (etat `overlay`). Traiter une overlay peut en reveler une autre.
+function renderOverlays(ctx: RenderContext, depth: number): string[] {
+  const out: string[] = []
+  const done = new Set<string>()
+  for (let guard = 0; guard < 50; guard += 1) {
+    const next = [...ctx.overlayUses.values()].find((u) => !done.has(u.ref.id))
+    if (next === undefined) break
+    done.add(next.ref.id)
+    out.push(...renderOverlay(next, ctx, depth))
+  }
+  return out
+}
+
+function renderOverlay(use: OverlayUse, ctx: RenderContext, depth: number): string[] {
+  const { ref, transition } = use
+  const node = ref.node
+  const pad = '  '.repeat(depth)
+  const at = (d: number) => '  '.repeat(depth + d)
+  const k = (s: string) => ctx.styleKey(`${node.id}-ov-${s}`)
+  const visible = `overlay === ${jsString(ref.name)}`
+  const close = 'setOverlay(null)'
+  const anim = modalAnimation(transition)
+  const scrim: StyleProp[] = [['flex', '1'], ['backgroundColor', jsString('#00000052')]]
+
+  if (ref.kind === 'dialog' && node.type === 'component' && node.kind === 'dialog') {
+    const p = node.props
+    ctx.usedComponents.add('Modal')
+    ctx.usedComponents.add('View')
+    ctx.usedComponents.add('Text')
+    ctx.usedComponents.add('Pressable')
+    const overlayKey = k('overlay')
+    const boxKey = k('box')
+    const titleKey = k('title')
+    const messageKey = k('message')
+    const actionsKey = k('actions')
+    const actionKey = k('action')
+    ctx.styles.push(
+      { key: overlayKey, props: [...scrim, ['alignItems', jsString('center')], ['justifyContent', jsString('center')]] },
+      { key: boxKey, props: [['width', formatNumber(node.frame.w)], ['backgroundColor', jsString(M3.surfaceContainer)], ['borderRadius', '28'], ['padding', '24'], ['gap', '16']] },
+      { key: titleKey, props: [['color', jsString(M3.onSurface)], ['fontSize', '24']] },
+      { key: messageKey, props: [['color', jsString(M3.onSurfaceVariant)], ['fontSize', '14']] },
+      { key: actionsKey, props: [['flexDirection', jsString('row')], ['justifyContent', jsString('flex-end')], ['gap', '8']] },
+      { key: actionKey, props: [['color', jsString(M3.primary)], ['fontSize', '14'], ['fontWeight', jsString('500')], ['padding', '10']] },
+    )
+    const lines = [
+      `${pad}<Modal transparent animationType="${anim}" visible={${visible}} onRequestClose={() => ${close}}>`,
+      `${at(1)}<View style={styles.${overlayKey}}>`,
+      `${at(2)}<View style={styles.${boxKey}}>`,
+      `${at(3)}<Text style={styles.${titleKey}}>{${jsString(p.title)}}</Text>`,
+      `${at(3)}<Text style={styles.${messageKey}}>{${jsString(p.message)}}</Text>`,
+      `${at(3)}<View style={styles.${actionsKey}}>`,
+    ]
+    if (p.cancelLabel !== '') lines.push(`${at(4)}<Pressable onPress={() => ${close}}><Text style={styles.${actionKey}}>{${jsString(p.cancelLabel)}}</Text></Pressable>`)
+    lines.push(`${at(4)}<Pressable onPress={() => ${close}}><Text style={styles.${actionKey}}>{${jsString(p.confirmLabel)}}</Text></Pressable>`, `${at(3)}</View>`, `${at(2)}</View>`, `${at(1)}</View>`, `${pad}</Modal>`)
+    return lines
+  }
+
+  if (ref.kind === 'bottomSheet' && node.type === 'frame') {
+    ctx.usedComponents.add('Modal')
+    ctx.usedComponents.add('View')
+    ctx.usedComponents.add('Pressable')
+    const wrapKey = k('wrap')
+    const scrimKey = k('scrim')
+    const sheetKey = k('sheet')
+    const fill = firstSolidFillColor(node.fills)
+    ctx.styles.push(
+      { key: wrapKey, props: [['flex', '1'], ['justifyContent', jsString('flex-end')], ['backgroundColor', jsString('#00000052')]] },
+      { key: scrimKey, props: [['flex', '1']] },
+      {
+        key: sheetKey,
+        props: [
+          ['height', formatNumber(node.frame.h)],
+          ['backgroundColor', fill ? colorExpr(fill, ctx) : jsString('#ffffff')],
+          ['borderTopLeftRadius', formatNumber(node.cornerRadius)],
+          ['borderTopRightRadius', formatNumber(node.cornerRadius)],
+          ...buildFrameLayout(node),
+        ],
+      },
+    )
+    const isAbsolute = node.layout.mode === 'absolute'
+    const children = node.children.flatMap((c) => renderNode(c, ctx, depth + 3, isAbsolute ? { x: c.frame.x, y: c.frame.y } : null, !isAbsolute) ?? [])
+    return [
+      `${pad}<Modal transparent animationType="${anim === 'fade' ? 'fade' : anim === 'none' ? 'none' : 'slide'}" visible={${visible}} onRequestClose={() => ${close}}>`,
+      `${at(1)}<View style={styles.${wrapKey}}>`,
+      `${at(2)}<Pressable style={styles.${scrimKey}} onPress={() => ${close}} />`,
+      `${at(2)}<View style={styles.${sheetKey}}>`,
+      ...children,
+      `${at(2)}</View>`,
+      `${at(1)}</View>`,
+      `${pad}</Modal>`,
+    ]
+  }
+
+  if (node.type === 'component' && node.kind === 'snackbar') {
+    const p = node.props
+    ctx.usedComponents.add('View')
+    ctx.usedComponents.add('Text')
+    ctx.extraImports.add("import { useEffect } from 'react';")
+    const wrapKey = k('wrap')
+    const barKey = k('bar')
+    const messageKey = k('message')
+    const actionKey = k('action')
+    ctx.styles.push(
+      { key: wrapKey, props: [['position', jsString('absolute')], ['left', '16'], ['right', '16'], ['bottom', '24']] },
+      { key: barKey, props: [['minHeight', '48'], ['flexDirection', jsString('row')], ['alignItems', jsString('center')], ['justifyContent', jsString('space-between')], ['paddingHorizontal', '16'], ['borderRadius', '4'], ['backgroundColor', jsString(M3.inverseSurface)], ['elevation', '6']] },
+      { key: messageKey, props: [['color', jsString(M3.inverseOnSurface)], ['fontSize', '14'], ['flex', '1']] },
+      { key: actionKey, props: [['color', jsString('#d0bcff')], ['fontSize', '14'], ['fontWeight', jsString('500')]] },
+    )
+    ctx.hooks.push(
+      'useEffect(() => {',
+      `  if (${visible}) {`,
+      '    const timer = setTimeout(() => setOverlay(null), 3000);',
+      '    return () => clearTimeout(timer);',
+      '  }',
+      '}, [overlay]);',
+    )
+    const lines = [
+      `${pad}{${visible} ? (`,
+      `${at(1)}<View style={styles.${wrapKey}}>`,
+      `${at(2)}<View style={styles.${barKey}}>`,
+      `${at(3)}<Text style={styles.${messageKey}}>{${jsString(p.message)}}</Text>`,
+    ]
+    if (p.actionLabel !== '') lines.push(`${at(3)}<Text style={styles.${actionKey}} onPress={() => ${close}}>{${jsString(p.actionLabel)}}</Text>`)
+    lines.push(`${at(2)}</View>`, `${at(1)}</View>`, `${pad}) : null}`)
+    return lines
+  }
+  return []
+}
+
+function generateNavigation(plan: ExportPlan, transitions: boolean): ExportedFile {
+  const lines = [
+    ...(transitions ? ["import type { TransitionParams } from './transitions';", ''] : []),
+    'export type RootStackParamList = {',
+    ...plan.screens.map((s) => `  ${s.pascal}: ${transitions ? 'TransitionParams | undefined' : 'undefined'};`),
+    '};',
+    '',
+  ]
   return { path: 'src/navigation.ts', contents: lines.join('\n') }
 }
 
 // Point d'entree : une pile native React Navigation, un ecran par ecran du
 // design, l'ecran actif (ou le premier) en route initiale. Les barres
 // d'application sont celles du design : l'en-tete natif est masque.
-function generateApp(plan: ExportPlan): ExportedFile {
+function generateApp(plan: ExportPlan, transitions: boolean): ExportedFile {
   const lines = [
     '// Dependances : react-native, @react-navigation/native,',
     '// @react-navigation/native-stack, react-native-screens,',
@@ -643,6 +835,7 @@ function generateApp(plan: ExportPlan): ExportedFile {
     "import { NavigationContainer } from '@react-navigation/native';",
     "import { createNativeStackNavigator } from '@react-navigation/native-stack';",
     "import type { RootStackParamList } from './src/navigation';",
+    ...(transitions ? ["import { screenOptions } from './src/transitions';"] : []),
     ...plan.screens.map((s) => `import { ${s.pascal} } from './src/screens/${s.pascal}';`),
     '',
     'const Stack = createNativeStackNavigator<RootStackParamList>();',
@@ -651,7 +844,11 @@ function generateApp(plan: ExportPlan): ExportedFile {
     '  return (',
     '    <NavigationContainer>',
     `      <Stack.Navigator initialRouteName=${jsString(plan.initial!.pascal)} screenOptions={{ headerShown: false }}>`,
-    ...plan.screens.map((s) => `        <Stack.Screen name=${jsString(s.pascal)} component={${s.pascal}} />`),
+    ...plan.screens.map((s) =>
+      transitions
+        ? `        <Stack.Screen name=${jsString(s.pascal)} component={${s.pascal}} options={({ route }) => screenOptions(route.params)} />`
+        : `        <Stack.Screen name=${jsString(s.pascal)} component={${s.pascal}} />`,
+    ),
     '      </Stack.Navigator>',
     '    </NavigationContainer>',
     '  );',
@@ -674,21 +871,23 @@ function exportReactNative(source: CalqueDocument, opts: ExportOptions): ExportR
   const warnings: string[] = [...assetPlan.warnings]
   const files: ExportedFile[] = []
   const plan = planExport(doc, opts.activeScreenId)
+  const shared = { usesTransitions: false }
 
   for (const unit of plan.units) {
     if (unit.kind === 'page') {
       const laidOutPage = layoutPage(unit.page)
-      files.push(renderPage(laidOutPage, doc.tokens, warnings, unit.names.pascal, plan))
+      files.push(renderPage(laidOutPage, doc.tokens, warnings, unit.names.pascal, plan, shared))
       continue
     }
     const laidOut = layoutPage({ ...unit.page, nodes: [unit.screen] }).nodes[0] as FrameNode
-    files.push(renderScreen(laidOut, doc.tokens, warnings, unit.ref, plan))
+    files.push(renderScreen(laidOut, doc.tokens, warnings, unit.ref, plan, shared))
   }
 
   files.push(generateThemeFile(doc.tokens))
   if (plan.initial !== null) {
-    files.push(generateNavigation(plan), generateApp(plan))
+    files.push(generateNavigation(plan, shared.usesTransitions), generateApp(plan, shared.usesTransitions))
   }
+  if (shared.usesTransitions) files.push({ path: 'src/transitions.ts', contents: TRANSITIONS_TS })
 
   return { files, warnings, assets: assetPlan.assets }
 }
