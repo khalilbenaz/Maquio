@@ -21,6 +21,7 @@ declare global {
     // de MaquioApi/API_CHANNELS -- voir preload.ts.
     maquioMenu?: {
       pathForFile: (file: File) => string
+      onViewRequested: (callback: (action: string) => void) => () => void
       onOpenPathRequested: (callback: (path: string) => void) => () => void
       onNewRequested: (callback: () => void) => () => void
       onOpenRequested: (callback: () => void) => () => void

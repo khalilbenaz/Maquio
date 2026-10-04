@@ -116,3 +116,15 @@ describe('computeWheelZoom (refonte visuelle, zoom molette Ctrl/Cmd)', () => {
     expect(mondeApres.y).toBeCloseTo(mondeAvant.y, 5)
   })
 })
+
+describe('compensatePan : la vue ne saute pas quand un panneau de gauche bouge', () => {
+  it('le panoramique absorbe le decalage du bord gauche, zoom inchange', async () => {
+    const { compensatePan } = await import('../src/renderer/canvas/viewport')
+    // le panneau de 248 px se replie en barre de 36 px : le bord gauche recule de 212 px
+    expect(compensatePan({ x: 100, y: 40 }, 248, 36)).toEqual({ x: 312, y: 40 })
+    // et revient
+    expect(compensatePan({ x: 312, y: 40 }, 36, 248)).toEqual({ x: 100, y: 40 })
+    const same = { x: 5, y: 5 }
+    expect(compensatePan(same, 10, 10)).toBe(same)
+  })
+})

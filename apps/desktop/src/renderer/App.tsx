@@ -8,12 +8,13 @@
 // pour rester testables sans preload. Aucun acces au disque, au reseau ou
 // a un sous-processus ici : tout cela passe par le preload (window.maquio).
 import { useEffect, useState } from 'react'
-import type { DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from 'react'
+import type { DragEvent as ReactDragEvent, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import { createDocument, parseDocument, serializeDocument } from '@maquio/core'
 import type { MaquioApi } from '../shared/api'
 import { messageOfError } from '../shared/errors'
 import { useEditorStore } from './state/editorStore'
-import { useUiPrefs } from './state/uiPrefsStore'
+import { LEFT_MAX, LEFT_MIN, RAIL_WIDTH, RIGHT_MAX, RIGHT_MIN, useUiPrefs } from './state/uiPrefsStore'
+import { CollapseButton, ICON_CLAUDE, ICON_INSPECTOR, ICON_LEFT, PanelRail } from './panels/PanelRail'
 import { useClaudeStatusStore } from './state/claudeStatusStore'
 import { Canvas } from './canvas/Canvas'
 import { LayersPanel } from './panels/LayersPanel'
@@ -38,6 +39,14 @@ import './App.css'
 // composant, et evite tout risque d'appel conditionnel de Hooks (`App`
 // lui-meme n'en a aucun ; `Editeur`, qui en a, n'est jamais monte que
 // lorsque `api` existe).
+// Raccourcis affiches dans les infobulles (Cmd sur macOS, Ctrl ailleurs).
+const MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform)
+const MOD = MAC ? 'Cmd' : 'Ctrl'
+const ALT = MAC ? 'Option' : 'Alt'
+const SHORTCUT_LEFT = `${MOD}+${ALT}+1`
+const SHORTCUT_INSPECTOR = `${MOD}+${ALT}+2`
+const SHORTCUT_CLAUDE = `${MOD}+J`
+
 export function App() {
   const api = window.maquio
   if (!api) {
@@ -165,12 +174,14 @@ function Editeur({ api }: { api: MaquioApi }) {
     const detacherEnregistrer = evenements.onSaveRequested(() => void signaler(() => enregistrer(false)))
     const detacherEnregistrerSous = evenements.onSaveAsRequested(() => void signaler(() => enregistrer(true)))
     const detacherChemin = evenements.onOpenPathRequested((chemin) => void signaler(() => ouvrirChemin(chemin)))
+    const detacherAffichage = evenements.onViewRequested((action) => commandeAffichage(action))
     return () => {
       detacherNouveau()
       detacherOuvrir()
       detacherEnregistrer()
       detacherEnregistrerSous()
       detacherChemin()
+      detacherAffichage()
     }
     // Les actions lues ici ne dependent que de documentPath (reabonnement a chaque changement).
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -181,19 +192,68 @@ function Editeur({ api }: { api: MaquioApi }) {
   }, [nomDuDocument, dirty])
 
   const rightWidth = useUiPrefs((s) => s.rightWidth)
+  const leftWidth = useUiPrefs((s) => s.leftWidth)
+  const focus = useUiPrefs((s) => s.focusMode)
+  const leftCollapsed = useUiPrefs((s) => s.leftCollapsed)
+  const inspectorCollapsed = useUiPrefs((s) => s.inspectorCollapsed)
+  const claudeCollapsed = useUiPrefs((s) => s.claudeCollapsed)
+  const phaseClaude = useClaudeStatusStore((s) => s.phase)
+  const leftHidden = focus || leftCollapsed
+  const inspHidden = focus || inspectorCollapsed
+  const claudeHidden = focus || claudeCollapsed
+  // La colonne de droite se reduit en fine barre quand ses deux panneaux le sont.
+  const colonneDroiteReduite = inspHidden && claudeHidden
   const prototypeOpen = useEditorStore((s) => s.prototypeOpen)
 
-  function commencerRedimensionnement(e: ReactPointerEvent) {
+  // Redimensionnement au glisser : le panneau de gauche grandit vers la droite,
+  // celui de droite vers la gauche. Sans transition pendant le geste.
+  const [resizing, setResizing] = useState(false)
+  function commencerRedimensionnement(e: ReactPointerEvent, cote: 'left' | 'right') {
     e.preventDefault()
     const startX = e.clientX
-    const startW = useUiPrefs.getState().rightWidth
-    const move = (ev: PointerEvent) => useUiPrefs.getState().setRightWidth(startW + (startX - ev.clientX))
+    const prefs = useUiPrefs.getState()
+    const startW = cote === 'left' ? prefs.leftWidth : prefs.rightWidth
+    setResizing(true)
+    const move = (ev: PointerEvent) => {
+      if (cote === 'left') useUiPrefs.getState().setLeftWidth(startW + (ev.clientX - startX))
+      else useUiPrefs.getState().setRightWidth(startW + (startX - ev.clientX))
+    }
     const up = () => {
+      setResizing(false)
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
+  }
+
+  // Clavier sur un separateur : fleches (+/- 16 px), Entree / Home = largeur par defaut.
+  function clavierRedimensionnement(e: ReactKeyboardEvent, cote: 'left' | 'right') {
+    const prefs = useUiPrefs.getState()
+    const dir = e.key === 'ArrowLeft' ? -16 : e.key === 'ArrowRight' ? 16 : 0
+    if (dir !== 0) {
+      e.preventDefault()
+      if (cote === 'left') prefs.setLeftWidth(prefs.leftWidth + dir)
+      else prefs.setRightWidth(prefs.rightWidth - dir)
+    } else if (e.key === 'Enter' || e.key === 'Home') {
+      e.preventDefault()
+      if (cote === 'left') prefs.resetLeftWidth()
+      else prefs.resetRightWidth()
+    }
+  }
+
+  // Commandes du menu Affichage (memes actions que les raccourcis clavier).
+  function commandeAffichage(action: string) {
+    const prefs = useUiPrefs.getState()
+    if (action === 'left' || action === 'inspector' || action === 'claude') {
+      const etaitCache = prefs.focusMode || (action === 'claude' && prefs.claudeCollapsed)
+      prefs.togglePanel(action)
+      if (action === 'claude' && etaitCache) {
+        const st = useClaudeStatusStore.getState()
+        if (st.phase === 'done' || st.phase === 'error') st.setPhase('idle')
+      }
+    } else if (action === 'focus') prefs.toggleFocus()
+    else if (action === 'prototype') useEditorStore.getState().setPrototypeOpen(true)
   }
 
   // Cmd/Ctrl+J : replie ou deplie le panneau Claude (meme dans un champ de saisie).
@@ -204,11 +264,24 @@ function Editeur({ api }: { api: MaquioApi }) {
         useEditorStore.getState().setPrototypeOpen(true)
         return
       }
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'j') {
+      const mod = e.metaKey || e.ctrlKey
+      // Panneaux : Cmd/Ctrl+Alt+1 (gauche), +2 (inspecteur), Cmd/Ctrl+J (Claude),
+      // Cmd/Ctrl+. (mode focus). `code` et non `key` : Option change la lettre sur macOS.
+      if (mod && e.altKey && !e.shiftKey && e.code === 'Digit1') {
+        e.preventDefault()
+        useUiPrefs.getState().togglePanel('left')
+      } else if (mod && e.altKey && !e.shiftKey && e.code === 'Digit2') {
+        e.preventDefault()
+        useUiPrefs.getState().togglePanel('inspector')
+      } else if (mod && !e.shiftKey && !e.altKey && e.code === 'Period') {
+        e.preventDefault()
+        useUiPrefs.getState().toggleFocus()
+      } else if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'j') {
         e.preventDefault()
         const prefs = useUiPrefs.getState()
+        const etaitCache = prefs.focusMode || prefs.claudeCollapsed
         prefs.toggleClaude()
-        if (prefs.claudeCollapsed) {
+        if (etaitCache) {
           const st = useClaudeStatusStore.getState()
           if (st.phase === 'done' || st.phase === 'error') st.setPhase('idle')
         }
@@ -251,39 +324,126 @@ function Editeur({ api }: { api: MaquioApi }) {
           </button>
         </div>
       ) : null}
-      <Toolbar api={api} onOpenSettings={() => setReglagesOuverts(true)} />
-      <div className="maquio-body">
-        <div className="maquio-column-layers">
-          <div className="maquio-left-tabs" role="tablist" aria-label="Panneau de gauche">
-            {(['calques', 'composants'] as const).map((onglet) => (
-              <button
-                key={onglet}
-                type="button"
-                role="tab"
-                aria-selected={ongletGauche === onglet}
-                className={ongletGauche === onglet ? 'maquio-left-tab maquio-left-tab-active' : 'maquio-left-tab'}
-                onClick={() => setOngletGauche(onglet)}
-              >
-                {onglet === 'calques' ? 'Calques' : 'Composants'}
-              </button>
-            ))}
+      <div className={focus ? 'maquio-chrome maquio-chrome-hidden' : 'maquio-chrome'} inert={focus} aria-hidden={focus}>
+        <Toolbar api={api} onOpenSettings={() => setReglagesOuverts(true)} />
+      </div>
+      {focus ? (
+        <button type="button" className="maquio-focus-exit" aria-label="Quitter le mode focus" title="Quitter le mode focus (Cmd/Ctrl+.)" onClick={() => useUiPrefs.getState().toggleFocus()}>
+          Quitter le mode focus
+        </button>
+      ) : null}
+      <div className={resizing ? 'maquio-body maquio-resizing' : 'maquio-body'} data-focus={focus ? 'true' : 'false'}>
+        <div
+          className="maquio-column-layers"
+          data-testid="left-column"
+          data-collapsed={leftHidden ? 'true' : 'false'}
+          style={{ width: focus ? 0 : leftCollapsed ? RAIL_WIDTH : leftWidth }}
+        >
+          {leftCollapsed && !focus ? (
+            <PanelRail side="left" testId="left-rail" items={[{ id: 'left', label: 'Déplier le panneau de gauche', shortcut: SHORTCUT_LEFT, icon: ICON_LEFT, onClick: () => useUiPrefs.getState().togglePanel('left') }]} />
+          ) : null}
+          <div className="panel-content" inert={leftHidden} aria-hidden={leftHidden} data-testid="left-panel">
+            <div className="maquio-left-tabs" role="tablist" aria-label="Panneau de gauche">
+              {(['calques', 'composants'] as const).map((onglet) => (
+                <button
+                  key={onglet}
+                  type="button"
+                  role="tab"
+                  aria-selected={ongletGauche === onglet}
+                  className={ongletGauche === onglet ? 'maquio-left-tab maquio-left-tab-active' : 'maquio-left-tab'}
+                  onClick={() => setOngletGauche(onglet)}
+                >
+                  {onglet === 'calques' ? 'Calques' : 'Composants'}
+                </button>
+              ))}
+              <CollapseButton label="Replier le panneau de gauche" shortcut={SHORTCUT_LEFT} direction="left" onClick={() => useUiPrefs.getState().togglePanel('left')} />
+            </div>
+            <div className="maquio-left-body">{ongletGauche === 'calques' ? <LayersPanel /> : <PalettePanel />}</div>
           </div>
-          <div className="maquio-left-body">{ongletGauche === 'calques' ? <LayersPanel /> : <PalettePanel />}</div>
+          {!leftHidden ? (
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Redimensionner le panneau de gauche"
+              aria-valuenow={leftWidth}
+              aria-valuemin={LEFT_MIN}
+              aria-valuemax={LEFT_MAX}
+              tabIndex={0}
+              data-testid="left-resizer"
+              className="maquio-left-resizer"
+              title="Glisser pour redimensionner, double-clic pour la largeur par défaut"
+              onPointerDown={(e) => commencerRedimensionnement(e, 'left')}
+              onDoubleClick={() => useUiPrefs.getState().resetLeftWidth()}
+              onKeyDown={(e) => clavierRedimensionnement(e, 'left')}
+            />
+          ) : null}
         </div>
         <div className="maquio-column-canvas">
           <Canvas api={api} />
         </div>
-        <div className="maquio-column-right" style={{ width: rightWidth }}>
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Redimensionner le panneau de droite"
-            data-testid="right-resizer"
-            className="maquio-right-resizer"
-            onPointerDown={commencerRedimensionnement}
-          />
-          <InspectorPanel api={api} />
-          <ClaudePanel api={api} onOpenSettings={() => setReglagesOuverts(true)} />
+        <div
+          className="maquio-column-right"
+          data-testid="right-column"
+          data-collapsed={colonneDroiteReduite ? 'true' : 'false'}
+          style={{ width: focus ? 0 : colonneDroiteReduite ? RAIL_WIDTH : rightWidth }}
+        >
+          {colonneDroiteReduite && !focus ? (
+            <PanelRail
+              side="right"
+              testId="right-rail"
+              items={[
+                { id: 'inspector', label: "Déplier l'inspecteur", shortcut: SHORTCUT_INSPECTOR, icon: ICON_INSPECTOR, onClick: () => useUiPrefs.getState().togglePanel('inspector') },
+                {
+                  id: 'claude',
+                  label: 'Déplier le panneau Claude',
+                  shortcut: SHORTCUT_CLAUDE,
+                  icon: ICON_CLAUDE,
+                  onClick: () => {
+                    useUiPrefs.getState().togglePanel('claude')
+                    const st = useClaudeStatusStore.getState()
+                    if (st.phase === 'done' || st.phase === 'error') st.setPhase('idle')
+                  },
+                  badge: phaseClaude !== 'idle' ? <span data-testid="claude-badge" data-phase={phaseClaude} role="status" aria-label={phaseClaude === 'loading' ? 'Claude travaille' : phaseClaude === 'done' ? 'Claude a terminé' : 'Claude a échoué'} className={`claude-badge claude-badge-${phaseClaude}`} /> : undefined,
+                },
+              ]}
+            />
+          ) : null}
+          <div className={colonneDroiteReduite ? 'panel-content panel-content-hidden' : 'panel-content'} inert={colonneDroiteReduite} aria-hidden={colonneDroiteReduite}>
+            {!colonneDroiteReduite ? (
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Redimensionner le panneau de droite"
+                aria-valuenow={rightWidth}
+                aria-valuemin={RIGHT_MIN}
+                aria-valuemax={RIGHT_MAX}
+                tabIndex={0}
+                data-testid="right-resizer"
+                className="maquio-right-resizer"
+                title="Glisser pour redimensionner, double-clic pour la largeur par défaut"
+                onPointerDown={(e) => commencerRedimensionnement(e, 'right')}
+                onDoubleClick={() => useUiPrefs.getState().resetRightWidth()}
+                onKeyDown={(e) => clavierRedimensionnement(e, 'right')}
+              />
+            ) : null}
+            <div className={inspHidden ? 'inspector-shell inspector-shell-collapsed' : 'inspector-shell'}>
+              <div className="panel-header">
+                <span className="panel-header-title">Inspecteur</span>
+                <span className="panel-header-spacer" />
+                {inspHidden ? (
+                  <button type="button" className="panel-collapse" aria-label="Déplier l'inspecteur" title={`Déplier l'inspecteur (${SHORTCUT_INSPECTOR})`} onClick={() => useUiPrefs.getState().togglePanel('inspector')}>
+                    ▾
+                  </button>
+                ) : (
+                  <CollapseButton label="Replier l'inspecteur" shortcut={SHORTCUT_INSPECTOR} direction="right" onClick={() => useUiPrefs.getState().togglePanel('inspector')} />
+                )}
+              </div>
+              <div className="panel-content" inert={inspHidden} aria-hidden={inspHidden} hidden={inspHidden} data-testid="inspector-panel">
+                <InspectorPanel api={api} />
+              </div>
+            </div>
+            <ClaudePanel api={api} onOpenSettings={() => setReglagesOuverts(true)} />
+          </div>
         </div>
       </div>
       {prototypeOpen ? <PrototypeView onClose={() => useEditorStore.getState().setPrototypeOpen(false)} /> : null}

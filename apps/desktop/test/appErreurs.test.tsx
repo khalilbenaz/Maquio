@@ -19,6 +19,7 @@ function monter(api: Partial<typeof apiFactice>): Rappels {
     onSaveAsRequested: noop,
     onOpenPathRequested: (cb: (p: string) => void) => { rappels.chemin = cb; return () => {} },
     pathForFile: () => '/d/depose.maquio',
+    onViewRequested: noop,
   } as never
   render(<App />)
   return rappels
