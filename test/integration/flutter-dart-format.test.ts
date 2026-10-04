@@ -24,6 +24,7 @@ import { figmaToDocument } from '@calque/figma'
 import { flutterExporter } from '@calque/codegen'
 import { FIGMA_FIXTURES } from './fixtures'
 import { documentExempleComplet } from './fixtures/exemple-complet'
+import { documentInteractions } from '../../packages/codegen/test/fixtures/interactions'
 
 function isDartAvailable(): boolean {
   try {
@@ -89,6 +90,17 @@ describe('garde-fou dart format (spec §7)', () => {
     const result = flutterExporter.export(documentExempleComplet(), { projectName: 'demo' })
     const filePaths = result.files.filter((file) => file.path.endsWith(".dart")).map((file) => {
       const filePath = join(dir, `exemple-complet__${file.path.replace(/\//g, '_')}`)
+      writeFileSync(filePath, file.contents, 'utf8')
+      return filePath
+    })
+    execFileSync('dart', ['format', '--output=none', '--set-exit-if-changed', ...filePaths])
+  })
+
+  // Interactions : transitions, overlays, delai, appui long, URL.
+  runIfDartAvailable('la sortie Flutter pour les interactions passe dart format --set-exit-if-changed', () => {
+    const result = flutterExporter.export(documentInteractions(), { projectName: 'demo' })
+    const filePaths = result.files.filter((file) => file.path.endsWith('.dart')).map((file) => {
+      const filePath = join(dir, `interactions__${file.path.replace(/\//g, '_')}`)
       writeFileSync(filePath, file.contents, 'utf8')
       return filePath
     })
