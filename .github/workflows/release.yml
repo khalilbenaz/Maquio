@@ -1,0 +1,171 @@
+name: Release
+
+# Sur un tag `v*` : construit les paquets des trois systemes, puis publie la
+# release GitHub (notes tirees du CHANGELOG, artefacts, SHA256SUMS.txt).
+# En lancement manuel : construit et depose les artefacts dans le run, sans
+# creer de release.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    name: typecheck et tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: Le tag correspond a la version du paquet
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version="$(node -p "require('./apps/desktop/package.json').version")"
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "::error::le tag ${GITHUB_REF_NAME} ne correspond pas a la version ${version} de apps/desktop/package.json"
+            exit 1
+          fi
+
+  package:
+    name: paquet ${{ matrix.name }}
+    needs: tests
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-latest
+            args: --mac
+            globs: "*.dmg *.zip"
+          - name: Windows
+            os: windows-latest
+            args: --win
+            globs: "*.exe"
+          - name: Linux
+            os: ubuntu-latest
+            args: --linux
+            globs: "*.AppImage *.deb"
+    defaults:
+      run:
+        shell: bash
+    env:
+      # Secrets optionnels : sans eux, le build est non signe.
+      MAC_CSC_LINK: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+      MAC_CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_ID_SECRET: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD_SECRET: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_SECRET: ${{ secrets.APPLE_TEAM_ID }}
+      WIN_CERT_LINK: ${{ secrets.WIN_CSC_LINK }}
+      WIN_CERT_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+
+      - name: Signature
+        run: |
+          signed=false
+          if [ "${RUNNER_OS}" = "macOS" ] && [ -n "${MAC_CSC_LINK}" ] && [ -n "${APPLE_ID_SECRET}" ] \
+             && [ -n "${APPLE_PASSWORD_SECRET}" ] && [ -n "${APPLE_TEAM_SECRET}" ]; then
+            {
+              echo "CSC_LINK=${MAC_CSC_LINK}"
+              echo "CSC_KEY_PASSWORD=${MAC_CSC_KEY_PASSWORD}"
+              echo "APPLE_ID=${APPLE_ID_SECRET}"
+              echo "APPLE_APP_SPECIFIC_PASSWORD=${APPLE_PASSWORD_SECRET}"
+              echo "APPLE_TEAM_ID=${APPLE_TEAM_SECRET}"
+            } >> "$GITHUB_ENV"
+            signed=true
+          elif [ "${RUNNER_OS}" = "Windows" ] && [ -n "${WIN_CERT_LINK}" ]; then
+            {
+              echo "WIN_CSC_LINK=${WIN_CERT_LINK}"
+              echo "WIN_CSC_KEY_PASSWORD=${WIN_CERT_PASSWORD}"
+            } >> "$GITHUB_ENV"
+            signed=true
+          fi
+          if [ "${signed}" = "true" ]; then
+            echo "Build signe (${RUNNER_OS})."
+          else
+            echo "CSC_IDENTITY_AUTO_DISCOVERY=false" >> "$GITHUB_ENV"
+            echo "::notice::Build NON signe (${RUNNER_OS}) : secrets de signature absents."
+          fi
+
+      - name: Empaquetage
+        run: npm run dist:release --workspace=apps/desktop -- ${{ matrix.args }} --publish never
+
+      - name: Inventaire des paquets
+        working-directory: apps/desktop/release
+        run: |
+          mkdir -p ../../../paquets
+          for g in ${{ matrix.globs }}; do
+            for f in $g; do cp -v "$f" ../../../paquets/; done
+          done
+          ls -l ../../../paquets
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: maquio-${{ runner.os }}
+          path: paquets/*
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: publication de la release
+    # Uniquement sur un tag : le lancement manuel ne cree jamais de release.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: paquets
+          pattern: maquio-*
+          merge-multiple: true
+      - name: Sommes de controle
+        working-directory: paquets
+        run: |
+          sha256sum -- * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: Notes de version (extraites du CHANGELOG)
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "::error::aucune entree [${version}] dans CHANGELOG.md"
+            exit 1
+          fi
+          cat notes.md
+      - name: Creation de la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" paquets/* \
+            --title "Maquio ${GITHUB_REF_NAME}" \
+            --notes-file notes.md \
+            --verify-tag \
+            --latest
