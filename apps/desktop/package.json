@@ -90,7 +90,8 @@
           "Keywords": "maquette;mobile;flutter;swiftui;compose;react-native;",
           "StartupWMClass": "Maquio"
         }
-      }
+      },
+      "executableName": "maquio"
     },
     "fileAssociations": [
       {

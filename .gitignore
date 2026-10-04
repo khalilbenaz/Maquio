@@ -12,3 +12,4 @@ release/
 local.properties
 coverage/
 .vitest/
+!apps/desktop/build/
