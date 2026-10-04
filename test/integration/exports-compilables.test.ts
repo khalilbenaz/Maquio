@@ -22,6 +22,7 @@ import type { ExporterId } from '@calque/codegen'
 import { documentExempleComplet } from './fixtures/exemple-complet'
 import { PNG_1X1, RESSOURCES_RELATIVES, documentProjetImages } from './fixtures/projet-images'
 import type { CalqueDocument } from '@calque/core'
+import { documentInteractions } from '../../packages/codegen/test/fixtures/interactions'
 
 const FULL = process.env.CALQUE_VERIF_FULL === '1'
 const VERIF = join(__dirname, '..', 'verif')
@@ -88,6 +89,7 @@ function stateMacroAvailable(dir: string): boolean {
 const CASES: [string, string, () => CalqueDocument, boolean][] = [
   ['exemple « tous les composants »', 'exemple', documentExempleComplet, false],
   ['projet multi-ecrans avec images', 'images', projetImages, true],
+  ['interactions (transitions, overlays, delai, URL)', 'interactions', documentInteractions, false],
 ]
 
 describe.each(CASES)('les exports compilent (%s)', (_label, key, makeDoc, withAssets) => {

@@ -7,11 +7,11 @@
 //   - liste deroulante  : @react-native-picker/picker
 //   - selecteur de date : @react-native-community/datetimepicker
 // La navigation utilise React Navigation (pile native) : voir App.tsx.
-import type { Color, ComponentNode, DesignTokens, IconName } from '@calque/core'
+import type { Color, ComponentNode, DesignTokens, IconName, Node } from '@calque/core'
 import { ICONS } from '@calque/core'
 import { formatNumber } from '../shared/format-number'
 import { isRemoteUrl } from '../shared/node-helpers'
-import { itemTargets, linkTargetOf } from '../shared/screens'
+import { itemTargets } from '../shared/screens'
 import type { ExportPlan, ScreenRef } from '../shared/screens'
 import { colorToHex, jsString } from './rn-utils'
 
@@ -37,10 +37,12 @@ export type RnEnv = {
   inFlex: boolean
   // Ouvre le tiroir de l'ecran (etat local), ou null s'il n'y en a pas.
   openDrawer: string | null
+  // Attributs JSX d'interaction du noeud (` onPress={...} onLongPress={...}`), ou ''.
+  press(node: Node): string
 }
 
 // Palette Material 3 par defaut : le meme theme que Flutter et Compose.
-const M3 = {
+export const M3 = {
   primary: '#6750a4',
   onPrimary: '#ffffff',
   primaryContainer: '#eaddff',
@@ -114,8 +116,7 @@ export function renderRnComponent(
   const { ctx } = env
   const pad = '  '.repeat(depth)
   const at = (d: number) => '  '.repeat(depth + d)
-  const link = linkTargetOf(node, env.plan)
-  const onPress = link === null ? '' : ` onPress={${nav(env, link)}}`
+  const onPress = env.press(node)
   const rootKey = ctx.styleKey(node.id)
   const push = (key: string, props: StyleProp[]) => ctx.styles.push({ key, props })
   const sub = (suffix: string) => ctx.styleKey(`${node.id}-${suffix}`)
