@@ -4,7 +4,10 @@
 //
 // Le jeu est volontairement restreint a ce que `material-icons-core` de
 // Compose fournit SANS la dependance `material-icons-extended` : un nom
-// de ce tableau compile donc sur les quatre cibles telles quelles.
+// de ce tableau compile donc sur les quatre cibles telles quelles. Les
+// pictogrammes sans equivalent dans `core` (echange, carte, coffre...) ont
+// leur dessin exact sur le canevas ; en Compose ils se rabattent sur l'icone
+// `core` la plus proche (voir `compose` ci-dessous).
 export const ICON_NAMES = [
   'home',
   'search',
@@ -36,6 +39,30 @@ export const ICON_NAMES = [
   'warning',
   'location',
   'list',
+  'face',
+  'backspace',
+  'swap',
+  'moreHoriz',
+  'card',
+  'vault',
+  'copy',
+  'coffee',
+  'shield',
+  'shieldCheck',
+  'arrowUp',
+  'arrowDown',
+  'eye',
+  'snowflake',
+  'sliders',
+  'plane',
+  'bike',
+  'document',
+  'globe',
+  'contrast',
+  'smartphone',
+  'logout',
+  'chevronLeft',
+  'upload',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -83,4 +110,28 @@ export const ICONS: Record<IconName, IconMapping> = {
   warning: { label: 'Avertissement', flutter: 'warning', materialName: 'warning', sfSymbol: 'exclamationmark.triangle', compose: 'Warning' },
   location: { label: 'Lieu', flutter: 'location_on', materialName: 'location-on', sfSymbol: 'mappin', compose: 'LocationOn' },
   list: { label: 'Liste', flutter: 'list', materialName: 'list', sfSymbol: 'list.bullet', compose: 'List' },
+  face: { label: 'Visage', flutter: 'face', materialName: 'face', sfSymbol: 'faceid', compose: 'Face' },
+  backspace: { label: 'Effacer', flutter: 'backspace', materialName: 'backspace', sfSymbol: 'delete.left', compose: 'Clear' },
+  swap: { label: 'Échange', flutter: 'swap_horiz', materialName: 'swap-horiz', sfSymbol: 'arrow.left.arrow.right', compose: 'Refresh' },
+  moreHoriz: { label: 'Plus (horizontal)', flutter: 'more_horiz', materialName: 'more-horiz', sfSymbol: 'ellipsis', compose: 'MoreVert' },
+  card: { label: 'Carte', flutter: 'credit_card', materialName: 'credit-card', sfSymbol: 'creditcard', compose: 'AccountBox' },
+  vault: { label: 'Coffre', flutter: 'savings', materialName: 'savings', sfSymbol: 'banknote', compose: 'Lock' },
+  copy: { label: 'Copier', flutter: 'content_copy', materialName: 'content-copy', sfSymbol: 'doc.on.doc', compose: 'Share' },
+  coffee: { label: 'Café', flutter: 'coffee', materialName: 'local-cafe', sfSymbol: 'cup.and.saucer', compose: 'ShoppingCart' },
+  shield: { label: 'Bouclier', flutter: 'shield', materialName: 'shield', sfSymbol: 'shield', compose: 'CheckCircle' },
+  shieldCheck: { label: 'Bouclier validé', flutter: 'verified_user', materialName: 'verified-user', sfSymbol: 'checkmark.shield', compose: 'CheckCircle' },
+  arrowUp: { label: 'Haut', flutter: 'arrow_upward', materialName: 'arrow-upward', sfSymbol: 'arrow.up', compose: 'KeyboardArrowUp' },
+  arrowDown: { label: 'Bas', flutter: 'arrow_downward', materialName: 'arrow-downward', sfSymbol: 'arrow.down', compose: 'KeyboardArrowDown' },
+  eye: { label: 'Voir', flutter: 'visibility', materialName: 'visibility', sfSymbol: 'eye', compose: 'Search' },
+  snowflake: { label: 'Geler', flutter: 'ac_unit', materialName: 'ac-unit', sfSymbol: 'snowflake', compose: 'Build' },
+  sliders: { label: 'Réglages fins', flutter: 'tune', materialName: 'tune', sfSymbol: 'slider.horizontal.3', compose: 'Settings' },
+  plane: { label: 'Voyage', flutter: 'flight', materialName: 'flight', sfSymbol: 'airplane', compose: 'Send' },
+  bike: { label: 'Vélo', flutter: 'pedal_bike', materialName: 'pedal-bike', sfSymbol: 'bicycle', compose: 'Place' },
+  document: { label: 'Document', flutter: 'description', materialName: 'description', sfSymbol: 'doc.text', compose: 'List' },
+  globe: { label: 'Langue', flutter: 'language', materialName: 'language', sfSymbol: 'globe', compose: 'LocationOn' },
+  contrast: { label: 'Apparence', flutter: 'contrast', materialName: 'brightness-medium', sfSymbol: 'circle.lefthalf.filled', compose: 'Info' },
+  smartphone: { label: 'Téléphone mobile', flutter: 'smartphone', materialName: 'smartphone', sfSymbol: 'iphone', compose: 'Phone' },
+  logout: { label: 'Déconnexion', flutter: 'logout', materialName: 'logout', sfSymbol: 'rectangle.portrait.and.arrow.right', compose: 'ExitToApp' },
+  chevronLeft: { label: 'Chevron gauche', flutter: 'chevron_left', materialName: 'chevron-left', sfSymbol: 'chevron.left', compose: 'KeyboardArrowLeft' },
+  upload: { label: 'Téléverser', flutter: 'file_upload', materialName: 'file-upload', sfSymbol: 'square.and.arrow.up', compose: 'Share' },
 }

@@ -101,10 +101,13 @@ function renderBare(node: ComponentNode, env: SwEnv, depth: number): string[] {
         p.icon !== undefined
           ? `Label(${swiftString(p.label)}, systemImage: ${swiftString(ICONS[p.icon].sfSymbol)})`
           : `Text(${swiftString(p.label)})`
+      const swiftWeight = (n: number) => (n >= 800 ? '.heavy' : n >= 700 ? '.bold' : n >= 600 ? '.semibold' : n >= 500 ? '.medium' : n <= 300 ? '.light' : '.regular')
+      const labelFont = p.fontSize === undefined && p.fontWeight === undefined ? '' : `.font(.system(size: ${num(p.fontSize ?? 14)}, weight: ${swiftWeight(p.fontWeight ?? 500)}))`
       const style = p.variant === 'primary' ? '.borderedProminent' : p.variant === 'secondary' ? '.bordered' : '.borderless'
       const lines = [
         `${p0}Button ${action(env, link)} label: {`,
         `${p1}${label}`,
+        ...(labelFont === '' ? [] : [`${p2}${labelFont}`]),
         `${p2}.frame(maxWidth: .infinity, maxHeight: .infinity)`,
         `${p0}}`,
         `${p1}.buttonStyle(${style})`,
@@ -185,6 +188,7 @@ function renderBare(node: ComponentNode, env: SwEnv, depth: number): string[] {
     case 'switch': {
       const p = node.props
       const lines = [`${p0}Toggle(${swiftString(p.label)}, isOn: .constant(${p.checked}))`]
+      if (p.color) lines.push(`${p1}.tint(${color(env, p.color)})`)
       if (p.disabled) lines.push(`${p1}.disabled(true)`)
       return lines
     }
@@ -324,6 +328,7 @@ function renderBare(node: ComponentNode, env: SwEnv, depth: number): string[] {
         )
       })
       lines.push(`${p0}}`)
+      if (node.props.color) lines.push(`${p1}.tint(${color(env, node.props.color)})`)
       if (targets.some((t) => t !== null)) {
         env.ctx.markNavigator()
         lines.push(`${p1}.onChange(of: ${stateName}) { _, index in`)

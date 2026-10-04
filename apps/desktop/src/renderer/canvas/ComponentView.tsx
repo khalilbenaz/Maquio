@@ -68,12 +68,13 @@ function Button({ p, h }: { p: P<'button'>; h: number }) {
     justifyContent: 'center',
     gap: 8,
     borderRadius: h / 2,
-    fontWeight: 500,
+    fontWeight: p.fontWeight ?? 500,
+    ...(p.fontSize !== undefined ? { fontSize: p.fontSize } : {}),
     padding: '0 24px',
   }
   let style: CSSProperties
   if (p.variant === 'primary') {
-    style = { ...base, background: p.disabled ? DISABLED_BG : main, color: p.disabled ? DISABLED_FG : M3.onPrimary, boxShadow: p.disabled ? 'none' : '0 1px 3px rgba(0,0,0,.25)' }
+    style = { ...base, background: p.disabled ? DISABLED_BG : main, color: p.disabled ? DISABLED_FG : M3.onPrimary, boxShadow: p.disabled || p.flat ? 'none' : '0 1px 3px rgba(0,0,0,.25)' }
   } else if (p.variant === 'secondary') {
     style = { ...base, border: `1px solid ${p.disabled ? DISABLED_BG : M3.outline}`, color: p.disabled ? DISABLED_FG : main }
   } else {
@@ -246,7 +247,7 @@ function Switch({ p }: { p: P<'switch'> }) {
           flexShrink: 0,
           borderRadius: 16,
           boxSizing: 'border-box',
-          background: p.checked ? M3.primary : M3.surfaceContainer,
+          background: p.checked ? accent(p.color) : M3.surfaceContainer,
           border: p.checked ? 'none' : `2px solid ${M3.outline}`,
         }}
       >
@@ -420,7 +421,7 @@ function ProgressBar({ p }: { p: P<'progressBar'> }) {
   const color = accent(p.color)
   return (
     <div style={{ ...root, alignItems: 'center' }}>
-      <div style={{ width: '100%', height: 4, borderRadius: 2, background: M3.secondaryContainer, overflow: 'hidden' }}>
+      <div style={{ width: '100%', height: '100%', borderRadius: 999, background: p.trackColor === undefined ? M3.secondaryContainer : cssColor(p.trackColor), overflow: 'hidden' }}>
         <div
           style={{
             width: p.indeterminate ? '35%' : `${p.value * 100}%`,
@@ -501,8 +502,10 @@ function AppBar({ p }: { p: P<'appBar'> }) {
 }
 
 function BottomNav({ p }: { p: P<'bottomNav'> }) {
+  const flat = p.color !== undefined
+  const accentColor = flat ? cssColor(p.color!) : undefined
   return (
-    <div style={{ ...root, alignItems: 'stretch', background: M3.surfaceContainer, padding: '12px 8px 16px', gap: 8 }}>
+    <div style={{ ...root, alignItems: 'stretch', background: flat ? '#FFFFFF' : M3.surfaceContainer, ...(flat ? { boxShadow: 'inset 0 1px 0 #E6E7EB' } : {}), padding: '12px 8px 16px', gap: 8 }}>
       {p.items.map((item, i) => {
         const active = i === p.selectedIndex
         return (
@@ -515,12 +518,12 @@ function BottomNav({ p }: { p: P<'bottomNav'> }) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: active ? M3.secondaryContainer : 'transparent',
+                background: active && !flat ? M3.secondaryContainer : 'transparent',
               }}
             >
-              <IconGlyph name={item.icon} size={24} color={active ? M3.onSurface : M3.onSurfaceVariant} />
+              <IconGlyph name={item.icon} size={24} color={active ? (accentColor ?? M3.onSurface) : M3.onSurfaceVariant} />
             </span>
-            <Label style={{ fontSize: 12, lineHeight: '16px', fontWeight: active ? 700 : 500 }}>{item.label}</Label>
+            <Label style={{ fontSize: 12, lineHeight: '16px', fontWeight: active ? 700 : 500, ...(active && accentColor ? { color: accentColor } : {}) }}>{item.label}</Label>
           </div>
         )
       })}

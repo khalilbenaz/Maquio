@@ -52,6 +52,7 @@
   },
   "dependencies": {
     "@fontsource/bricolage-grotesque": "^5.3.0",
+    "@fontsource/geist": "^5.3.0",
     "@maquio/ai": "*",
     "@maquio/codegen": "*",
     "@maquio/core": "*",

@@ -53,6 +53,10 @@ export const COMPONENT_PROPS_SCHEMAS = {
       disabled: z.boolean(),
       icon: iconNameSchema.optional(),
       color: colorValue.optional(),
+      // Typographie du libelle (defaut : 14 / 500) et bouton plat (sans ombre).
+      fontSize: z.number().min(8).max(48).optional(),
+      fontWeight: z.number().int().min(100).max(900).optional(),
+      flat: z.boolean().optional(),
     })
     .strict(),
   iconButton: z
@@ -87,7 +91,7 @@ export const COMPONENT_PROPS_SCHEMAS = {
     })
     .strict(),
   checkbox: z.object({ label: z.string(), checked: z.boolean(), disabled: z.boolean() }).strict(),
-  switch: z.object({ label: z.string(), checked: z.boolean(), disabled: z.boolean() }).strict(),
+  switch: z.object({ label: z.string(), checked: z.boolean(), disabled: z.boolean(), color: colorValue.optional() }).strict(),
   radio: z.object({ label: z.string(), selected: z.boolean(), disabled: z.boolean() }).strict(),
   slider: z
     .object({
@@ -151,7 +155,7 @@ export const COMPONENT_PROPS_SCHEMAS = {
     })
     .strict(),
   progressBar: z
-    .object({ value: unit, indeterminate: z.boolean(), color: colorValue.optional() })
+    .object({ value: unit, indeterminate: z.boolean(), color: colorValue.optional(), trackColor: colorValue.optional() })
     .strict(),
   spinner: z.object({ color: colorValue.optional() }).strict(),
   listTile: z
@@ -176,6 +180,8 @@ export const COMPONENT_PROPS_SCHEMAS = {
     .object({
       items: z.array(navItemSchema).min(2).max(5),
       selectedIndex: z.number().int().min(0),
+      // Couleur d'accent de l'entree choisie. Definie : barre plate, sans pastille d'indicateur.
+      color: colorValue.optional(),
     })
     .strict()
     .refine((p) => p.selectedIndex < p.items.length, {

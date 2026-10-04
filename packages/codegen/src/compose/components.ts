@@ -38,7 +38,7 @@ function imp(env: CEnv, ...names: string[]): void {
   for (const n of names) env.ctx.imports.add(n)
 }
 
-const MIRRORED = new Set(['ArrowBack', 'ArrowForward', 'KeyboardArrowRight', 'List', 'Send'])
+const MIRRORED = new Set(['ArrowBack', 'ArrowForward', 'KeyboardArrowRight', 'KeyboardArrowLeft', 'List', 'Send', 'ExitToApp'])
 
 export function iconExpr(env: CEnv, name: IconName): string {
   const id = ICONS[name].compose
@@ -122,7 +122,16 @@ export function renderComposeComponent(node: ComponentNode, env: CEnv, depth: nu
         imp(env, 'androidx.compose.foundation.layout.Spacer', 'androidx.compose.foundation.layout.size', 'androidx.compose.ui.Modifier', 'androidx.compose.ui.unit.dp')
         body.push(iconCall(env, p.icon, ', modifier = Modifier.size(18.dp)'), 'Spacer(Modifier.size(8.dp))')
       }
-      body.push(text(env, p.label))
+      if (p.fontSize === undefined && p.fontWeight === undefined) body.push(text(env, p.label))
+      else {
+        imp(env, 'androidx.compose.ui.unit.sp')
+        const extra = [p.fontSize === undefined ? '' : `, fontSize = ${num(p.fontSize)}.sp`]
+        if (p.fontWeight !== undefined) {
+          imp(env, 'androidx.compose.ui.text.font.FontWeight')
+          extra.push(`, fontWeight = FontWeight(${p.fontWeight})`)
+        }
+        body.push(text(env, p.label, extra.join('')))
+      }
       return call(depth, widget, args, body.map((l) => pad(depth + 1) + l))
     }
     case 'iconButton': {
@@ -179,11 +188,12 @@ export function renderComposeComponent(node: ComponentNode, env: CEnv, depth: nu
     case 'switch': {
       const p = node.props
       imp(env, 'androidx.compose.foundation.layout.Row', 'androidx.compose.foundation.layout.Arrangement', 'androidx.compose.ui.Alignment', 'androidx.compose.material3.Switch')
+      if (p.color) imp(env, 'androidx.compose.material3.SwitchDefaults')
       return call(
         depth,
         'Row',
         [mod, 'horizontalArrangement = Arrangement.SpaceBetween', 'verticalAlignment = Alignment.CenterVertically'],
-        [pad(depth + 1) + text(env, p.label), `${pad(depth + 1)}Switch(checked = ${p.checked}, onCheckedChange = null${p.disabled ? ', enabled = false' : ''})`],
+        [pad(depth + 1) + text(env, p.label), `${pad(depth + 1)}Switch(checked = ${p.checked}, onCheckedChange = null${p.disabled ? ', enabled = false' : ''}${p.color ? `, colors = SwitchDefaults.colors(checkedTrackColor = ${color(env, p.color)})` : ''})`],
       )
     }
     case 'slider': {
@@ -336,6 +346,7 @@ export function renderComposeComponent(node: ComponentNode, env: CEnv, depth: nu
       imp(env, 'androidx.compose.material3.LinearProgressIndicator')
       const args = p.indeterminate ? [mod] : [`progress = { ${num(p.value)}f }`, mod]
       if (p.color) args.push(`color = ${color(env, p.color)}`)
+      if (p.trackColor) args.push(`trackColor = ${color(env, p.trackColor)}`)
       return call(depth, 'LinearProgressIndicator', args)
     }
     case 'spinner': {
@@ -376,6 +387,7 @@ export function renderComposeComponent(node: ComponentNode, env: CEnv, depth: nu
     case 'bottomNav': {
       const p = node.props
       imp(env, 'androidx.compose.material3.NavigationBar', 'androidx.compose.material3.NavigationBarItem')
+      if (p.color) imp(env, 'androidx.compose.material3.NavigationBarItemDefaults')
       const targets = itemTargets(node, env.ctx.plan)
       const lines = [`${pad(depth)}NavigationBar(modifier = ${modifier}) {`]
       p.items.forEach((item, i) => {
@@ -386,6 +398,7 @@ export function renderComposeComponent(node: ComponentNode, env: CEnv, depth: nu
           `${pad(depth + 2)}onClick = ${t === null ? '{}' : `{ ${navigateExpr(env, t, true)} }`},`,
           `${pad(depth + 2)}icon = { ${iconCall(env, item.icon)} },`,
           `${pad(depth + 2)}label = { ${text(env, item.label)} },`,
+          ...(p.color ? [`${pad(depth + 2)}colors = NavigationBarItemDefaults.colors(selectedIconColor = ${color(env, p.color)}, selectedTextColor = ${color(env, p.color)}, indicatorColor = ${color(env, { r: 0, g: 0, b: 0, a: 0 })}),`] : []),
           `${pad(depth + 1)})`,
         )
       })
