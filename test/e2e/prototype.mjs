@@ -87,7 +87,7 @@ check('prototype : l action « retour » revient a l ecran precedent', (await co
 // overlay : appui long sur bouton2
 const pb2 = await win.getByTestId(`proto-node-${bouton2}`).boundingBox()
 check('prototype : un dialogue reference par une interaction est cache au depart', (await win.getByTestId(`proto-node-${dialogue}`).count()) === 0)
-await win.mouse.move(pb2.x + pb2.width / 2, pb2.y + pb2.height / 2); await win.mouse.down(); await pause(750); await win.mouse.up(); await pause(450)
+await win.mouse.move(pb2.x + pb2.width / 2, pb2.y + pb2.height / 2); await win.mouse.down(); await pause(900); await win.mouse.up(); await win.getByTestId(`proto-node-${dialogue}`).waitFor({ timeout: 3000 }).catch(() => {}); await pause(450)
 check('prototype : un appui long ouvre le dialogue avec son voile', (await win.getByTestId(`proto-node-${dialogue}`).count()) === 1 && (await win.getByTestId('proto-scrim').count()) === 1)
 await shot('73-proto-dialogue')
 const pd = await win.getByTestId(`proto-node-${dialogue}`).boundingBox()
