@@ -23,14 +23,14 @@
     "build:plugin": "npm run build --workspace=apps/figma-plugin"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.5",
-    "@types/node": "^22.0.0",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.3",
     "@vitest/coverage-v8": "^5.0.3",
-    "eslint": "^9.39.5",
-    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.13.0",
     "playwright-core": "^1.63.0",
-    "typescript": "^5.6.0",
+    "typescript": "^7.0.2",
     "typescript-eslint": "^8.71.0",
     "vitest": "^5.0.3"
   },
