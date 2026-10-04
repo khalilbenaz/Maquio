@@ -2,7 +2,7 @@
 // `.calque`) en un « plan » de creation Figma. Aucun appel a l'API Figma ici :
 // le plan est teste unitairement, builder.ts le rejoue ensuite dans Figma.
 import { componentSketch, componentVariant, containerSketch, hexOf, parseDocument } from '@calque/core'
-import type { CalqueDocument, Color, ComponentNode, FrameNode, Node, SketchPrim } from '@calque/core'
+import type { CalqueDocument, Color, ComponentNode, FrameNode, Interaction, Node, SketchPrim, Transition, Trigger } from '@calque/core'
 
 export type RGBA = { r: number; g: number; b: number; a: number }
 export type Stroke = { color: RGBA; width: number }
@@ -69,6 +69,27 @@ export type ComponentPlan = {
 
 export type FontNeed = { family: string; weight: number }
 
+// --- Prototype (reactions Figma) ---
+
+export type PlanEasing = { type: 'LINEAR' | 'EASE_IN' | 'EASE_OUT' | 'EASE_IN_AND_OUT' | 'BOUNCY' }
+export type PlanTransition =
+  | { type: 'DISSOLVE'; duration: number; easing: PlanEasing }
+  | { type: 'MOVE_IN' | 'PUSH'; direction: 'LEFT' | 'RIGHT' | 'TOP' | 'BOTTOM'; matchLayers: boolean; duration: number; easing: PlanEasing }
+
+export type PlanTrigger = { type: 'ON_CLICK' } | { type: 'MOUSE_DOWN'; delay: number } | { type: 'AFTER_TIMEOUT'; timeout: number }
+
+export type PlanAction =
+  | { type: 'NODE'; navigation: 'NAVIGATE'; destination: string; transition: PlanTransition | null }
+  | { type: 'NODE'; navigation: 'OVERLAY'; destination: string; transition: PlanTransition | null }
+  | { type: 'BACK' }
+  | { type: 'CLOSE' }
+  | { type: 'URL'; url: string }
+
+export type ReactionPlan = { source: string; trigger: PlanTrigger; action: PlanAction }
+
+// Overlay (dialogue, feuille basse, snackbar) : un cadre Figma a part, destination des actions « overlay ».
+export type OverlayFrame = { id: string; kind: 'dialog' | 'bottomSheet' | 'snackbar'; frame: Extract<PlanNode, { kind: 'frame' }> }
+
 export type Plan = {
   projectName: string
   startScreenId: string | null
@@ -76,6 +97,8 @@ export type Plan = {
   // Noeuds de premier niveau qui ne sont pas des frames (formes libres) : poses sur la page.
   loose: PlanNode[]
   components: ComponentPlan[]
+  reactions: ReactionPlan[]
+  overlays: OverlayFrame[]
   fonts: FontNeed[]
   images: string[]
   warnings: string[]
@@ -228,6 +251,8 @@ type Builder = {
   // composants : cle -> plan ; (setName|variantName) -> tailles distinctes vues
   components: Map<string, ComponentPlan>
   sizesByVariant: Map<string, Set<string>>
+  // Noeuds ouverts comme overlay par une interaction : masques en place (ils vivent dans leur propre cadre).
+  overlayIds: Set<string>
 }
 
 function need(b: Builder, family: string, weight: number) {
@@ -259,7 +284,7 @@ function mapNode(node: Node, b: Builder): PlanNode {
     w: f.w,
     h: f.h,
     opacity: node.opacity,
-    visible: node.visible,
+    visible: node.visible && !b.overlayIds.has(node.id),
     locked: node.locked,
     ...(node.rotation !== 0 ? { transform: rotationTransform(f.x, f.y, f.w, f.h, node.rotation) } : {}),
   }
@@ -327,7 +352,10 @@ function finalizeComponents(doc: CalqueDocument, plan: PlanNode[], b: Builder) {
   const nodesById = new Map<string, ComponentNode>()
   const collect = (ns: Node[]) => {
     for (const n of ns) {
-      if (n.type === 'component') nodesById.set(n.id, n)
+      if (n.type === 'component') {
+        nodesById.set(n.id, n)
+        nodesById.set(`overlay:${n.id}`, n)
+      }
       if (n.type === 'frame') collect(n.children)
     }
   }
@@ -352,8 +380,128 @@ function finalizeComponents(doc: CalqueDocument, plan: PlanNode[], b: Builder) {
   plan.forEach(rename)
 }
 
+// --- Interactions -> reactions de prototype ---
+
+function overlayTargets(doc: CalqueDocument): Set<string> {
+  const out = new Set<string>()
+  const visit = (nodes: Node[]) => {
+    for (const n of nodes) {
+      for (const i of n.interactions ?? []) if (i.action.type === 'openOverlay') out.add(i.action.target)
+      if (n.type === 'frame') visit(n.children)
+    }
+  }
+  doc.pages.forEach((p) => visit(p.nodes))
+  return out
+}
+
+const EASINGS: Record<string, PlanEasing> = {
+  linear: { type: 'LINEAR' },
+  easeIn: { type: 'EASE_IN' },
+  easeOut: { type: 'EASE_OUT' },
+  easeInOut: { type: 'EASE_IN_AND_OUT' },
+  spring: { type: 'BOUNCY' },
+}
+
+// Transition Calque -> transition Figma. `direction` Figma est le cote d'ou
+// ENTRE l'ecran : un glissement « vers la gauche » entre par la droite.
+export function transitionOf(t: Transition): PlanTransition | null {
+  if (t.type === 'none') return null
+  const timing = { duration: t.durationMs / 1000, easing: EASINGS[t.easing]! }
+  switch (t.type) {
+    case 'fade':
+      return { type: 'DISSOLVE', ...timing }
+    case 'modal':
+      return { type: 'MOVE_IN', direction: 'BOTTOM', matchLayers: false, ...timing }
+    case 'push':
+      return { type: 'PUSH', direction: 'RIGHT', matchLayers: false, ...timing }
+    case 'slide': {
+      const from = { left: 'RIGHT', right: 'LEFT', up: 'BOTTOM', down: 'TOP' } as const
+      return { type: 'MOVE_IN', direction: from[t.direction], matchLayers: false, ...timing }
+    }
+  }
+}
+
+export function triggerOf(t: Trigger): PlanTrigger {
+  switch (t.type) {
+    case 'tap':
+      return { type: 'ON_CLICK' }
+    case 'longPress':
+      // Figma n'a pas d'appui long : « souris enfoncee » apres 0,5 s.
+      return { type: 'MOUSE_DOWN', delay: 0.5 }
+    case 'afterDelay':
+      return { type: 'AFTER_TIMEOUT', timeout: t.ms / 1000 }
+  }
+}
+
+export function actionOf(i: Interaction): PlanAction {
+  const a = i.action
+  switch (a.type) {
+    case 'navigate':
+      return { type: 'NODE', navigation: 'NAVIGATE', destination: a.target, transition: transitionOf(i.transition) }
+    case 'openOverlay':
+      return { type: 'NODE', navigation: 'OVERLAY', destination: `overlay:${a.target}`, transition: transitionOf(i.transition) }
+    case 'back':
+      return { type: 'BACK' }
+    case 'closeOverlay':
+      return { type: 'CLOSE' }
+    case 'openUrl':
+      return { type: 'URL', url: a.url }
+  }
+}
+
+function collectReactions(doc: CalqueDocument): ReactionPlan[] {
+  const out: ReactionPlan[] = []
+  const visit = (nodes: Node[]) => {
+    for (const n of nodes) {
+      for (const i of n.interactions ?? []) out.push({ source: n.id, trigger: triggerOf(i.trigger), action: actionOf(i) })
+      if (n.type === 'frame') visit(n.children)
+    }
+  }
+  doc.pages.forEach((p) => visit(p.nodes))
+  return out
+}
+
+function buildOverlayFrames(doc: CalqueDocument, b: Builder): OverlayFrame[] {
+  const byId = new Map<string, { node: Node; kind: OverlayFrame['kind'] }>()
+  const visit = (nodes: Node[]) => {
+    for (const n of nodes) {
+      for (const i of n.interactions ?? []) if (i.action.type === 'openOverlay') byId.set(i.action.target, { node: n, kind: i.action.overlay })
+      if (n.type === 'frame') visit(n.children)
+    }
+  }
+  doc.pages.forEach((p) => visit(p.nodes))
+  const find = (nodes: Node[], id: string): Node | null => {
+    for (const n of nodes) {
+      if (n.id === id) return n
+      if (n.type === 'frame') {
+        const r = find(n.children, id)
+        if (r) return r
+      }
+    }
+    return null
+  }
+  const frames: OverlayFrame[] = []
+  for (const [id, { kind }] of byId) {
+    const node = doc.pages.map((p) => find(p.nodes, id)).find((n): n is Node => n !== null && n !== undefined)
+    if (node === undefined) continue
+    // Copie a l'origine, sous un autre id (l'original est masque en place).
+    const copy = { ...node, id: `overlay:${id}`, visible: true, frame: { ...node.frame, x: 0, y: 0 } } as Node
+    const mapped = mapNode(copy, b)
+    frames.push({
+      id,
+      kind,
+      frame: {
+        kind: 'frame', name: `Overlay · ${node.name}`, sourceId: `overlay:${id}:frame`, x: 0, y: 0, w: node.frame.w, h: node.frame.h,
+        opacity: 1, visible: true, locked: false, fill: null, stroke: null, radius: 0, clips: false, layout: null, isScreen: false,
+        children: [mapped], decorUnder: [], decorOver: [],
+      },
+    })
+  }
+  return frames
+}
+
 export function buildPlan(bundle: Bundle): Plan {
-  const b: Builder = { warnings: [], fonts: new Map(), images: new Set(), components: new Map(), sizesByVariant: new Map() }
+  const b: Builder = { warnings: [], fonts: new Map(), images: new Set(), components: new Map(), sizesByVariant: new Map(), overlayIds: overlayTargets(bundle.document) }
   const screens: Plan['screens'] = []
   const loose: PlanNode[] = []
   const all: PlanNode[] = []
@@ -368,6 +516,8 @@ export function buildPlan(bundle: Bundle): Plan {
       }
     }
   }
+  const overlays = buildOverlayFrames(bundle.document, b)
+  all.push(...overlays.map((o) => o.frame))
   finalizeComponents(bundle.document, all, b)
   for (const src of b.images) {
     if (/^https?:\/\//.test(src)) b.warnings.push(`image distante « ${src} » : remplacée par un cadre vide (le plugin n'accède pas au réseau)`)
@@ -379,6 +529,8 @@ export function buildPlan(bundle: Bundle): Plan {
     screens,
     loose,
     components: [...b.components.values()],
+    reactions: collectReactions(bundle.document),
+    overlays,
     fonts: [...b.fonts.values()],
     images: [...b.images].filter((s) => bundle.images[s] !== undefined),
     warnings: b.warnings,

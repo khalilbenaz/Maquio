@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createComponentNode, createContainerNode, createDocument, createScreenNode, DEVICE_PRESETS, serializeDocument } from '@calque/core'
-import type { CalqueDocument, FrameNode, Node } from '@calque/core'
-import { autoLayoutOf, BundleError, buildPlan, parseBundle, rotationTransform, weightStyleCandidates } from '../src/mapping'
+import type { CalqueDocument, FrameNode, Interaction, Node } from '@calque/core'
+import { autoLayoutOf, BundleError, buildPlan, parseBundle, rotationTransform, transitionOf, weightStyleCandidates } from '../src/mapping'
 import type { Plan, PlanNode } from '../src/mapping'
 
 const base = { visible: true, locked: false, opacity: 1, rotation: 0 }
@@ -140,5 +140,54 @@ describe('weightStyleCandidates', () => {
     expect(weightStyleCandidates(600)).toContain('Semi Bold')
     expect(weightStyleCandidates(700)[0]).toBe('Bold')
     expect(weightStyleCandidates(450)[0]).toBe('Medium')
+  })
+})
+
+describe('interactions -> reactions de prototype', () => {
+  const nav = (target: string, transition: Interaction['transition']): Interaction => ({ trigger: { type: 'tap' }, action: { type: 'navigate', target }, transition })
+  function docProto() {
+    const bouton = { ...createComponentNode('button', { x: 0, y: 0, w: 200, h: 48 }), id: 'btn', interactions: [nav('e2', { type: 'slide', direction: 'left', durationMs: 400, easing: 'easeOut' }), { trigger: { type: 'longPress' }, action: { type: 'openOverlay', overlay: 'dialog', target: 'dlg' }, transition: { type: 'fade', durationMs: 200, easing: 'linear' } }] } as Node
+    const dlg = { ...createComponentNode('dialog', { x: 20, y: 200, w: 300, h: 180 }), id: 'dlg' } as Node
+    const e1 = { ...createScreenNode('Accueil', DEVICE_PRESETS.iphone15, { x: 0, y: 0, w: 393, h: 852 }, [bouton, dlg]), id: 'e1', interactions: [{ trigger: { type: 'afterDelay', ms: 2500 }, action: { type: 'navigate', target: 'e2' }, transition: { type: 'modal', durationMs: 350, easing: 'spring' } }] as Interaction[] }
+    const retour = { ...createComponentNode('button', { x: 0, y: 0, w: 200, h: 48 }), id: 'ret', interactions: [{ trigger: { type: 'tap' }, action: { type: 'back' }, transition: { type: 'none' } }, { trigger: { type: 'longPress' }, action: { type: 'openUrl', url: 'https://x.test' }, transition: { type: 'none' } }] } as Node
+    const e2 = { ...createScreenNode('Détail', DEVICE_PRESETS.iphone15, { x: 500, y: 0, w: 393, h: 852 }, [retour]), id: 'e2' }
+    const d = createDocument('P')
+    return { ...d, pages: [{ ...d.pages[0]!, nodes: [e1, e2] }] }
+  }
+  const plan = buildPlan(bundleOf(docProto()))
+  const find = (source: string, type: string) => plan.reactions.find((r) => r.source === source && r.trigger.type === type)!
+
+  it('clic : ON_CLICK vers l ecran, glissement vers la gauche = entree par la droite, durees en secondes', () => {
+    expect(find('btn', 'ON_CLICK').action).toEqual({ type: 'NODE', navigation: 'NAVIGATE', destination: 'e2', transition: { type: 'MOVE_IN', direction: 'RIGHT', matchLayers: false, duration: 0.4, easing: { type: 'EASE_OUT' } } })
+  })
+  it('appui long : souris enfoncee apres 0,5 s ; overlay : action OVERLAY vers le cadre d overlay, fondu', () => {
+    const r = find('btn', 'MOUSE_DOWN')
+    expect(r.trigger).toEqual({ type: 'MOUSE_DOWN', delay: 0.5 })
+    expect(r.action).toEqual({ type: 'NODE', navigation: 'OVERLAY', destination: 'overlay:dlg', transition: { type: 'DISSOLVE', duration: 0.2, easing: { type: 'LINEAR' } } })
+  })
+  it('apres un delai : AFTER_TIMEOUT en secondes ; modale = entree par le bas ; ressort = BOUNCY', () => {
+    const r = find('e1', 'AFTER_TIMEOUT')
+    expect(r.trigger).toEqual({ type: 'AFTER_TIMEOUT', timeout: 2.5 })
+    expect(r.action).toMatchObject({ transition: { type: 'MOVE_IN', direction: 'BOTTOM', easing: { type: 'BOUNCY' } } })
+  })
+  it('retour, URL et transition « aucune » (null)', () => {
+    expect(find('ret', 'ON_CLICK').action).toEqual({ type: 'BACK' })
+    expect(find('ret', 'MOUSE_DOWN').action).toEqual({ type: 'URL', url: 'https://x.test' })
+    expect(transitionOf({ type: 'none' })).toBeNull()
+  })
+  it('directions : droite -> LEFT, haut -> BOTTOM, bas -> TOP ; pousse -> PUSH', () => {
+    const d = (direction: 'left' | 'right' | 'up' | 'down') => (transitionOf({ type: 'slide', direction, durationMs: 100, easing: 'linear' }) as { direction: string }).direction
+    expect([d('left'), d('right'), d('up'), d('down')]).toEqual(['RIGHT', 'LEFT', 'BOTTOM', 'TOP'])
+    expect(transitionOf({ type: 'push', durationMs: 300, easing: 'easeInOut' })).toMatchObject({ type: 'PUSH', direction: 'RIGHT' })
+  })
+  it('l overlay a son propre cadre (a l origine) et son gabarit est masque dans l ecran', () => {
+    expect(plan.overlays).toHaveLength(1)
+    expect(plan.overlays[0]!.frame).toMatchObject({ name: 'Overlay · Boîte de dialogue', w: 300, h: 180 })
+    expect(plan.overlays[0]!.frame.children[0]).toMatchObject({ kind: 'instance', x: 0, y: 0, visible: true })
+    const inline = (plan.screens[0]!.children as PlanNode[]).find((c) => c.sourceId === 'dlg')!
+    expect(inline.visible).toBe(false)
+  })
+  it('les overlays n ajoutent pas de composant en double : le dialogue partage son composant', () => {
+    expect(plan.components.filter((c) => c.setName === 'Boîte de dialogue')).toHaveLength(1)
   })
 })
