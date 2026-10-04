@@ -81,6 +81,7 @@ let sel = await selected()
 check('marquee depuis le fond : selectionne les deux rectangles coupes', sel.length === 2 && sel.includes(rA) && sel.includes(rB), sel.join())
 await shot('42-marquee')
 const p1 = px(10, 280), p2 = px(140, 400)
+await pause(250)
 await drag(p1.x, p1.y, p2.x, p2.y)
 sel = await selected()
 check('marquee depuis le corps de l ecran : selectionne le rectangle coupe', sel.length === 1 && sel[0] === rC, sel.join())
@@ -385,6 +386,15 @@ await setNext({ save: doc2 }); await menu('Enregistrer'); await pause(500)
 check('images : l enregistrement copie l image dans <document>.ressources/', existsSync(path.join(work, 'avec-image.ressources', 'Mon Logo.png')))
 r = await exporter('Flutter', 'flutter2')
 check('images : export apres enregistrement (source relative) copie toujours l image', existsSync(path.join(r.dir, 'assets/images/Mon_Logo.png')))
+
+r = await exporter('SVG', 'svg')
+const svgPath = path.join(r.dir, 'svg', readdirSync(path.join(r.dir, 'svg'))[0] ?? 'absent.svg')
+const svgTexte = existsSync(svgPath) ? readFileSync(svgPath, 'utf8') : ''
+check('export SVG : un fichier par ecran, image embarquee (data URI), bien forme', /^<svg /.test(svgTexte) && /data:image\/png;base64,/.test(svgTexte) && svgTexte.trim().endsWith('</svg>'), svgPath)
+r = await exporter('Figma', 'figma-bundle')
+const figmaFile = readdirSync(r.dir).find((f) => f.endsWith('.figma.json'))
+const bundle = figmaFile ? JSON.parse(readFileSync(path.join(r.dir, figmaFile), 'utf8')) : null
+check('export Figma : un seul .figma.json avec le document et les images en base64', bundle?.format === 'calque-figma' && Object.keys(bundle.images).length === 1 && bundle.document.pages[0].nodes.length >= 1, figmaFile)
 
 // ---------- 11. Import Figma : fichier .json et API (serveur local) ----------
 await setNext({ box: 1 }); await menu('Nouveau'); await pause(250)
