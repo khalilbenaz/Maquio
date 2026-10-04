@@ -395,6 +395,9 @@ export function Toolbar({ api, onOpenSettings }: { api: CalqueApi; onOpenSetting
           </Icon>
           Nouvel écran
         </button>
+        <button type="button" aria-label="Lancer le prototype" title="Lancer le prototype (Cmd/Ctrl+Entrée)" className="toolbar-button-text" onClick={() => useEditorStore.getState().setPrototypeOpen(true)}>
+          ▶ Prototype
+        </button>
         <button
           type="button"
           aria-label="Afficher les liens"

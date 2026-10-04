@@ -99,6 +99,8 @@ export type EditorState = {
   linksVisible: boolean
   // Noeud dont le texte est en cours d'edition sur le canevas (double-clic).
   editingTextId: string | null
+  // Mode prototype (apercu plein ecran) ouvert.
+  prototypeOpen: boolean
 
   load(doc: CalqueDocument): void
   select(ids: string[]): void
@@ -114,6 +116,7 @@ export type EditorState = {
   setActiveScreenId(id: string | null): void
   toggleLinksVisible(): void
   setEditingTextId(id: string | null): void
+  setPrototypeOpen(open: boolean): void
 }
 
 // L'ecran (au sens screenContaining de @calque/core) du premier noeud d'une
@@ -159,6 +162,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     activeScreenId: firstScreenOf(doc, doc.pages[0]!.id),
     linksVisible: false,
     editingTextId: null,
+    prototypeOpen: false,
 
     load(nextDoc) {
       const history = new History(nextDoc)
@@ -174,6 +178,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
         dragPreview: null,
         activeScreenId: firstScreenOf(nextDoc, pageId),
         editingTextId: null,
+        prototypeOpen: false,
       })
     },
 
@@ -236,6 +241,10 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
     setActiveScreenId(id) {
       set({ activeScreenId: id })
+    },
+
+    setPrototypeOpen(open) {
+      set({ prototypeOpen: open })
     },
 
     setEditingTextId(id) {
