@@ -25,6 +25,8 @@ import { useEffect, useState } from 'react'
 import type { MaquioApi } from '../../shared/api'
 import { messageOfError } from '../../shared/errors'
 import { useClaudeStatusStore } from '../state/claudeStatusStore'
+import { useThemeStore } from '../state/themeStore'
+import { THEME_LABELS, THEME_PREFERENCES, isThemePreference } from '../../shared/theme'
 import './Dialog.css'
 
 type Statut = 'idle' | 'loading' | 'error'
@@ -38,6 +40,8 @@ function CloseIcon() {
 }
 
 export function SettingsDialog({ api, onClose }: { api: MaquioApi; onClose: () => void }) {
+  const theme = useThemeStore((s) => s.preference)
+  const setTheme = useThemeStore((s) => s.setPreference)
   const [jeton, setJeton] = useState('')
   const [hasFigmaToken, setHasFigmaToken] = useState(false)
   const [statut, setStatut] = useState<Statut>('idle')
@@ -136,6 +140,34 @@ export function SettingsDialog({ api, onClose }: { api: MaquioApi; onClose: () =
         </div>
 
         <div className="dialog-body">
+          <section className="dialog-section" aria-label="Apparence">
+            <h2>Apparence</h2>
+            <label htmlFor="theme-select" className="dialog-field-label">
+              Thème de l'éditeur
+            </label>
+            <select
+              id="theme-select"
+              aria-label="Thème de l'éditeur"
+              className="dialog-input"
+              value={theme}
+              onChange={(e) => {
+                const choix = e.target.value
+                if (!isThemePreference(choix)) return
+                setTheme(choix)
+                void api.setThemePreference(choix).catch(() => undefined)
+              }}
+            >
+              {THEME_PREFERENCES.map((p) => (
+                <option key={p} value={p}>
+                  {THEME_LABELS[p]}
+                </option>
+              ))}
+            </select>
+            <p className="dialog-hint">« Système » suit l'apparence de votre ordinateur. Le canevas et les écrans de votre maquette gardent leurs propres couleurs.</p>
+          </section>
+
+          <hr className="dialog-divider" />
+
           <section className="dialog-section">
             <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
               <h2>Figma</h2>

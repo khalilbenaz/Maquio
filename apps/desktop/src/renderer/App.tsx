@@ -25,6 +25,8 @@ import { PrototypeView } from './prototype/PrototypeView'
 import { ClaudePanel } from './panels/ClaudePanel'
 import { SettingsDialog } from './dialogs/SettingsDialog'
 import { AboutDialog } from './dialogs/AboutDialog'
+import { useThemeStore } from './state/themeStore'
+import { isThemePreference } from '../shared/theme'
 import './App.css'
 
 // Point de passage unique pour l'absence de passerelle (correction du
@@ -175,6 +177,9 @@ function Editeur({ api }: { api: MaquioApi }) {
     const detacherEnregistrerSous = evenements.onSaveAsRequested(() => void signaler(() => enregistrer(true)))
     const detacherChemin = evenements.onOpenPathRequested((chemin) => void signaler(() => ouvrirChemin(chemin)))
     const detacherAffichage = evenements.onViewRequested((action) => commandeAffichage(action))
+    const detacherTheme = evenements.onThemeChanged((p) => {
+      if (isThemePreference(p)) useThemeStore.getState().setPreference(p)
+    })
     return () => {
       detacherNouveau()
       detacherOuvrir()
@@ -182,6 +187,7 @@ function Editeur({ api }: { api: MaquioApi }) {
       detacherEnregistrerSous()
       detacherChemin()
       detacherAffichage()
+      detacherTheme()
     }
     // Les actions lues ici ne dependent que de documentPath (reabonnement a chaque changement).
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -241,6 +247,14 @@ function Editeur({ api }: { api: MaquioApi }) {
       else prefs.resetRightWidth()
     }
   }
+
+  // Preference de theme memorisee cote main (affichee dans les Reglages).
+  useEffect(() => {
+    void api
+      .getThemePreference()
+      .then((p) => useThemeStore.getState().setPreference(p))
+      .catch(() => undefined)
+  }, [api])
 
   // Commandes du menu Affichage (memes actions que les raccourcis clavier).
   function commandeAffichage(action: string) {

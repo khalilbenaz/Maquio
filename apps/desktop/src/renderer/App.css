@@ -108,7 +108,7 @@
 
 .maquio-titlebar-dirty {
   margin-left: 6px;
-  color: var(--maquio-accent);
+  color: var(--maquio-accent-text);
 }
 
 .maquio-titlebar-spacer {
@@ -185,8 +185,8 @@
   align-items: center;
   gap: 12px;
   padding: 8px 16px;
-  background: #5a1d1d;
-  color: #ffd9d9;
+  background: var(--maquio-banner-bg);
+  color: var(--maquio-banner-text);
   font-size: 13px;
 }
 

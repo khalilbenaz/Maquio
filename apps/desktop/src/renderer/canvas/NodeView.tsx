@@ -158,7 +158,7 @@ function InlineEditor({ node }: { node: MaquioNode }) {
         width: '100%',
         height: '100%',
         resize: 'none',
-        border: '1px solid var(--maquio-accent, #e2714a)',
+        border: '1px solid var(--maquio-canvas-accent)',
         outline: 'none',
         background: 'rgba(255,255,255,0.92)',
         color: node.type === 'text' ? colorToCss(node.style.color) : '#111',

@@ -101,7 +101,7 @@
   height: 34px;
   background: var(--maquio-accent);
   border: none;
-  color: var(--maquio-chrome-bg);
+  color: var(--maquio-on-accent);
   border-radius: 8px;
   font: inherit;
   font-size: 13px;
@@ -146,8 +146,8 @@
 .claude-panel-alert {
   margin: 0;
   padding: 9px 11px;
-  background: rgba(229, 120, 107, 0.1);
-  border: 1px solid rgba(229, 120, 107, 0.32);
+  background: var(--maquio-danger-wash);
+  border: 1px solid var(--maquio-danger-border);
   border-radius: 8px;
   color: var(--maquio-text-soft);
   font-size: 12.5px;
@@ -229,7 +229,7 @@
   background: var(--maquio-success);
 }
 .claude-badge-error {
-  background: #e5534b;
+  background: var(--maquio-danger-solid);
 }
 @keyframes claude-pulse {
   50% {

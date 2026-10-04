@@ -30,7 +30,7 @@
   text-align: center;
   font-size: 11px;
   letter-spacing: 0.4px;
-  color: var(--maquio-text-faint);
+  color: var(--maquio-canvas-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -39,7 +39,7 @@
 /* v2 (addendum navigation §4) : « l'étiquette de l'écran actif est en
    accent » -- l'ecran de la selection courante, ou le dernier touche. */
 .maquio-canvas-label-active {
-  color: var(--maquio-accent);
+  color: var(--maquio-canvas-accent);
   font-weight: 600;
 }
 
@@ -49,7 +49,7 @@
    se termine ici (voir Canvas.tsx, dragPreview.targetScreenId). */
 .maquio-canvas-drop-target {
   box-sizing: border-box;
-  border: 2px solid var(--maquio-accent);
+  border: 2px solid var(--maquio-canvas-accent);
   border-radius: 4px;
 }
 
@@ -99,16 +99,16 @@
   gap: 9px;
   padding: 8px 13px;
   font-size: 12.5px;
-  color: var(--maquio-text);
-  background: var(--maquio-panel-raised);
-  border: 1px solid var(--maquio-border-strong);
+  color: var(--maquio-canvas-chip-text);
+  background: var(--maquio-canvas-chip-bg);
+  border: 1px solid var(--maquio-canvas-chip-border);
   border-radius: 9px;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
   pointer-events: none;
 }
 
 .maquio-canvas-toolinfo svg {
-  color: var(--maquio-accent);
+  color: var(--maquio-canvas-accent);
   flex-shrink: 0;
 }
 
