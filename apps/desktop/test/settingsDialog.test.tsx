@@ -259,3 +259,18 @@ describe('SettingsDialog — Claude Code', () => {
     expect(useClaudeStatusStore.getState().path).toBe('/opt/homebrew/bin/claude')
   })
 })
+
+describe('SettingsDialog : apparence', () => {
+  it('propose Systeme / Clair / Sombre, reflete la preference et l envoie au main', () => {
+    const setThemePreference = vi.fn(async () => {})
+    render(<SettingsDialog api={{ ...apiFactice, setThemePreference }} onClose={() => {}} />)
+    const select = screen.getByLabelText("Thème de l'éditeur") as HTMLSelectElement
+    expect(Array.from(select.options).map((o) => o.value)).toEqual(['system', 'light', 'dark'])
+    expect(Array.from(select.options).map((o) => o.textContent)).toEqual(['Système', 'Clair', 'Sombre'])
+    fireEvent.change(select, { target: { value: 'light' } })
+    expect(setThemePreference).toHaveBeenCalledWith('light')
+    expect((screen.getByLabelText("Thème de l'éditeur") as HTMLSelectElement).value).toBe('light')
+    fireEvent.change(select, { target: { value: 'violet' } })
+    expect(setThemePreference).toHaveBeenCalledTimes(1)
+  })
+})

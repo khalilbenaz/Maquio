@@ -7,6 +7,8 @@
 import type { MaquioApi } from '../../src/shared/api'
 
 export const apiFactice: MaquioApi = {
+  getThemePreference: async () => 'system',
+  setThemePreference: async () => {},
   openDocument: async () => null,
   openDocumentAt: async () => {
     throw new Error('non disponible dans ce test')

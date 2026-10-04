@@ -11,7 +11,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(8, 7, 7, 0.55);
+  background: var(--maquio-scrim);
   z-index: 100;
 }
 
@@ -26,7 +26,7 @@
   color: var(--maquio-text);
   border: 1px solid var(--maquio-border-strong);
   border-radius: 14px;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.65);
+  box-shadow: 0 30px 80px var(--maquio-shadow-strong);
   overflow: hidden;
 }
 
@@ -157,7 +157,7 @@
 
 .dialog-button-primary {
   font-weight: 600;
-  color: var(--maquio-chrome-bg);
+  color: var(--maquio-on-accent);
   background: var(--maquio-accent);
   border: none;
 }
@@ -188,13 +188,13 @@
   padding: 2px 9px;
   font-size: 11.5px;
   color: var(--maquio-success);
-  background: rgba(111, 191, 139, 0.12);
+  background: var(--maquio-success-wash);
   border-radius: 999px;
 }
 
 .dialog-status-badge-off {
   color: var(--maquio-text-faint);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--maquio-hover);
 }
 
 .dialog-status-dot {
@@ -207,8 +207,8 @@
 .dialog-alert {
   margin: 0;
   padding: 9px 11px;
-  background: rgba(229, 120, 107, 0.1);
-  border: 1px solid rgba(229, 120, 107, 0.32);
+  background: var(--maquio-danger-wash);
+  border: 1px solid var(--maquio-danger-border);
   border-radius: 8px;
   color: var(--maquio-text-soft);
   font-size: 12.5px;

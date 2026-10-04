@@ -11,12 +11,15 @@
 // adaptateurs sous src/main/adapters/*.ts.
 import { access, constants, copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { app, BrowserWindow, ipcMain, Menu, safeStorage } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, nativeTheme, safeStorage } from 'electron'
 import { AiService, ProcessClaudeRunner } from '@maquio/ai'
 import { FigmaClient } from '@maquio/figma'
 import { listExporters } from '@maquio/codegen'
 import { cheminIcone, creerFenetrePrincipale } from './window'
 import { isDocumentPath } from '../shared/documentFile'
+import { createThemeStore } from './adapters/themeStore'
+import { isThemePreference, THEME_LABELS, windowBackground } from '../shared/theme'
+import type { ThemePreference } from '../shared/theme'
 import { isTrustedSender, UntrustedSenderError } from './security'
 import { nodeSpawn } from './adapters/nodeSpawn'
 import { nodeFetch } from './adapters/nodeFetch'
@@ -135,6 +138,17 @@ const claudeRequests = new ClaudeRequestTracker()
 // fois l'application prete -- le magasin est donc construit dans
 // demarrer(), pas au chargement du module.
 let magasinSecrets: ReturnType<typeof createSecretStore> | undefined
+let magasinTheme: ReturnType<typeof createThemeStore> | undefined
+let themeCourant: ThemePreference = 'system'
+
+// Applique la preference : nativeTheme pilote `prefers-color-scheme` du renderer
+// (donc le chrome), le fond de fenetre suit sans attendre le rendu.
+function appliquerTheme(preference: ThemePreference): void {
+  themeCourant = preference
+  nativeTheme.themeSource = preference
+  const fond = windowBackground(nativeTheme.shouldUseDarkColors, preference)
+  for (const fenetre of BrowserWindow.getAllWindows()) fenetre.setBackgroundColor(fond)
+}
 
 async function pathExists(p: string): Promise<boolean> {
   try {
@@ -200,6 +214,16 @@ function enregistrerLesGestionnaires(): void {
       },
       isApprovedImagePath: (p) => cheminsImagesApprouves.has(p),
     }).saveDocument(input)
+  })
+
+  handle('getThemePreference', () => themeCourant)
+
+  handle('setThemePreference', async (_event, preference: unknown) => {
+    if (!isThemePreference(preference)) throw new Error('Thème inconnu')
+    await magasinTheme?.set(preference)
+    appliquerTheme(preference)
+    Menu.setApplicationMenu(construireLeMenu())
+    envoyerAuxFenetres('maquio:theme-changed', preference)
   })
 
   handle('chooseImage', async (event) => {
@@ -338,6 +362,22 @@ function construireLeMenu(): Menu {
         { type: 'separator' },
         { label: 'Mode focus', accelerator: 'CmdOrCtrl+.', registerAccelerator: false, click: () => envoyerAuxFenetres('maquio:menu-view', 'focus') },
         { type: 'separator' },
+        { type: 'separator' },
+        {
+          label: 'Thème',
+          submenu: (['system', 'light', 'dark'] as const).map((preference) => ({
+            label: preference === 'system' ? 'Thème : système' : `Thème ${THEME_LABELS[preference].toLowerCase()}`,
+            type: 'radio' as const,
+            checked: themeCourant === preference,
+            click: () => {
+              void magasinTheme?.set(preference)
+              appliquerTheme(preference)
+              Menu.setApplicationMenu(construireLeMenu())
+              envoyerAuxFenetres('maquio:theme-changed', preference)
+            },
+          })),
+        },
+        { type: 'separator' },
         { label: 'Lancer le prototype', accelerator: 'CmdOrCtrl+Enter', registerAccelerator: false, click: () => envoyerAuxFenetres('maquio:menu-view', 'prototype') },
       ],
     },
@@ -381,6 +421,13 @@ async function demarrer(): Promise<void> {
     },
   })
 
+  // Theme : lu AVANT la fenetre (fond de fenetre, nativeTheme).
+  magasinTheme = createThemeStore({
+    filePath: path.join(app.getPath('userData'), 'theme.json'),
+    fs: { readFile: (p) => readFile(p, 'utf8'), writeFile: (p, data) => writeFile(p, data, 'utf8') },
+  })
+  appliquerTheme(await magasinTheme.get())
+
   // JSON ordinaire, jamais chiffre (voir claudeSettingsStore.ts) : un
   // chemin de binaire n'est pas un secret.
   magasinReglagesClaude = createClaudeSettingsStore({
@@ -397,7 +444,7 @@ async function demarrer(): Promise<void> {
 
   enregistrerLesGestionnaires()
   Menu.setApplicationMenu(construireLeMenu())
-  const fenetre = creerFenetrePrincipale()
+  const fenetre = creerFenetrePrincipale(windowBackground(nativeTheme.shouldUseDarkColors, themeCourant))
   fenetre.webContents.on('did-finish-load', () => {
     for (const chemin of cheminsEnAttente) fenetre.webContents.send('maquio:open-path', chemin)
     cheminsEnAttente = []
@@ -405,7 +452,7 @@ async function demarrer(): Promise<void> {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      creerFenetrePrincipale()
+      creerFenetrePrincipale(windowBackground(nativeTheme.shouldUseDarkColors, themeCourant))
     }
   })
 }

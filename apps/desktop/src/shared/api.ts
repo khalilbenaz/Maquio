@@ -101,6 +101,10 @@ export type MaquioApi = {
   // documentHandlers.ts) : tant que le document n'a jamais été enregistré,
   // il n'y a nulle part où le copier.
   chooseImage(): Promise<string | null>
+  // Theme de l'editeur (systeme, clair, sombre) : memorise cote main, applique
+  // sans redemarrage (nativeTheme) et sans flash au lancement.
+  getThemePreference(): Promise<'system' | 'light' | 'dark'>
+  setThemePreference(preference: 'system' | 'light' | 'dark'): Promise<void>
 }
 
 export const API_CHANNELS = [
@@ -117,4 +121,6 @@ export const API_CHANNELS = [
   'setFigmaToken',
   'setClaudeCustomPath',
   'chooseImage',
+  'getThemePreference',
+  'setThemePreference',
 ] as const

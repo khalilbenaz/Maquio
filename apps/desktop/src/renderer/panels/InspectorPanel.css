@@ -148,7 +148,7 @@
   margin: 6px 0 0;
   padding: 6px 8px;
   border-radius: var(--maquio-radius-sm);
-  background: rgba(229, 120, 107, 0.14);
+  background: var(--maquio-danger-wash);
   color: var(--maquio-danger);
   font-size: 12px;
   line-height: 1.4;
@@ -244,7 +244,7 @@
   margin-top: 6px;
 }
 .inspector-error {
-  color: #e5534b;
+  color: var(--maquio-danger);
   font-size: 12px;
   margin: 6px 0 0;
 }

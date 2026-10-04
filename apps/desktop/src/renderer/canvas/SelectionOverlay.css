@@ -23,7 +23,7 @@
   font-size: 10px;
   font-variant-numeric: tabular-nums;
   color: #ffffff;
-  background: var(--maquio-accent);
+  background: var(--maquio-canvas-accent);
   border-radius: 3px;
   white-space: nowrap;
   pointer-events: none;

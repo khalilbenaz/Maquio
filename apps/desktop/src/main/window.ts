@@ -18,10 +18,12 @@ export function cheminIcone(): string {
   return path.join(__dirname, '../renderer/icon.png')
 }
 
-export function creerFenetrePrincipale(): BrowserWindow {
+export function creerFenetrePrincipale(backgroundColor: string): BrowserWindow {
   const fenetre = new BrowserWindow({
     width: 1280,
     height: 800,
+    // Aligne sur le theme (--maquio-chrome-bg) : aucun flash avant le premier rendu.
+    backgroundColor,
     // Windows / Linux : icone de fenetre (macOS : icone du Dock, voir main.ts).
     icon: cheminIcone(),
     webPreferences: {

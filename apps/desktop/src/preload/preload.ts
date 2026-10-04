@@ -20,6 +20,8 @@ const api: MaquioApi = {
   setFigmaToken: (token) => ipcRenderer.invoke('setFigmaToken', token),
   setClaudeCustomPath: (path) => ipcRenderer.invoke('setClaudeCustomPath', path),
   chooseImage: () => ipcRenderer.invoke('chooseImage'),
+  getThemePreference: () => ipcRenderer.invoke('getThemePreference'),
+  setThemePreference: (preference) => ipcRenderer.invoke('setThemePreference', preference),
 }
 
 const clesExposees = Object.keys(api).sort()
@@ -45,6 +47,12 @@ contextBridge.exposeInMainWorld('maquioMenu', {
     const listener = (_event: unknown, action: string) => callback(action)
     ipcRenderer.on('maquio:menu-view', listener)
     return () => ipcRenderer.removeListener('maquio:menu-view', listener)
+  },
+  // Le theme a change (menu Affichage) : le renderer met son etat a jour.
+  onThemeChanged: (callback: (preference: string) => void) => {
+    const listener = (_event: unknown, preference: string) => callback(preference)
+    ipcRenderer.on('maquio:theme-changed', listener)
+    return () => ipcRenderer.removeListener('maquio:theme-changed', listener)
   },
   // Chemin reel d'un fichier depose sur la fenetre (le renderer n'a plus acces a `File.path`).
   pathForFile: (file: File) => webUtils.getPathForFile(file),

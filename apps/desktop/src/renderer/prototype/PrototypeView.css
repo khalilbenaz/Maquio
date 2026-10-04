@@ -4,8 +4,8 @@
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  background: #0b0b0d;
-  color: #f2eee6;
+  background: var(--maquio-canvas-bg);
+  color: var(--maquio-canvas-chip-text);
 }
 .proto-bar {
   display: flex;
@@ -13,23 +13,23 @@
   gap: 12px;
   height: 44px;
   padding: 0 16px;
-  background: #16131f;
-  border-bottom: 1px solid #2c2838;
+  background: var(--maquio-canvas-chip-bg);
+  border-bottom: 1px solid var(--maquio-canvas-chip-border);
   font-size: 13px;
 }
 .proto-title {
   font-weight: 700;
-  color: #ff5a36;
+  color: var(--maquio-canvas-accent);
 }
 .proto-screen-name {
-  color: #a9a3b8;
+  color: var(--maquio-canvas-text);
 }
 .proto-spacer {
   flex: 1;
 }
 .proto-bar button,
 .proto-empty + button {
-  background: #2c2838;
+  background: var(--maquio-canvas-chip-border);
   color: inherit;
   border: 0;
   border-radius: 6px;
@@ -64,14 +64,14 @@
   background: rgba(0, 0, 0, 0.42);
 }
 [data-interactive='true']:hover {
-  outline: 2px solid rgba(255, 90, 54, 0.7);
+  outline: 2px solid var(--maquio-canvas-accent);
   outline-offset: -2px;
 }
 .proto-toast {
   position: absolute;
   bottom: 28px;
-  background: #16131f;
-  color: #f2eee6;
+  background: var(--maquio-canvas-chip-bg);
+  color: var(--maquio-canvas-chip-text);
   padding: 8px 14px;
   border-radius: 8px;
   font-size: 13px;
