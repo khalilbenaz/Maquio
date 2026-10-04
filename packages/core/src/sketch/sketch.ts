@@ -87,6 +87,30 @@ export const ICON_GLYPHS: Record<IconName, string> = {
   warning: '!',
   location: '⌖',
   list: '≣',
+  face: '☻',
+  backspace: '⌫',
+  swap: '⇄',
+  moreHoriz: '⋯',
+  card: '▭',
+  vault: '▤',
+  copy: '⧉',
+  coffee: '☕',
+  shield: '⛨',
+  shieldCheck: '⛨',
+  arrowUp: '↑',
+  arrowDown: '↓',
+  eye: '◉',
+  snowflake: '❄',
+  sliders: '≡',
+  plane: '✈',
+  bike: '⚲',
+  document: '▯',
+  globe: '◍',
+  contrast: '◐',
+  smartphone: '▯',
+  logout: '⇥',
+  chevronLeft: '‹',
+  upload: '⇧',
 }
 
 function icon(name: IconName, x: number, y: number, size: number, color: Hex): SketchPrim {
@@ -111,7 +135,7 @@ export function componentSketch(node: ComponentNode): SketchPrim[] {
       else if (p.variant === 'secondary') out.push({ t: 'rect', x: 0, y: 0, w, h, r: h / 2, stroke: { color: p.disabled ? M3.disabledBg : M3.outline, width: 1 }, name: 'contour' })
       const pad = p.icon !== undefined ? 36 : 0
       if (p.icon !== undefined) out.push(icon(p.icon, 16, (h - 18) / 2, 18, fg))
-      out.push(label(p.label, pad, 0, w - pad, h, 14, fg, { weight: 500, align: 'center', slot: 'label' }))
+      out.push(label(p.label, pad, 0, w - pad, h, p.fontSize ?? 14, fg, { weight: p.fontWeight ?? 500, align: 'center', slot: 'label' }))
       break
     }
     case 'iconButton': {
@@ -160,7 +184,7 @@ export function componentSketch(node: ComponentNode): SketchPrim[] {
       const th = 32
       const ty = (h - th) / 2
       const on = p.checked
-      out.push({ t: 'rect', x: w - tw, y: ty, w: tw, h: th, r: 16, fill: on ? M3.primary : M3.surfaceContainer, stroke: on ? undefined : { color: M3.outline, width: 2 }, name: 'piste' })
+      out.push({ t: 'rect', x: w - tw, y: ty, w: tw, h: th, r: 16, fill: on ? main(p.color) : M3.surfaceContainer, stroke: on ? undefined : { color: M3.outline, width: 2 }, name: 'piste' })
       out.push({ t: 'ellipse', x: on ? w - tw + 24 : w - tw + 6, y: ty + (on ? 4 : 8), w: on ? 24 : 16, h: on ? 24 : 16, fill: on ? M3.onPrimary : M3.outline, name: 'curseur' })
       out.push(label(p.label, 0, 0, w - tw - 8, h, 14, p.disabled ? M3.disabledFg : M3.onSurface, { slot: 'label' }))
       break
@@ -235,8 +259,9 @@ export function componentSketch(node: ComponentNode): SketchPrim[] {
     }
     case 'progressBar': {
       const p = node.props
-      out.push({ t: 'rect', x: 0, y: h / 2 - 2, w, h: 4, r: 2, fill: M3.secondaryContainer })
-      out.push({ t: 'rect', x: 0, y: h / 2 - 2, w: Math.max(4, w * (p.indeterminate ? 0.4 : p.value)), h: 4, r: 2, fill: main(p.color) })
+      const th = Math.max(2, Math.min(h, 16))
+      out.push({ t: 'rect', x: 0, y: (h - th) / 2, w, h: th, r: th / 2, fill: p.trackColor === undefined ? M3.secondaryContainer : hexOf(p.trackColor) })
+      out.push({ t: 'rect', x: 0, y: (h - th) / 2, w: Math.max(th, w * (p.indeterminate ? 0.4 : p.value)), h: th, r: th / 2, fill: main(p.color) })
       break
     }
     case 'spinner': {
@@ -271,13 +296,14 @@ export function componentSketch(node: ComponentNode): SketchPrim[] {
     }
     case 'bottomNav': {
       const p = node.props
-      out.push({ t: 'rect', x: 0, y: 0, w, h, fill: M3.surfaceContainer, name: 'fond' })
+      out.push({ t: 'rect', x: 0, y: 0, w, h, fill: p.color === undefined ? M3.surfaceContainer : '#ffffff', name: 'fond' })
       const cw = w / p.items.length
       p.items.forEach((it, i) => {
         const sel = i === p.selectedIndex
-        if (sel) out.push({ t: 'rect', x: i * cw + cw / 2 - 32, y: 12, w: 64, h: 32, r: 16, fill: M3.secondaryContainer })
-        out.push(icon(it.icon, i * cw + cw / 2 - 12, 16, 24, sel ? M3.onPrimaryContainer : M3.onSurfaceVariant))
-        out.push(label(it.label, i * cw, 48, cw, 16, 12, sel ? M3.onSurface : M3.onSurfaceVariant, { weight: sel ? 700 : 500, align: 'center', slot: `item${i}` }))
+        const accent = p.color === undefined ? undefined : hexOf(p.color)
+        if (sel && accent === undefined) out.push({ t: 'rect', x: i * cw + cw / 2 - 32, y: 12, w: 64, h: 32, r: 16, fill: M3.secondaryContainer })
+        out.push(icon(it.icon, i * cw + cw / 2 - 12, 16, 24, sel ? (accent ?? M3.onPrimaryContainer) : M3.onSurfaceVariant))
+        out.push(label(it.label, i * cw, 48, cw, 16, 12, sel ? (accent ?? M3.onSurface) : M3.onSurfaceVariant, { weight: sel ? 700 : 500, align: 'center', slot: `item${i}` }))
       })
       break
     }

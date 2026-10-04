@@ -117,18 +117,31 @@ export function renderComponent(node: ComponentNode, env: ComponentEnv): { block
       } else if (p.color) {
         styleArgs.push({ key: 'foregroundColor', block: lit(color(p.color, env)) })
       }
+      if (p.flat && p.variant === 'primary') styleArgs.push({ key: 'elevation', block: lit('0') })
       const style: Arg[] = styleArgs.length === 0 ? [] : [{ key: 'style', block: call(`${widget}.styleFrom`, styleArgs) }]
+      const labelStyle: Arg[] =
+        p.fontSize === undefined && p.fontWeight === undefined
+          ? []
+          : [
+              {
+                key: 'style',
+                block: call('TextStyle', [
+                  ...(p.fontSize === undefined ? [] : [{ key: 'fontSize', block: lit(num(p.fontSize)) }]),
+                  ...(p.fontWeight === undefined ? [] : [{ key: 'fontWeight', block: lit(`FontWeight.w${Math.round(p.fontWeight / 100) * 100}`) }]),
+                ]),
+              },
+            ]
       if (p.icon !== undefined) {
         return own(
           call(`${widget}.icon`, [
             onPressed(p.disabled, link),
             { key: 'icon', block: icon(p.icon) },
-            { key: 'label', block: textOf(p.label) },
+            { key: 'label', block: textOf(p.label, labelStyle) },
             ...style,
           ]),
         )
       }
-      return own(call(widget, [onPressed(p.disabled, link), ...style, { key: 'child', block: textOf(p.label) }]))
+      return own(call(widget, [onPressed(p.disabled, link), ...style, { key: 'child', block: textOf(p.label, labelStyle) }]))
     }
     case 'iconButton': {
       const p = node.props
@@ -201,7 +214,7 @@ export function renderComponent(node: ComponentNode, env: ComponentEnv): { block
             key: 'children',
             block: list([
               call('Expanded', [{ key: 'child', block: textOf(p.label) }]),
-              call('Switch', [{ key: 'value', block: lit(String(p.checked)) }, onChanged(p.disabled)]),
+              call('Switch', [{ key: 'value', block: lit(String(p.checked)) }, ...(p.color ? [{ key: 'activeTrackColor', block: lit(color(p.color, env)) }] : []), onChanged(p.disabled)]),
             ]),
           },
         ]),
@@ -336,6 +349,12 @@ export function renderComponent(node: ComponentNode, env: ComponentEnv): { block
       const args: Arg[] = []
       if (!p.indeterminate) args.push({ key: 'value', block: lit(num(p.value)) })
       if (p.color) args.push({ key: 'color', block: lit(color(p.color, env)) })
+      if (p.trackColor) args.push({ key: 'backgroundColor', block: lit(color(p.trackColor, env)) })
+      // Epaisseur = hauteur du noeud (au-dela des 4 px par defaut), extremites arrondies.
+      if (node.frame.h > 4) {
+        args.push({ key: 'minHeight', block: lit(num(node.frame.h)) })
+        args.push({ key: 'borderRadius', block: lit(`BorderRadius.circular(${num(node.frame.h / 2)})`) })
+      }
       return plain(call('LinearProgressIndicator', args))
     }
     case 'spinner': {
@@ -407,6 +426,7 @@ export function renderComponent(node: ComponentNode, env: ComponentEnv): { block
         call('BottomNavigationBar', [
           { key: 'type', block: lit('BottomNavigationBarType.fixed') },
           { key: 'currentIndex', block: lit(String(p.selectedIndex)) },
+          ...(p.color ? [{ key: 'selectedItemColor', block: lit(color(p.color, env)) }] : []),
           ...routePicker(itemTargets(node, env.plan), 'pushReplacementNamed'),
           {
             key: 'items',

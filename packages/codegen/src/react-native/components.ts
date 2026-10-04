@@ -140,7 +140,7 @@ export function renderRnComponent(
         base.push(['borderWidth', '1'], ['borderColor', p.disabled ? q(M3.disabledContainer) : q(M3.outline)])
       }
       root(base)
-      push(labelKey, [['color', ex(fg)], ['fontSize', '14'], ['fontWeight', q('500')]])
+      push(labelKey, [['color', ex(fg)], ['fontSize', num(p.fontSize ?? 14)], ['fontWeight', q(String(p.fontWeight ?? 500))]])
       const lines = [`${pad}<Pressable style={${S(rootKey)}}${onPress}${p.disabled ? ' disabled' : ''}>`]
       if (p.icon !== undefined) lines.push(`${at(1)}${icon(env, p.icon, 18, p.variant === 'primary' && !p.disabled ? M3.onPrimary : p.disabled ? M3.disabled : p.color ? main : M3.primary)}`)
       lines.push(`${at(1)}<Text style={${S(labelKey)}}>{${q(p.label)}}</Text>`, `${pad}</Pressable>`)
@@ -261,7 +261,7 @@ export function renderRnComponent(
       return [
         `${pad}<View style={${S(rootKey)}}>`,
         `${at(1)}<Text style={${S(labelKey)}}>{${q(p.label)}}</Text>`,
-        `${at(1)}<Switch value={${p.checked}}${p.disabled ? ' disabled' : ''} trackColor={{ true: ${q(M3.primary)} }} />`,
+        `${at(1)}<Switch value={${p.checked}}${p.disabled ? ' disabled' : ''} trackColor={{ true: ${colorOrDefault(env, p.color, q(M3.primary))} }} />`,
         `${pad}</View>`,
       ]
     }
@@ -362,7 +362,7 @@ export function renderRnComponent(
       const p = node.props
       ctx.use('View')
       const fillKey = sub('fill')
-      root([['width', num(node.frame.w)], ['height', num(Math.max(node.frame.h, 4))], ['borderRadius', '2'], ['backgroundColor', q(M3.secondaryContainer)], ['overflow', q('hidden')]])
+      root([['width', num(node.frame.w)], ['height', num(Math.max(node.frame.h, 4))], ['borderRadius', num(Math.max(node.frame.h, 4) / 2)], ['backgroundColor', p.trackColor ? colorOrDefault(env, p.trackColor, q(M3.secondaryContainer)) : q(M3.secondaryContainer)], ['overflow', q('hidden')]])
       push(fillKey, [['height', "'100%'"], ['width', q(p.indeterminate ? '35%' : `${num(p.value * 100)}%`)], ['marginLeft', q(p.indeterminate ? '30%' : '0%')], ['backgroundColor', colorOrDefault(env, p.color, q(M3.primary))]])
       return [`${pad}<View style={${S(rootKey)}}>`, `${at(1)}<View style={${S(fillKey)}} />`, `${pad}</View>`]
     }
@@ -444,13 +444,14 @@ export function renderRnComponent(
       push(cellKey, [['flex', '1'], ['alignItems', q('center')], ['justifyContent', q('center')], ['gap', bottom ? '4' : '8'], ...(bottom ? [] : ([['flexDirection', q('row')], ['borderBottomWidth', '3'], ['borderBottomColor', q('transparent')]] as StyleProp[]))])
       push(activeCellKey, bottom ? [] : [['borderBottomColor', q(M3.primary)]])
       push(labelKey, [['color', q(M3.onSurfaceVariant)], ['fontSize', bottom ? '12' : '14'], ['fontWeight', q('500')]])
-      push(activeLabelKey, [['color', q(bottom ? M3.onSurface : M3.primary)], ['fontWeight', q(bottom ? '700' : '500')]])
+      const navAccent = bottom && node.kind === 'bottomNav' && node.props.color ? colorOrDefault(env, node.props.color, q(M3.onSurface)) : null
+      push(activeLabelKey, [['color', navAccent ?? q(bottom ? M3.onSurface : M3.primary)], ['fontWeight', q(bottom ? '700' : '500')]])
       const lines = [`${pad}<View style={${S(rootKey)}}>`]
       items.forEach((item, i) => {
         const active = i === selectedIndex
         const target = targets[i] ?? null
         lines.push(`${at(1)}<Pressable style={${active && !bottom ? `[${S(cellKey)}, ${S(activeCellKey)}]` : S(cellKey)}}${target === null ? '' : ` onPress={${nav(env, target)}}`}>`)
-        if (item.icon !== undefined) lines.push(`${at(2)}${icon(env, item.icon, bottom ? 24 : 20, active ? (bottom ? M3.onSurface : M3.primary) : M3.onSurfaceVariant)}`)
+        if (item.icon !== undefined) lines.push(`${at(2)}${icon(env, item.icon, bottom ? 24 : 20, active ? (bottom ? (navAccent === null ? M3.onSurface : navAccent) : M3.primary) : M3.onSurfaceVariant)}`)
         lines.push(`${at(2)}<Text style={${active ? `[${S(labelKey)}, ${S(activeLabelKey)}]` : S(labelKey)}}>{${q(item.label)}}</Text>`, `${at(1)}</Pressable>`)
       })
       lines.push(`${pad}</View>`)

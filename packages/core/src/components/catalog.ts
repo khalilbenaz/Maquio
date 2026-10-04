@@ -108,6 +108,9 @@ export const COMPONENT_DEFINITIONS: { [K in ComponentKind]: ComponentDefinition<
       bool('disabled', 'Désactivé'),
       icon('icon', 'Icône', true),
       color(),
+      num('fontSize', 'Taille du libellé (px)', 8, 48),
+      num('fontWeight', 'Graisse du libellé (100 à 900)', 100, 900, true),
+      bool('flat', 'Plat (sans ombre)'),
     ],
     presets: [
       { id: 'button-secondary', label: 'Bouton secondaire', props: { variant: 'secondary' } },
@@ -196,7 +199,7 @@ export const COMPONENT_DEFINITIONS: { [K in ComponentKind]: ComponentDefinition<
     keywords: ['switch', 'toggle', 'bascule'],
     size: { w: 240, h: 48 },
     props: { label: 'Activer', checked: true, disabled: false },
-    fields: [text('label', 'Libellé'), bool('checked', 'Activé'), bool('disabled', 'Désactivé')],
+    fields: [text('label', 'Libellé'), bool('checked', 'Activé'), bool('disabled', 'Désactivé'), color()],
     presets: [],
   }),
   radio: def({
@@ -311,7 +314,7 @@ export const COMPONENT_DEFINITIONS: { [K in ComponentKind]: ComponentDefinition<
     keywords: ['progress', 'progressbar', 'linearprogressindicator', 'avancement'],
     size: { w: 328, h: 4 },
     props: { value: 0.6, indeterminate: false },
-    fields: [num('value', 'Valeur (0 à 1)', 0, 1), bool('indeterminate', 'Indéterminée'), color()],
+    fields: [num('value', 'Valeur (0 à 1)', 0, 1), bool('indeterminate', 'Indéterminée'), color(), { key: 'trackColor', label: 'Couleur de la piste', type: 'color' }],
     presets: [],
   }),
   spinner: def({
@@ -389,7 +392,7 @@ export const COMPONENT_DEFINITIONS: { [K in ComponentKind]: ComponentDefinition<
       ],
       selectedIndex: 0,
     },
-    fields: [{ key: 'items', label: 'Entrées', type: 'navItems', iconOptional: false }, num('selectedIndex', 'Entrée active', 0, undefined, true)],
+    fields: [{ key: 'items', label: 'Entrées', type: 'navItems', iconOptional: false }, num('selectedIndex', 'Entrée active', 0, undefined, true), { key: 'color', label: 'Couleur d’accent (barre plate)', type: 'color' }],
     presets: [],
   }),
   tabs: def({

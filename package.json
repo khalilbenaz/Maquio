@@ -33,5 +33,13 @@
     "typescript": "^5.6.0",
     "typescript-eslint": "^8.71.0",
     "vitest": "^5.0.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/khalilbenaz/Maquio.git"
+  },
+  "homepage": "https://github.com/khalilbenaz/Maquio#readme",
+  "bugs": {
+    "url": "https://github.com/khalilbenaz/Maquio/issues"
   }
 }
