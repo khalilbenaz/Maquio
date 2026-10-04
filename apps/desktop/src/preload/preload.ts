@@ -40,6 +40,12 @@ contextBridge.exposeInMainWorld('maquio', api)
 // pas des canaux invoke/handle, et les meler aurait fait echouer la
 // verification de coherence ci-dessus.
 contextBridge.exposeInMainWorld('maquioMenu', {
+  // Commandes du menu Affichage (panneaux, mode focus, theme...).
+  onViewRequested: (callback: (action: string) => void) => {
+    const listener = (_event: unknown, action: string) => callback(action)
+    ipcRenderer.on('maquio:menu-view', listener)
+    return () => ipcRenderer.removeListener('maquio:menu-view', listener)
+  },
   // Chemin reel d'un fichier depose sur la fenetre (le renderer n'a plus acces a `File.path`).
   pathForFile: (file: File) => webUtils.getPathForFile(file),
   // Ouverture demandee par le systeme (double-clic dans le Finder, `open -a`).

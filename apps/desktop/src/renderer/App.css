@@ -128,11 +128,13 @@
 }
 
 .maquio-column-layers {
+  position: relative;
   width: var(--maquio-layers-width);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
   border-right: 1px solid var(--maquio-border);
 }
 
@@ -212,4 +214,177 @@
 .maquio-right-resizer:hover {
   background: var(--maquio-accent);
   opacity: 0.4;
+}
+
+/* --- Panneaux repliables ----------------------------------------------- */
+.maquio-column-layers,
+.maquio-column-right {
+  transition: width 160ms ease;
+}
+.maquio-resizing .maquio-column-layers,
+.maquio-resizing .maquio-column-right {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .maquio-column-layers,
+  .maquio-column-right {
+    transition: none;
+  }
+}
+
+.maquio-column-layers {
+  min-width: 0;
+}
+.maquio-column-layers[data-collapsed='true'] > .panel-content {
+  display: none;
+}
+.maquio-body[data-focus='true'] .maquio-column-layers,
+.maquio-body[data-focus='true'] .maquio-column-right {
+  border: 0;
+  overflow: hidden;
+}
+
+.panel-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+}
+.panel-content[hidden],
+.panel-content-hidden {
+  display: none;
+}
+.maquio-column-right {
+  overflow: visible;
+}
+.maquio-column-right[data-collapsed='true'] {
+  overflow: hidden;
+}
+
+.panel-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  background: var(--maquio-chrome-bg);
+}
+.panel-rail-button {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--maquio-text-muted);
+  cursor: pointer;
+  padding: 0;
+}
+.panel-rail-button:hover {
+  background: var(--maquio-border);
+  color: var(--maquio-text);
+}
+.panel-rail-button .claude-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+}
+
+.panel-collapse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin: auto 6px auto 0;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--maquio-text-faint);
+  cursor: pointer;
+}
+.panel-collapse:hover {
+  background: var(--maquio-border);
+  color: var(--maquio-text);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 34px;
+  padding-left: 14px;
+  box-sizing: border-box;
+  border-left: 1px solid var(--maquio-border);
+  border-bottom: 1px solid var(--maquio-border);
+  background: var(--maquio-chrome-bg);
+}
+.panel-header-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  color: var(--maquio-text-faint);
+}
+.panel-header-spacer {
+  flex: 1;
+}
+
+.inspector-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+}
+.inspector-shell-collapsed {
+  flex: 0 0 auto;
+}
+
+.maquio-left-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 10;
+}
+.maquio-left-resizer:hover,
+.maquio-left-resizer:focus-visible,
+.maquio-right-resizer:focus-visible {
+  background: var(--maquio-accent);
+  opacity: 0.4;
+  outline: none;
+}
+
+.maquio-chrome-hidden {
+  display: none;
+}
+
+.maquio-focus-exit {
+  position: fixed;
+  top: 10px;
+  right: 12px;
+  z-index: 20;
+  padding: 5px 12px;
+  border: 1px solid var(--maquio-border-strong);
+  border-radius: 999px;
+  background: var(--maquio-chrome-bg);
+  color: var(--maquio-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.55;
+}
+.maquio-focus-exit:hover,
+.maquio-focus-exit:focus-visible {
+  opacity: 1;
+  color: var(--maquio-text);
 }

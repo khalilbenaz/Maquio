@@ -99,3 +99,10 @@ export function computeWheelZoom(
 
   return { zoom, pan }
 }
+
+// Quand le bord GAUCHE du canevas bouge (un panneau de gauche se replie ou se
+// redimensionne), le contenu doit rester a la meme place a l'ecran : le
+// panoramique absorbe le decalage, zoom et position de la vue sont conserves.
+export function compensatePan(pan: { x: number; y: number }, previousLeft: number, left: number): { x: number; y: number } {
+  return left === previousLeft ? pan : { x: pan.x + (previousLeft - left), y: pan.y }
+}

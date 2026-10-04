@@ -268,9 +268,9 @@ function enregistrerLesGestionnaires(): void {
   })
 }
 
-function envoyerAuxFenetres(canal: string): void {
+function envoyerAuxFenetres(canal: string, ...args: unknown[]): void {
   for (const fenetre of BrowserWindow.getAllWindows()) {
-    fenetre.webContents.send(canal)
+    fenetre.webContents.send(canal, ...args)
   }
 }
 
@@ -325,6 +325,20 @@ function construireLeMenu(): Menu {
         { role: 'copy', label: 'Copier' },
         { role: 'paste', label: 'Coller' },
         { role: 'selectAll', label: 'Tout sélectionner' },
+      ],
+    },
+    {
+      label: 'Affichage',
+      submenu: [
+        // `registerAccelerator: false` : le raccourci est affiche mais traite par le
+        // renderer (une seule action par frappe, jamais deux).
+        { label: 'Panneau de gauche', accelerator: 'CmdOrCtrl+Alt+1', registerAccelerator: false, click: () => envoyerAuxFenetres('maquio:menu-view', 'left') },
+        { label: 'Inspecteur', accelerator: 'CmdOrCtrl+Alt+2', registerAccelerator: false, click: () => envoyerAuxFenetres('maquio:menu-view', 'inspector') },
+        { label: 'Panneau Claude', accelerator: 'CmdOrCtrl+J', registerAccelerator: false, click: () => envoyerAuxFenetres('maquio:menu-view', 'claude') },
+        { type: 'separator' },
+        { label: 'Mode focus', accelerator: 'CmdOrCtrl+.', registerAccelerator: false, click: () => envoyerAuxFenetres('maquio:menu-view', 'focus') },
+        { type: 'separator' },
+        { label: 'Lancer le prototype', accelerator: 'CmdOrCtrl+Enter', registerAccelerator: false, click: () => envoyerAuxFenetres('maquio:menu-view', 'prototype') },
       ],
     },
   ])

@@ -57,7 +57,7 @@ import {
 } from '../state/arrangeActions'
 import { PALETTE_MIME, insertPaletteItemAt } from './paletteInsert'
 import { pageNodesOf, screenToPage, startMarquee, useCreateInteraction, useNodeInteraction } from './useDragInteraction'
-import { computeFitTransform, computeFitTransformToBounds, computeWheelZoom } from './viewport'
+import { compensatePan, computeFitTransform, computeFitTransformToBounds, computeWheelZoom } from './viewport'
 import './Canvas.css'
 
 // Aplatit l'arbre en liste de dessin (du fond vers le dessus, profondeur
@@ -231,6 +231,23 @@ export function Canvas({ api }: { api: MaquioApi }) {
     // Volontairement limite : l'ajustement ne se rejoue qu'a l'ouverture d'un document, a la demande (jeton) ou au changement du nombre d'ecrans (voir le commentaire ci-dessus).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageId, device?.width, device?.height, fitToWindowToken, screens.length])
+
+  // Un panneau de gauche qui se replie ou change de largeur deplace le bord
+  // gauche du canevas : le panoramique compense, la vue ne saute pas.
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    let previousLeft = el.getBoundingClientRect().left
+    const observer = new ResizeObserver(() => {
+      const left = el.getBoundingClientRect().left
+      if (left === previousLeft) return
+      const state = useEditorStore.getState()
+      state.setPan(compensatePan(state.pan, previousLeft, left))
+      previousLeft = left
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   // Zoom (Ctrl/Cmd + molette) et panoramique (molette seule) : les deux
   // actions setZoom/setPan existaient deja dans le magasin, mais rien ne
