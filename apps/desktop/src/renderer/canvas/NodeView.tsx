@@ -7,7 +7,7 @@
 // descendants" (aucun de leurs descendants ne peut recevoir de clic non
 // plus, puisqu'ils sont visuellement et logiquement a l'interieur).
 import { useEffect, useRef } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, HTMLAttributes } from 'react'
 import type { Color, ImageNode, Node as CalqueNode, Rect, Stroke, TextNode } from '@calque/core'
 import { useEditorStore } from '../state/editorStore'
 import { resolvePreviewAbsoluteFrame, useNodeInteraction } from './useDragInteraction'
@@ -171,26 +171,28 @@ function InlineEditor({ node }: { node: CalqueNode }) {
   )
 }
 
-export function NodeView({ node, nodes }: Props) {
-  const dragPreview = useEditorStore((s) => s.dragPreview)
-  const onPointerDown = useNodeInteraction(node.id, { screenBodyIsMarquee: true })
-  const abs: Rect = resolvePreviewAbsoluteFrame(nodes, node.id, dragPreview)
-  const editing = useEditorStore((s) => s.editingTextId === node.id)
+// Rendu visuel d'un noeud (sans aucune interaction d'edition) : partage entre
+// le canevas (NodeView) et le mode prototype (PrototypeView).
+export function NodeVisual({
+  node,
+  abs,
+  testId,
+  editing = false,
+  extraStyle,
+  ...rest
+}: {
+  node: CalqueNode
+  abs: Rect
+  testId: string
+  editing?: boolean
+  extraStyle?: CSSProperties
+} & Omit<HTMLAttributes<HTMLDivElement>, 'style' | 'children'>) {
   const stroke = strokeOf(node)
-
   return (
     <div
-      data-testid={`node-${node.id}`}
+      data-testid={testId}
       data-node-type={node.type === 'component' ? node.kind : node.type === 'frame' && node.container ? node.container.kind : node.type}
-      onPointerDown={node.locked ? undefined : onPointerDown}
-      onDoubleClick={
-        node.locked || !isInlineEditable(node)
-          ? undefined
-          : (e) => {
-              e.stopPropagation()
-              useEditorStore.getState().setEditingTextId(node.id)
-            }
-      }
+      {...rest}
       style={{
         position: 'absolute',
         left: abs.x,
@@ -199,7 +201,6 @@ export function NodeView({ node, nodes }: Props) {
         height: abs.h,
         transform: node.rotation !== 0 ? `rotate(${node.rotation}deg)` : undefined,
         opacity: node.opacity,
-        pointerEvents: node.locked ? 'none' : 'auto',
         background: backgroundOf(node),
         borderRadius: node.type === 'ellipse' ? '50%' : node.type === 'rect' || node.type === 'frame' ? node.cornerRadius : undefined,
         border: stroke !== undefined && stroke.width > 0 ? `${stroke.width}px solid ${colorToCss(stroke.color)}` : undefined,
@@ -207,6 +208,7 @@ export function NodeView({ node, nodes }: Props) {
         boxShadow: node.type === 'frame' ? containerShadow(node) : undefined,
         boxSizing: 'border-box',
         userSelect: 'none',
+        ...extraStyle,
       }}
     >
       {node.type === 'text' && !editing ? node.characters : null}
@@ -216,5 +218,31 @@ export function NodeView({ node, nodes }: Props) {
       {node.type === 'component' ? <ComponentContent node={node} /> : null}
       {node.type === 'frame' && node.container !== undefined ? <ContainerDecor node={node} /> : null}
     </div>
+  )
+}
+
+export function NodeView({ node, nodes }: Props) {
+  const dragPreview = useEditorStore((s) => s.dragPreview)
+  const onPointerDown = useNodeInteraction(node.id, { screenBodyIsMarquee: true })
+  const abs: Rect = resolvePreviewAbsoluteFrame(nodes, node.id, dragPreview)
+  const editing = useEditorStore((s) => s.editingTextId === node.id)
+
+  return (
+    <NodeVisual
+      node={node}
+      abs={abs}
+      testId={`node-${node.id}`}
+      editing={editing}
+      onPointerDown={node.locked ? undefined : onPointerDown}
+      onDoubleClick={
+        node.locked || !isInlineEditable(node)
+          ? undefined
+          : (e) => {
+              e.stopPropagation()
+              useEditorStore.getState().setEditingTextId(node.id)
+            }
+      }
+      extraStyle={{ pointerEvents: node.locked ? 'none' : 'auto' }}
+    />
   )
 }

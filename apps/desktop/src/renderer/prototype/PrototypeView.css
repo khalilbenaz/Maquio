@@ -1,0 +1,81 @@
+.proto-root {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: #0b0b0d;
+  color: #f2eee6;
+}
+.proto-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+  padding: 0 16px;
+  background: #16131f;
+  border-bottom: 1px solid #2c2838;
+  font-size: 13px;
+}
+.proto-title {
+  font-weight: 700;
+  color: #ff5a36;
+}
+.proto-screen-name {
+  color: #a9a3b8;
+}
+.proto-spacer {
+  flex: 1;
+}
+.proto-bar button,
+.proto-empty + button {
+  background: #2c2838;
+  color: inherit;
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font: inherit;
+}
+.proto-viewport {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.proto-stage {
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 10px 50px rgba(0, 0, 0, 0.6);
+  transform-origin: center center;
+  touch-action: none;
+}
+.proto-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.proto-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.42);
+}
+[data-interactive='true']:hover {
+  outline: 2px solid rgba(255, 90, 54, 0.7);
+  outline-offset: -2px;
+}
+.proto-toast {
+  position: absolute;
+  bottom: 28px;
+  background: #16131f;
+  color: #f2eee6;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.proto-empty {
+  margin: auto;
+}

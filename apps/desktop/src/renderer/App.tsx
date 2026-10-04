@@ -20,6 +20,7 @@ import { LayersPanel } from './panels/LayersPanel'
 import { PalettePanel } from './panels/PalettePanel'
 import { InspectorPanel } from './panels/InspectorPanel'
 import { Toolbar } from './panels/Toolbar'
+import { PrototypeView } from './prototype/PrototypeView'
 import { ClaudePanel } from './panels/ClaudePanel'
 import { SettingsDialog } from './dialogs/SettingsDialog'
 import './App.css'
@@ -159,6 +160,7 @@ function Editeur({ api }: { api: CalqueApi }) {
   }, [nomDuDocument, dirty])
 
   const rightWidth = useUiPrefs((s) => s.rightWidth)
+  const prototypeOpen = useEditorStore((s) => s.prototypeOpen)
 
   function commencerRedimensionnement(e: ReactPointerEvent) {
     e.preventDefault()
@@ -176,6 +178,11 @@ function Editeur({ api }: { api: CalqueApi }) {
   // Cmd/Ctrl+J : replie ou deplie le panneau Claude (meme dans un champ de saisie).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key === 'Enter') {
+        e.preventDefault()
+        useEditorStore.getState().setPrototypeOpen(true)
+        return
+      }
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'j') {
         e.preventDefault()
         const prefs = useUiPrefs.getState()
@@ -249,6 +256,7 @@ function Editeur({ api }: { api: CalqueApi }) {
           <ClaudePanel api={api} onOpenSettings={() => setReglagesOuverts(true)} />
         </div>
       </div>
+      {prototypeOpen ? <PrototypeView onClose={() => useEditorStore.getState().setPrototypeOpen(false)} /> : null}
       {reglagesOuverts ? <SettingsDialog api={api} onClose={() => setReglagesOuverts(false)} /> : null}
     </main>
   )
