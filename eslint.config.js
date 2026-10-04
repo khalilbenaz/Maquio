@@ -29,6 +29,11 @@ export default tseslint.config(
     },
   },
   {
+    // Page GitHub Pages : script navigateur.
+    files: ['site/**/*.js'],
+    languageOptions: { globals: { ...globals.browser } },
+  },
+  {
     // Script Electron en CommonJS (npx electron scripts/render-svg.cjs).
     files: ['**/*.cjs'],
     rules: { '@typescript-eslint/no-require-imports': 'off' },

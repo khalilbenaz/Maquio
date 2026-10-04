@@ -3,7 +3,6 @@
 // celui de la page des releases : la page fonctionne sans JavaScript.
 (() => {
   const REPO = 'khalilbenaz/Maquio'
-  const LATEST = `https://github.com/${REPO}/releases/latest`
   const main = document.getElementById('dl-main')
   const note = document.getElementById('dl-note')
   const list = document.getElementById('dl-list')
