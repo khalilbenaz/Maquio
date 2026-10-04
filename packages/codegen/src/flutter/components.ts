@@ -451,8 +451,13 @@ export function renderComponent(node: ComponentNode, env: ComponentEnv): { block
       const p = node.props
       const actions: Block[] = []
       const close = { key: 'onPressed', block: lit('() => Navigator.of(context).maybePop()') }
+      // Le bouton de confirmation joue l'interaction du dialogue (« Valider » ->
+      // ecran suivant) apres l'avoir ferme : un dialogue qui ne mene nulle part
+      // rendrait un virement ou une deconnexion impossibles.
+      const onConfirm = env.act(node).tap
+      const confirm = onConfirm === null ? close : { key: 'onPressed', block: ['() {', '  Navigator.of(context).pop();', `  ${onConfirm};`, '}'] }
       if (p.cancelLabel !== '') actions.push(call('TextButton', [close, { key: 'child', block: textOf(p.cancelLabel) }]))
-      actions.push(call('TextButton', [close, { key: 'child', block: textOf(p.confirmLabel) }]))
+      actions.push(call('TextButton', [confirm, { key: 'child', block: textOf(p.confirmLabel) }]))
       return plain(
         call('AlertDialog', [
           { key: 'title', block: textOf(p.title) },
