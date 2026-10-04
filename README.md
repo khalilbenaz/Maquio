@@ -249,13 +249,19 @@ interaction (« Valider » vers un écran de succès) la joue après s'être fer
 ## Exemples
 
 - `exemples/tous-les-composants.maquio` : tous les composants et conteneurs.
-- `exemples/banque.maquio` : prototype d'application bancaire (21 écrans de
-  390 x 844, données fictives, une couleur de marque, Roboto) : splash,
-  onboarding, connexion, PIN, accueil, comptes, virement en 4 étapes avec
-  confirmation OTP, bénéficiaires, factures, recharge, cartes (blocage, plafond,
-  PIN), notifications, profil, états. Généré par les commandes du document
-  (`test/integration/fixtures/banque.ts`), jouable en mode prototype et compilé
-  vers les quatre cibles. Régénération : `UPDATE_EXEMPLE=1 npx vitest run test/integration/banque.test.ts`.
+- `exemples/banque.maquio` : prototype d'application bancaire « nacre » (marque
+  et données FICTIVES), 16 écrans de 390 x 844 plus la barre d'onglets : Bienvenue,
+  code d'accès, accueil, comptes multi-devises, détail d'opération, historique,
+  paiements, montant, confirmation OTP (feuille basse, transition modale), succès,
+  change avec graphique, cartes, dépenses, coffres, notifications, profil. Typographie
+  Geist (400 à 800, interlettrage négatif), indigo `#4338FF`, pilules et rayons de
+  20 à 28. Reproduit fidèlement la maquette de référence
+  (`test/integration/fixtures/nacre/*.dc.html`) : `mesurer.cjs` la rend et la mesure
+  dans Electron, `convertir.mjs` en tire `nacre-spec.json`, et `fixtures/banque.ts`
+  construit le document par les commandes (jamais de JSON écrit à la main).
+  Jouable en mode prototype (push, modale pour l'OTP, fondus, barre d'onglets sans
+  animation). Régénération : `UPDATE_EXEMPLE=1 npx vitest run test/integration/banque.test.ts`.
+  Planche de rendu : `node test/e2e/banque-rendu.mjs`.
 
 ## Architecture
 
@@ -424,3 +430,15 @@ précédente version de ce document, vérifié avec le vrai SDK Dart via
 ## Licence
 
 Projet personnel, sans licence explicite pour l'instant.
+
+## Limites connues des exports
+
+- Compose : les 24 pictogrammes sans équivalent dans `material-icons-core` (échange, carte,
+  coffre...) sont remplacés par l'icône `core` la plus proche ; ajoutez
+  `material-icons-extended` pour les icônes exactes.
+- SwiftUI : la couleur de piste d'une barre de progression n'est pas réglable (ignorée).
+- Flutter : les lignes de plus de 80 colonnes (noms d'écrans longs, listes de routes) ne
+  sont pas repliées ; lancez `dart format lib` après l'export.
+- Pas de composant réutilisable (instance) : la barre d'onglets est un composant natif
+  (`bottomNav`) recopié sur chaque écran.
+- Pas de composant graphique : une courbe est composée de segments (rectangles tournés).
