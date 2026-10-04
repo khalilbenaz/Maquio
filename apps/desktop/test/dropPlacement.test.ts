@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { DEVICE_PRESETS, PALETTE_ITEMS, createComponentNode, createContainerNode, createScreenNode } from '@calque/core'
-import type { Node } from '@calque/core'
+import { DEVICE_PRESETS, PALETTE_ITEMS, createComponentNode, createContainerNode, createScreenNode } from '@maquio/core'
+import type { Node } from '@maquio/core'
 import { placePaletteItem } from '../src/renderer/canvas/dropPlacement'
 
 const item = (id: string) => PALETTE_ITEMS.find((i) => i.id === id)!

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createComponentNode, createDocument, createScreenNode, DEVICE_PRESETS } from '@calque/core'
-import type { Interaction, Node } from '@calque/core'
+import { createComponentNode, createDocument, createScreenNode, DEVICE_PRESETS } from '@maquio/core'
+import type { Interaction, Node } from '@maquio/core'
 import { applyPrototype, toFigmaReaction } from '../src/prototype'
 import { buildPlan } from '../src/mapping'
 

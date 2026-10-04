@@ -1,4 +1,4 @@
-// Traducteur Figma -> document Calque (Tache 10).
+// Traducteur Figma -> document Maquio (Tache 10).
 //
 // Fonction pure : pas de reseau, pas d'acces disque, pas d'horodatage, et
 // surtout jamais crypto.randomUUID() (deux appels sur le meme fichier Figma
@@ -7,7 +7,7 @@
 //
 // Assainissement (correction Critical, round 1) : `figma-types.ts` n'est
 // qu'un typage a la compilation, jamais verifie au runtime. Toute valeur qui
-// alimente une propriete du modele Calque passe par les fonctions de
+// alimente une propriete du modele Maquio passe par les fonctions de
 // sanitize.ts (point de passage unique), qui la ramenent a une valeur valide
 // et emettent un ImportWarning si une correction reelle a ete necessaire.
 // Un import ne s'arrete jamais au milieu a cause d'une reponse Figma
@@ -15,7 +15,7 @@
 import {
   DEVICE_PRESETS,
   DOCUMENT_VERSION,
-  type CalqueDocument,
+  type MaquioDocument,
   type Color,
   type DesignTokens,
   type DevicePreset,
@@ -32,7 +32,7 @@ import {
   type Stroke,
   type TextNode,
   type TextStyle,
-} from '@calque/core'
+} from '@maquio/core'
 import type { FigmaAlignCross, FigmaAlignMain, FigmaFileResponse, FigmaNode, FigmaRect } from './figma-types'
 import { sanitizeBox, sanitizeColor, sanitizeName, sanitizeNumber, type WarnFn } from './sanitize'
 
@@ -79,7 +79,7 @@ function dedupeWarnings(warnings: ImportWarning[]): ImportWarning[] {
   return result
 }
 
-export function figmaToDocument(file: FigmaFileResponse): { document: CalqueDocument; report: ImportReport } {
+export function figmaToDocument(file: FigmaFileResponse): { document: MaquioDocument; report: ImportReport } {
   const ctx: TranslateContext = { warnings: [], nodesImported: 0 }
 
   const tokens = buildTokens(file, ctx)
@@ -87,7 +87,7 @@ export function figmaToDocument(file: FigmaFileResponse): { document: CalqueDocu
   const canvases = (file.document.children ?? []).filter((n) => n.type === 'CANVAS')
   const pages: Page[] = canvases.map((canvas) => translatePage(canvas, ctx))
 
-  const document: CalqueDocument = {
+  const document: MaquioDocument = {
     version: DOCUMENT_VERSION,
     id: file.document.id,
     name: file.document.name,
@@ -107,7 +107,7 @@ function translatePage(canvas: FigmaNode, ctx: TranslateContext): Page {
   const device = pickClosestDevice(rootBox)
   const origin = { x: 0, y: 0 }
   // v2 (addendum navigation, §3.1 et §8 de l'addendum) : chaque frame de
-  // premier niveau devient naturellement un ECRAN Calque (FrameNode.device)
+  // premier niveau devient naturellement un ECRAN Maquio (FrameNode.device)
   // -- une page Figma a plusieurs frames racines (un flux d'ecrans, usage
   // Figma courant) donne donc plusieurs ecrans, sans code dedie a l'import :
   // c'est directement une consequence du modele v2 (§3.1), pas un
@@ -157,7 +157,7 @@ function extractSolidColor(fills: FigmaNode['fills'], warn: WarnFn, property: st
 }
 
 // Traduit les remplissages d'un noeud. Seul le type SOLID a un equivalent
-// dans le modele Calque (Fill = solid | none) : tout autre type de peinture
+// dans le modele Maquio (Fill = solid | none) : tout autre type de peinture
 // (degrade, image, ...) est une perte reelle et produit un avertissement,
 // plutot qu'une approximation silencieuse. Un remplissage explicitement
 // masque (`visible: false`) est exclu sans avertissement : c'est un usage
@@ -181,7 +181,7 @@ function translateFills(node: FigmaNode, warn: WarnFn): Fill[] {
 
 // Traduit les traits d'un noeud. Figma porte l'epaisseur au niveau du
 // noeud (strokeWeight), partagee par tous ses traits, contrairement au
-// modele Calque ou chaque Stroke porte sa propre largeur. Bornee a 0..
+// modele Maquio ou chaque Stroke porte sa propre largeur. Bornee a 0..
 // Infinity (Round de correction 1, Tache 10, meme borne que Stroke.width
 // dans nodeSchema).
 function translateStrokes(node: FigmaNode, warn: WarnFn): Stroke[] {
@@ -227,7 +227,7 @@ function translateAlignCross(v: FigmaAlignCross | undefined, warn: WarnFn): Layo
     case 'BASELINE':
       warn(
         'counterAxisAlignItems',
-        'Alignement transverse Figma "BASELINE" approxime en "start" (aucun equivalent dans le modele Calque)',
+        'Alignement transverse Figma "BASELINE" approxime en "start" (aucun equivalent dans le modele Maquio)',
       )
       return 'start'
     case 'MIN':
@@ -498,7 +498,7 @@ function buildTokens(file: FigmaFileResponse, ctx: TranslateContext): DesignToke
     // DesignTokens : signale plutot qu'ignore en silence.
     styleWarn(
       'styles',
-      `Style publie de type "${style.styleType}" sans equivalent dans les tokens Calque (colors/typography/spacing) : ignore`,
+      `Style publie de type "${style.styleType}" sans equivalent dans les tokens Maquio (colors/typography/spacing) : ignore`,
     )
   }
 

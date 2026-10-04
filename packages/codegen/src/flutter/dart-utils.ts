@@ -6,7 +6,7 @@
 // vraiment communs aux quatre exportateurs (Taches 8/9) : ils vivent dans
 // `../shared/` et sont ici re-exportes sous leur nom Dart historique pour
 // ne rien changer au comportement de ce fichier.
-import type { Color, DesignTokens } from '@calque/core'
+import type { Color, DesignTokens } from '@maquio/core'
 import { colorHexARGB } from '../shared/color-hex'
 import { formatNumber as sharedFormatNumber } from '../shared/format-number'
 import { toPascalCase as sharedToPascalCase, toSnakeCase as sharedToSnakeCase } from '../shared/naming'

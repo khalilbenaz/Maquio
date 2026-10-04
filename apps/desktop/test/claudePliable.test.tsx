@@ -7,7 +7,7 @@ import { clampRightWidth, RIGHT_MAX, RIGHT_MIN, useUiPrefs } from '../src/render
 import { apiFactice } from './helpers/apiFactice'
 
 beforeEach(() => {
-  window.calque = undefined
+  window.maquio = undefined
   localStorage.clear()
   useUiPrefs.setState({ claudeCollapsed: false, rightWidth: 300 })
   useClaudeStatusStore.setState({ available: true, path: null, phase: 'idle' })
@@ -18,7 +18,7 @@ describe('panneau Claude repliable', () => {
     render(<ClaudePanel api={apiFactice} onOpenSettings={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: 'Replier le panneau Claude' }))
     expect(useUiPrefs.getState().claudeCollapsed).toBe(true)
-    expect(JSON.parse(localStorage.getItem('calque.ui.v1')!).claudeCollapsed).toBe(true)
+    expect(JSON.parse(localStorage.getItem('maquio.ui.v1')!).claudeCollapsed).toBe(true)
     expect(screen.queryByRole('button', { name: 'Demander à Claude' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Déplier le panneau Claude' }))
     expect(useUiPrefs.getState().claudeCollapsed).toBe(false)
@@ -33,7 +33,7 @@ describe('panneau Claude repliable', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Replier le panneau Claude' }))
     expect(screen.getByTestId('claude-badge').dataset.phase).toBe('loading')
     // le composant reste monte : la reponse arrive meme replie
-    const { serializeDocument, createDocument } = await import('@calque/core')
+    const { serializeDocument, createDocument } = await import('@maquio/core')
     const doc = serializeDocument(createDocument('x'))
     await act(async () => { fin({ patchJson: JSON.stringify({ summary: 'ok' }), documentJson: doc }) })
     expect(screen.getByTestId('claude-badge').dataset.phase).toMatch(/done|error/)
@@ -52,7 +52,7 @@ describe('panneau Claude repliable', () => {
 
 describe('raccourci et largeur', () => {
   it('Cmd+J replie et deplie', () => {
-    window.calque = apiFactice
+    window.maquio = apiFactice
     render(<App />)
     fireEvent.keyDown(window, { key: 'j', metaKey: true })
     expect(useUiPrefs.getState().claudeCollapsed).toBe(true)
@@ -63,13 +63,13 @@ describe('raccourci et largeur', () => {
     expect(clampRightWidth(10)).toBe(RIGHT_MIN)
     expect(clampRightWidth(9999)).toBe(RIGHT_MAX)
     expect(clampRightWidth(Number.NaN)).toBe(300)
-    window.calque = apiFactice
+    window.maquio = apiFactice
     render(<App />)
     const sep = screen.getByTestId('right-resizer')
     fireEvent.pointerDown(sep, { clientX: 1000 })
     fireEvent.pointerMove(window, { clientX: 900 })
     fireEvent.pointerUp(window)
     expect(useUiPrefs.getState().rightWidth).toBe(400)
-    expect(JSON.parse(localStorage.getItem('calque.ui.v1')!).rightWidth).toBe(400)
+    expect(JSON.parse(localStorage.getItem('maquio.ui.v1')!).rightWidth).toBe(400)
   })
 })

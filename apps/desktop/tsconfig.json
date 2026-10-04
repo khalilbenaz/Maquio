@@ -9,7 +9,8 @@
     // sous Node seul (garantie que la Tache 18 verifiera par un test
     // d'architecture).
     "lib": ["ES2022", "DOM"],
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "resolveJsonModule": true
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "test/**/*.tsx"]
 }

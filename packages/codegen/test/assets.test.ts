@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createDocument, createScreenNode, DEVICE_PRESETS } from '@calque/core'
-import type { CalqueDocument, ImageNode } from '@calque/core'
+import { createDocument, createScreenNode, DEVICE_PRESETS } from '@maquio/core'
+import type { MaquioDocument, ImageNode } from '@maquio/core'
 import { composeExporter } from '../src/compose/compose'
 import { flutterExporter } from '../src/flutter/flutter'
 import { reactNativeExporter } from '../src/react-native/react-native'
@@ -10,7 +10,7 @@ function image(id: string, src: string): ImageNode {
   return { id, name: id, type: 'image', frame: { x: 0, y: 0, w: 40, h: 40 }, visible: true, locked: false, opacity: 1, rotation: 0, src, fit: 'cover' }
 }
 
-function doc(): CalqueDocument {
+function doc(): MaquioDocument {
   const d = createDocument('Doc')
   const ecran = createScreenNode('Accueil', DEVICE_PRESETS.iphone15, { x: 0, y: 0, w: 393, h: 852 }, [
     image('i1', 'logo.png'),

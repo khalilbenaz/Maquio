@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
-import { COMPONENT_DEFINITIONS, createDocument, createScreenNode, setLinkCommand, tapNavigation } from '@calque/core'
-import type { CalqueDocument, DevicePreset, FrameNode, RectNode } from '@calque/core'
+import { COMPONENT_DEFINITIONS, createDocument, createScreenNode, setLinkCommand, tapNavigation } from '@maquio/core'
+import type { MaquioDocument, DevicePreset, FrameNode, RectNode } from '@maquio/core'
 import { Canvas } from '../src/renderer/canvas/Canvas'
 import { computeFitTransform } from '../src/renderer/canvas/viewport'
 import { useEditorStore } from '../src/renderer/state/editorStore'
@@ -596,7 +596,7 @@ describe('Canvas - ajustement au redimensionnement (finition v1)', () => {
 describe('Canvas - plusieurs ecrans (v2, addendum navigation §4)', () => {
   const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
 
-  function documentDeuxEcrans(): CalqueDocument {
+  function documentDeuxEcrans(): MaquioDocument {
     const doc = createDocument('Document de test')
     const bouton: RectNode = {
       id: 'bouton',
@@ -637,7 +637,7 @@ describe('Canvas - plusieurs ecrans (v2, addendum navigation §4)', () => {
     const ecranA = doc.pages[0]!.nodes[0]!
     fireEvent.pointerDown(screen.getByTestId('node-bouton'))
     expect(useEditorStore.getState().activeScreenId).toBe(ecranA.id)
-    expect(screen.getByTestId(`screen-label-${ecranA.id}`).className).toContain('calque-canvas-label-active')
+    expect(screen.getByTestId(`screen-label-${ecranA.id}`).className).toContain('maquio-canvas-label-active')
   })
 
   it("la poignee de lien produit une seule commande, et lie le noeud a l ecran cible", () => {
@@ -709,7 +709,7 @@ describe('Canvas - plusieurs ecrans (v2, addendum navigation §4)', () => {
 describe('Canvas - correctif parentage (tracer et glisser entre ecrans)', () => {
   const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
 
-  function documentDeuxEcrans(): CalqueDocument {
+  function documentDeuxEcrans(): MaquioDocument {
     const doc = createDocument('Document de test')
     const bouton: RectNode = {
       id: 'bouton',
@@ -808,7 +808,7 @@ describe('Canvas - correctif parentage (tracer et glisser entre ecrans)', () => 
   it('un element lie conserve son lien apres un reparentage par glissement', () => {
     const doc = documentDeuxEcrans()
     const ecranC = createScreenNode('ecranC', device, { x: 1000, y: 0, w: device.width, h: device.height })
-    const docAvecLien: CalqueDocument = { ...doc, pages: [{ ...doc.pages[0]!, nodes: [...doc.pages[0]!.nodes, ecranC] }] }
+    const docAvecLien: MaquioDocument = { ...doc, pages: [{ ...doc.pages[0]!, nodes: [...doc.pages[0]!.nodes, ecranC] }] }
     const avecLien = setLinkCommand(docAvecLien.pages[0]!.id, 'bouton', ecranC.id).apply(docAvecLien)
     useEditorStore.getState().load(avecLien)
     render(<Canvas api={apiFactice} />)
@@ -944,7 +944,7 @@ describe('Canvas - selection par rectangle', () => {
 
 // Edition de texte au double-clic.
 describe('Canvas - edition de texte sur le canevas', () => {
-  function docAvecTexteEtBouton(): CalqueDocument {
+  function docAvecTexteEtBouton(): MaquioDocument {
     const doc = createDocument('Doc')
     const base = { visible: true, locked: false, opacity: 1, rotation: 0 }
     const texte = { ...base, id: 't1', name: 'Texte', type: 'text' as const, frame: { x: 10, y: 10, w: 100, h: 20 }, characters: 'Salut', style: { fontFamily: 'Inter', fontSize: 20, fontWeight: 700, lineHeight: 24, letterSpacing: 0, color: { r: 1, g: 0, b: 0, a: 1 }, align: 'left' as const } }

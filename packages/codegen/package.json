@@ -1,5 +1,5 @@
 {
-  "name": "@calque/codegen",
+  "name": "@maquio/codegen",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,6 +10,6 @@
     "./test/fixtures/login-screen": "./test/fixtures/login-screen.ts"
   },
   "dependencies": {
-    "@calque/core": "*"
+    "@maquio/core": "*"
   }
 }

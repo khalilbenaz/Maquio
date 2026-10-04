@@ -6,7 +6,7 @@ import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { lancer } from './helpers.mjs'
 
-const t = await lancer({ PATH: '/usr/bin:/bin', CALQUE_CLAUDE_TIMEOUT_MS: '4000' })
+const t = await lancer({ PATH: '/usr/bin:/bin', MAQUIO_CLAUDE_TIMEOUT_MS: '4000' })
 const { win, work, check } = t
 const pause = (ms = 200) => win.waitForTimeout(ms)
 const btn = (name) => win.getByRole('button', { name, exact: true })

@@ -5,7 +5,7 @@
 // document — copier ces trois lignes dans chaque generateur est
 // precisement le genre de derive que ce fichier existe pour empecher
 // (round de correction 1, Important 1 du coordinateur).
-import type { Color, Fill, Stroke } from '@calque/core'
+import type { Color, Fill, Stroke } from '@maquio/core'
 
 // Premiere couleur de remplissage plein d'une liste de Fill (ignore les
 // fills `type: 'none'`) : null si aucun remplissage plein n'est present.

@@ -6,8 +6,8 @@
 // fonctions vides (`() {}`) sauf la navigation, produite a partir de
 // `link.target` (ou de la cible d'une entree de barre) via
 // `Navigator.of(context).pushNamed`.
-import type { Color, ComponentNode, DesignTokens, IconName, Node } from '@calque/core'
-import { ICONS } from '@calque/core'
+import type { Color, ComponentNode, DesignTokens, IconName, Node } from '@maquio/core'
+import { ICONS } from '@maquio/core'
 import { itemTargets } from '../shared/screens'
 import type { ExportPlan, ScreenRef } from '../shared/screens'
 import { isRemoteUrl } from '../shared/node-helpers'

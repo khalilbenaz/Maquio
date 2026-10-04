@@ -5,8 +5,8 @@
 // Le code reste portable iOS / macOS (aucune API UIKit) pour pouvoir etre
 // verifie par `swiftc -typecheck` ; les API de presentation recentes
 // (presentationDetents, buttonBorderShape) demandent iOS 16/17.
-import type { Color, ComponentNode, DesignTokens, IconName } from '@calque/core'
-import { ICONS } from '@calque/core'
+import type { Color, ComponentNode, DesignTokens, IconName } from '@maquio/core'
+import { ICONS } from '@maquio/core'
 import { formatNumber } from '../shared/format-number'
 import { pad } from '../shared/indent'
 import { isRemoteUrl } from '../shared/node-helpers'
@@ -39,13 +39,13 @@ export type SwiftEnvCtx = {
   // `navigator` est reference.
   markNavigator(): void
   // Expressions Swift des interactions d'un noeud (null : aucune).
-  act(node: import('@calque/core').Node): { tap: string | null; longPress: string | null }
+  act(node: import('@maquio/core').Node): { tap: string | null; longPress: string | null }
   nextIndex(): number
   // Rend les enfants d'un conteneur (callback du moteur principal).
   renderChildren(children: ComponentNodeChildren, depth: number): string[]
 }
 
-export type ComponentNodeChildren = import('@calque/core').Node[]
+export type ComponentNodeChildren = import('@maquio/core').Node[]
 
 export type SwEnv = { ctx: SwiftEnvCtx }
 

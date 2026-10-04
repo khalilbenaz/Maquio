@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { FigmaClient } from '@calque/figma'
-import { parseDocument } from '@calque/core'
+import { FigmaClient } from '@maquio/figma'
+import { parseDocument } from '@maquio/core'
 import {
   createFigmaHandler,
   createGetSettingsHandler,

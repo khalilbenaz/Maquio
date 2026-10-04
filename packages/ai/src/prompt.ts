@@ -26,11 +26,11 @@ import {
   CONTAINER_KINDS,
   ICON_NAMES,
   findNode,
-} from '@calque/core'
-import type { CalqueDocument, Node } from '@calque/core'
+} from '@maquio/core'
+import type { MaquioDocument, Node } from '@maquio/core'
 import { NODE_EXAMPLES } from './prompt-examples'
 
-function collectSelectedNodes(document: CalqueDocument, selectionIds: string[]): Node[] {
+function collectSelectedNodes(document: MaquioDocument, selectionIds: string[]): Node[] {
   const found: Node[] = []
   for (const id of selectionIds) {
     for (const page of document.pages) {
@@ -66,7 +66,7 @@ const NODE_EXAMPLES_TEXT = NODE_EXAMPLES.map((node) => `"${node.type}" (exemple,
 )
 
 // v3 (composants mobiles) : valeurs par defaut de chaque `kind` et de chaque
-// conteneur, DERIVEES du catalogue de @calque/core (jamais ecrites a la main) :
+// conteneur, DERIVEES du catalogue de @maquio/core (jamais ecrites a la main) :
 // le modele voit la forme exacte de `props`, y compris les champs optionnels
 // (`icon`, `color`...) que les valeurs par defaut omettent.
 const COMPONENT_CATALOG_TEXT = COMPONENT_KINDS.map(
@@ -77,7 +77,7 @@ const CONTAINER_CATALOG_TEXT = CONTAINER_KINDS.map(
   (kind) => `- ${CONTAINER_DEFINITIONS[kind].label} : "container" = ${JSON.stringify(CONTAINER_DEFINITIONS[kind].spec)}`,
 ).join('\n')
 
-export function buildPrompt(input: { instruction: string; document: CalqueDocument; selectionIds: string[] }): string {
+export function buildPrompt(input: { instruction: string; document: MaquioDocument; selectionIds: string[] }): string {
   const { instruction, document, selectionIds } = input
 
   const contexte =
@@ -85,7 +85,7 @@ export function buildPrompt(input: { instruction: string; document: CalqueDocume
       ? `Selection actuelle (noeuds : ${selectionIds.join(', ')}) :\n${JSON.stringify(collectSelectedNodes(document, selectionIds), null, 2)}`
       : `Document actuel :\n${JSON.stringify(document, null, 2)}`
 
-  return `Tu es l'assistant d'edition integre a l'editeur d'interfaces mobiles Calque.
+  return `Tu es l'assistant d'edition integre a l'editeur d'interfaces mobiles Maquio.
 
 Instruction de l'utilisateur : ${instruction}
 

@@ -1,9 +1,9 @@
 // Export SVG : un fichier autonome par ecran (images embarquees en data URI
 // quand l'application fournit leur contenu). Le rendu suit le modele apres
 // mise en page automatique ; les composants mobiles sont dessines par leur
-// croquis (voir @calque/core, sketch.ts), identique a celui du plugin Figma.
-import { componentSketch, containerSketch, hexOf, layoutPage } from '@calque/core'
-import type { Color, CalqueDocument, FrameNode, Node, SketchPrim, TextNode } from '@calque/core'
+// croquis (voir @maquio/core, sketch.ts), identique a celui du plugin Figma.
+import { componentSketch, containerSketch, hexOf, layoutPage } from '@maquio/core'
+import type { Color, MaquioDocument, FrameNode, Node, SketchPrim, TextNode } from '@maquio/core'
 import { dataUri } from '../shared/image-data'
 import { planExport } from '../shared/screens'
 import type { Exporter, ExportOptions, ExportResult } from '../types'
@@ -150,7 +150,7 @@ export function screenToSvg(screen: FrameNode, ctx: Ctx): string {
     .join('\n')
 }
 
-function exportSvg(doc: CalqueDocument, opts: ExportOptions): ExportResult {
+function exportSvg(doc: MaquioDocument, opts: ExportOptions): ExportResult {
   const warnings: string[] = []
   const files: { path: string; contents: string }[] = []
   const plan = planExport(doc, opts.activeScreenId)

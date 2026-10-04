@@ -1,6 +1,6 @@
 // Gestionnaire des canaux askClaude/cancelClaude (Tache 17, annulation et
 // message d'echec ajoutes lors de la reparation du pont) : fonctions pures
-// d'injection, testables avec un FakeClaudeRunner (@calque/ai), sans
+// d'injection, testables avec un FakeClaudeRunner (@maquio/ai), sans
 // binaire `claude` ni sous-processus (voir test/claudeHandlers.test.ts).
 // main.ts se contente de les cabler avec un AiService construit sur
 // ProcessClaudeRunner (nodeSpawn.ts).
@@ -12,7 +12,7 @@
 // traversent pas l'IPC). Le renderer rejoue ce remplacement de document
 // comme une commande annulable en un seul geste (voir ClaudePanel.tsx) --
 // c'est ce qui garde "un seul Ctrl-Z defait toute la demande" vrai sans
-// que le renderer importe jamais @calque/ai.
+// que le renderer importe jamais @maquio/ai.
 //
 // Point 2 (reparation du pont) : ClaudeRequestTracker retient l'unique
 // AbortController de la demande askClaude EN COURS (le panneau desactive
@@ -20,7 +20,7 @@
 // seule demande a la fois suffit, pas besoin d'un identifiant par requete)
 // pour que cancelClaude puisse reellement l'interrompre depuis un canal
 // IPC distinct.
-import { DocumentVersionError, parseDocument, serializeDocument } from '@calque/core'
+import { DocumentVersionError, parseDocument, serializeDocument } from '@maquio/core'
 import {
   ClaudeCancelledError,
   ClaudeFailedError,
@@ -29,8 +29,8 @@ import {
   ClaudeTimeoutError,
   ClaudeUnavailableError,
   InvalidPatchError,
-} from '@calque/ai'
-import type { AiService } from '@calque/ai'
+} from '@maquio/ai'
+import type { AiService } from '@maquio/ai'
 import { ZodError } from 'zod'
 import { translateUnknownError } from '../../shared/errors'
 
@@ -93,7 +93,7 @@ function describePatchRejection(err: ClaudePatchRejectedError): string {
 // specifique -- un ZodError leve par nodeSchema.parse (patch d'update dont
 // le contenu fusionne est invalide, voir applyAllOps dans
 // packages/ai/src/apply.ts) traversait donc tel quel, dump JSON technique
-// compris. Desormais : les erreurs nommees de @calque/ai
+// compris. Desormais : les erreurs nommees de @maquio/ai
 // (ClaudeUnavailableError, ClaudeFailedError, ClaudeOutputError,
 // ClaudeTimeoutError, ClaudeCancelledError) et DocumentVersionError portent
 // deja un message francais complet qui ne contient jamais le prompt (voir

@@ -2,7 +2,7 @@
 // par parametres de route (native-stack), overlays (Modal, snackbar), URL et
 // minuteur. `src/transitions.ts` convertit les parametres d'une navigation en
 // options natives de l'ecran cible.
-import type { Easing, Transition } from '@calque/core'
+import type { Easing, Transition } from '@maquio/core'
 import type { OverlayRef } from '../shared/interactions'
 import { jsString } from './rn-utils'
 

@@ -36,11 +36,11 @@
 // document (window), pas sur un element focusable du canevas.
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react'
-import { PALETTE_ITEMS, isScreenNode, unionRects } from '@calque/core'
-import type { FrameNode, Node as CalqueNode } from '@calque/core'
+import { PALETTE_ITEMS, isScreenNode, unionRects } from '@maquio/core'
+import type { FrameNode, Node as MaquioNode } from '@maquio/core'
 import { useEditorStore } from '../state/editorStore'
 import type { Tool } from '../state/editorStore'
-import type { CalqueApi } from '../../shared/api'
+import type { MaquioApi } from '../../shared/api'
 import { NodeView } from './NodeView'
 import { SelectionOverlay } from './SelectionOverlay'
 import { LinksLayer } from './LinksLayer'
@@ -64,8 +64,8 @@ import './Canvas.css'
 // d'abord) en excluant les noeuds invisibles ET tous leurs descendants --
 // c'est le sens du titre du premier test du brief ("un element par noeud
 // VISIBLE") : un noeud invisible ne recoit aucun element DOM.
-function flattenVisible(nodes: CalqueNode[]): CalqueNode[] {
-  const out: CalqueNode[] = []
+function flattenVisible(nodes: MaquioNode[]): MaquioNode[] {
+  const out: MaquioNode[] = []
   for (const n of nodes) {
     if (!n.visible) continue
     out.push(n)
@@ -142,7 +142,7 @@ function ScreenLabel({ screen, active, style }: { screen: FrameNode; active: boo
   return (
     <div
       data-testid={`screen-label-${screen.id}`}
-      className={active ? 'calque-canvas-label calque-canvas-label-active' : 'calque-canvas-label'}
+      className={active ? 'maquio-canvas-label maquio-canvas-label-active' : 'maquio-canvas-label'}
       style={{ ...style, pointerEvents: screen.locked ? 'none' : 'auto', cursor: 'grab' }}
       onPointerDown={screen.locked ? undefined : onPointerDown}
     >
@@ -151,7 +151,7 @@ function ScreenLabel({ screen, active, style }: { screen: FrameNode; active: boo
   )
 }
 
-export function Canvas({ api }: { api: CalqueApi }) {
+export function Canvas({ api }: { api: MaquioApi }) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const document_ = useEditorStore((s) => s.document)
   const pageId = useEditorStore((s) => s.pageId)
@@ -472,14 +472,14 @@ export function Canvas({ api }: { api: CalqueApi }) {
   return (
     <div
       ref={canvasRef}
-      className="calque-canvas"
+      className="maquio-canvas"
       data-testid="canvas-scene"
       onPointerDown={onScenePointerDown}
       onDragOver={onPaletteDragOver}
       onDrop={onPaletteDrop}
     >
       <div
-        className="calque-canvas-world"
+        className="maquio-canvas-world"
         style={{
           position: 'absolute',
           inset: 0,
@@ -502,7 +502,7 @@ export function Canvas({ api }: { api: CalqueApi }) {
       >
         <div
           data-testid="canvas-background"
-          className="calque-canvas-artboard"
+          className="maquio-canvas-artboard"
           onPointerDown={onBackgroundPointerDown}
           style={{
             position: 'absolute',
@@ -531,7 +531,7 @@ export function Canvas({ api }: { api: CalqueApi }) {
               return (
                 <div
                   data-testid={`screen-drop-target-${cible.id}`}
-                  className="calque-canvas-drop-target"
+                  className="maquio-canvas-drop-target"
                   style={{
                     position: 'absolute',
                     left: cible.frame.x,
@@ -564,7 +564,7 @@ export function Canvas({ api }: { api: CalqueApi }) {
           })
         : device && artboardScreen ? (
             <div
-              className="calque-canvas-label"
+              className="maquio-canvas-label"
               style={{ left: artboardScreen.left, top: artboardScreen.top - 26, width: artboardScreen.width, pointerEvents: 'none' }}
             >
               {page?.name} — {device.label}
@@ -590,7 +590,7 @@ export function Canvas({ api }: { api: CalqueApi }) {
 
       {estVide && (ecranPourEtatVide ? screenScreenRect(ecranPourEtatVide) : artboardScreen) ? (
         <div
-          className="calque-canvas-empty"
+          className="maquio-canvas-empty"
           style={(() => {
             const rect = ecranPourEtatVide ? screenScreenRect(ecranPourEtatVide) : artboardScreen!
             return { left: rect.left, top: rect.top, width: rect.width, height: rect.height, pointerEvents: 'none' as const }
@@ -600,13 +600,13 @@ export function Canvas({ api }: { api: CalqueApi }) {
             <rect x="3.5" y="5.5" width="17" height="13" rx="2" strokeDasharray="3 3" />
             <path d="M12 10.5v3M10.5 12h3" />
           </svg>
-          <p className="calque-canvas-empty-title">Le plan de travail est vide</p>
-          <p className="calque-canvas-empty-hint">
+          <p className="maquio-canvas-empty-title">Le plan de travail est vide</p>
+          <p className="maquio-canvas-empty-hint">
             Choisissez un outil dans la barre du haut,
             <br />
             puis tracez ici en maintenant le clic.
           </p>
-          <span className="calque-canvas-empty-shortcuts">R rectangle · T texte · F cadre</span>
+          <span className="maquio-canvas-empty-shortcuts">R rectangle · T texte · F cadre</span>
         </div>
       ) : null}
 
@@ -632,7 +632,7 @@ export function Canvas({ api }: { api: CalqueApi }) {
       ) : null}
 
       {outilActif ? (
-        <div className="calque-canvas-toolinfo">
+        <div className="maquio-canvas-toolinfo">
           <ToolIcon tool={outilActif} />
           <span>
             Outil <strong>{TOOL_LABELS[outilActif]}</strong> actif — tracez sur la zone claire

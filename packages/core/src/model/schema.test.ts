@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { documentSchema, nodeSchema } from './schema'
-import type { CalqueDocument, DevicePreset, EllipseNode, FrameNode, ImageNode, LineNode, Page, RectNode, TextNode } from './types'
+import type { MaquioDocument, DevicePreset, EllipseNode, FrameNode, ImageNode, LineNode, Page, RectNode, TextNode } from './types'
 
 describe('nodeSchema', () => {
   it('accepte une frame avec enfants imbriques', () => {
@@ -471,7 +471,7 @@ describe('textStyleSchema (via nodeSchema) : fontSize et lineHeight non negatifs
 // NodeBase.link (§3.2). Les regles de validite d'un lien sont imposees ICI,
 // par pageSchema (voir checkLinks dans schema.ts), en plus des commandes
 // (setLinkCommand, teste dans commands/edits.test.ts) -- un document
-// malforme (fichier .calque modifie a la main, patch de Claude Code) ne
+// malforme (fichier .maquio modifie a la main, patch de Claude Code) ne
 // doit jamais pouvoir etre charge avec un lien invalide.
 describe('FrameNode.device et NodeBase.link (v2, addendum navigation)', () => {
   const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
@@ -513,7 +513,7 @@ describe('FrameNode.device et NodeBase.link (v2, addendum navigation)', () => {
     }
   }
 
-  function documentWith(pageNodes: FrameNode[]): CalqueDocument {
+  function documentWith(pageNodes: FrameNode[]): MaquioDocument {
     const page: Page = { id: 'page1', name: 'Page 1', device, nodes: pageNodes }
     return { version: 2, id: 'doc1', name: 'Doc', pages: [page], tokens: { colors: {}, typography: {}, spacing: {} } }
   }

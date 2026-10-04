@@ -1,8 +1,8 @@
 // Interactions de prototype resolues pour l'export : cibles d'ecran, overlays,
 // transitions. Le plan d'export (screens.ts) en porte la table ; chaque
 // exportateur traduit ensuite ces donnees neutres vers son API native.
-import { isDefaultTransition } from '@calque/core'
-import type { Action, Interaction, Node, OverlayKind, Transition, Trigger } from '@calque/core'
+import { isDefaultTransition } from '@maquio/core'
+import type { Action, Interaction, Node, OverlayKind, Transition, Trigger } from '@maquio/core'
 import type { ExportPlan, ScreenRef } from './screens'
 import { toCamelCase } from './naming'
 

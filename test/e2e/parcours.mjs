@@ -6,8 +6,8 @@ import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 
-const out = process.env.OUT ?? mkdtempSync(path.join(tmpdir(), 'calque-e2e-'))
-const work = mkdtempSync(path.join(tmpdir(), 'calque-work-'))
+const out = process.env.OUT ?? mkdtempSync(path.join(tmpdir(), 'maquio-e2e-'))
+const work = mkdtempSync(path.join(tmpdir(), 'maquio-work-'))
 const results = []
 const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? 'OK  ' : 'FAIL'} ${name} ${detail}`) }
 
@@ -203,11 +203,11 @@ await win.getByRole('tab', { name: 'Calques' }).click()
 await shot('15-composants')
 
 // 6. enregistrer / rouvrir
-const docPath = path.join(work, 'projet.calque')
+const docPath = path.join(work, 'projet.maquio')
 await setNext({ save: docPath })
 await menu('Enregistrer')
 await win.waitForTimeout(500)
-check('fichier .calque ecrit', existsSync(docPath))
+check('fichier .maquio ecrit', existsSync(docPath))
 const saved = existsSync(docPath) ? JSON.parse(readFileSync(docPath, 'utf8')) : null
 console.log('   ressources:', existsSync(path.join(work, 'projet.ressources')) ? readdirSync(path.join(work, 'projet.ressources')) : 'aucune')
 const dirtyTitle = await win.title()
@@ -261,26 +261,26 @@ if (process.platform === 'darwin') {
   } catch (e) { check('SwiftUI genere : swiftc -parse', false, String(e.stderr ?? e)) }
 }
 
-// 8. securite : un .calque hostile ne peut pas faire copier un fichier local
+// 8. securite : un .maquio hostile ne peut pas faire copier un fichier local
 const evil = JSON.parse(readFileSync(docPath, 'utf8'))
 const jsonEvil = JSON.stringify(evil).replace('"src":"logo.png"', '"src":"/etc/hosts"')
-const evilPath = path.join(work, 'evil.calque')
+const evilPath = path.join(work, 'evil.maquio')
 writeFileSync(evilPath, jsonEvil)
-await setNext({ open: evilPath, save: path.join(work, 'evil-copie.calque') })
+await setNext({ open: evilPath, save: path.join(work, 'evil-copie.maquio') })
 await menu('Ouvrir...')
 await win.waitForTimeout(400)
 await menu('Enregistrer sous...')
 await win.waitForTimeout(500)
-const alerte = await win.locator('.calque-error-banner').innerText().catch(() => '')
+const alerte = await win.locator('.maquio-error-banner').innerText().catch(() => '')
 check('document hostile : enregistrement refuse avec message', /refus/i.test(alerte), alerte)
 check('document hostile : rien copie', !existsSync(path.join(work, 'evil-copie.ressources', 'hosts')))
 await shot('30-hostile')
 // fichier invalide
-const badPath = path.join(work, 'bad.calque'); writeFileSync(badPath, '{"nope":true}')
+const badPath = path.join(work, 'bad.maquio'); writeFileSync(badPath, '{"nope":true}')
 await setNext({ open: badPath })
 await menu('Ouvrir...')
 await win.waitForTimeout(400)
-check('fichier invalide : message affiche', (await win.locator('.calque-error-banner').innerText().catch(() => '')).length > 0)
+check('fichier invalide : message affiche', (await win.locator('.maquio-error-banner').innerText().catch(() => '')).length > 0)
 // navigation
 const popup = await win.evaluate(() => window.open('https://example.com') === null)
 check('window.open bloque', popup)

@@ -1,10 +1,10 @@
 // Decision 10 du brief : openDocument/saveDocument passent par
-// parseDocument/serializeDocument (format .calque valide et normalise),
+// parseDocument/serializeDocument (format .maquio valide et normalise),
 // et une version de document incompatible est traduite en message
 // francais explicite (decision 4).
 import { describe, expect, it, vi } from 'vitest'
-import { createDocument, serializeDocument } from '@calque/core'
-import type { ImageNode } from '@calque/core'
+import { createDocument, serializeDocument } from '@maquio/core'
+import type { ImageNode } from '@maquio/core'
 import { createDocumentHandler } from '../src/main/handlers/documentHandlers'
 import { documentJsonDeFormeInvalide } from './helpers/documentJsonInvalide'
 
@@ -35,12 +35,12 @@ describe('openDocument', () => {
     const { openDocument } = createDocumentHandler({
       readFile: async () => json,
       writeFile: vi.fn(),
-      chooseOpenPath: async () => '/tmp/doc.calque',
+      chooseOpenPath: async () => '/tmp/doc.maquio',
       chooseSavePath: vi.fn(),
     })
 
     const result = await openDocument()
-    expect(result).toEqual({ path: '/tmp/doc.calque', json })
+    expect(result).toEqual({ path: '/tmp/doc.maquio', json })
   })
 
   it('traduit une version de document incompatible en message francais explicite', async () => {
@@ -48,7 +48,7 @@ describe('openDocument', () => {
     const { openDocument } = createDocumentHandler({
       readFile: async () => documentFutur,
       writeFile: vi.fn(),
-      chooseOpenPath: async () => '/tmp/doc.calque',
+      chooseOpenPath: async () => '/tmp/doc.maquio',
       chooseSavePath: vi.fn(),
     })
 
@@ -59,7 +59,7 @@ describe('openDocument', () => {
     const { openDocument } = createDocumentHandler({
       readFile: async () => documentJsonDeFormeInvalide(),
       writeFile: vi.fn(),
-      chooseOpenPath: async () => '/tmp/doc.calque',
+      chooseOpenPath: async () => '/tmp/doc.maquio',
       chooseSavePath: vi.fn(),
     })
 
@@ -87,10 +87,10 @@ describe('saveDocument', () => {
     })
     const json = serializeDocument(createDocument('Mon document'))
 
-    const result = await saveDocument({ path: '/tmp/doc.calque', json })
-    expect(result).toEqual({ path: '/tmp/doc.calque' })
+    const result = await saveDocument({ path: '/tmp/doc.maquio', json })
+    expect(result).toEqual({ path: '/tmp/doc.maquio' })
     expect(chooseSavePath).not.toHaveBeenCalled()
-    expect(writeFile).toHaveBeenCalledWith('/tmp/doc.calque', expect.any(String))
+    expect(writeFile).toHaveBeenCalledWith('/tmp/doc.maquio', expect.any(String))
   })
 
   it('sans chemin, demande "Enregistrer sous" et n ecrit rien si annule', async () => {
@@ -116,7 +116,7 @@ describe('saveDocument', () => {
       chooseSavePath: vi.fn(),
     })
 
-    await expect(saveDocument({ path: '/tmp/doc.calque', json: 'pas du json' })).rejects.toThrow(/invalide/i)
+    await expect(saveDocument({ path: '/tmp/doc.maquio', json: 'pas du json' })).rejects.toThrow(/invalide/i)
     expect(writeFile).not.toHaveBeenCalled()
   })
 
@@ -131,7 +131,7 @@ describe('saveDocument', () => {
 
     let messageErreur = ''
     try {
-      await saveDocument({ path: '/tmp/doc.calque', json: documentJsonDeFormeInvalide() })
+      await saveDocument({ path: '/tmp/doc.maquio', json: documentJsonDeFormeInvalide() })
       throw new Error('aurait du lever')
     } catch (err) {
       messageErreur = (err as Error).message
@@ -175,8 +175,8 @@ describe('saveDocument', () => {
       isApprovedImagePath: () => true,
     })
 
-    const result = await saveDocument({ path: '/tmp/Mon document.calque', json })
-    expect(result).toEqual({ path: '/tmp/Mon document.calque' })
+    const result = await saveDocument({ path: '/tmp/Mon document.maquio', json })
+    expect(result).toEqual({ path: '/tmp/Mon document.maquio' })
     expect(ensureDir).toHaveBeenCalledWith('/tmp/Mon document.ressources')
     expect(copyImageFile).toHaveBeenCalledWith('/Users/lilou/Images/photo.png', '/tmp/Mon document.ressources/photo.png')
 
@@ -215,12 +215,12 @@ describe('saveDocument', () => {
       ensureDir,
     })
 
-    await saveDocument({ path: '/tmp/Mon document.calque', json })
+    await saveDocument({ path: '/tmp/Mon document.maquio', json })
     expect(copyImageFile).not.toHaveBeenCalled()
     expect(ensureDir).not.toHaveBeenCalled()
   })
 
-  // Securite (audit P0) : un .calque malveillant (ou un patch de Claude)
+  // Securite (audit P0) : un .maquio malveillant (ou un patch de Claude)
   // pouvait viser /Users/x/.ssh/id_rsa ; l'enregistrement le copiait alors
   // a cote du document, pret a etre partage. Seuls les chemins choisis par
   // l'utilisateur dans le selecteur d'image, ET d'extension image, sont copies.
@@ -245,7 +245,7 @@ describe('saveDocument', () => {
   it('refuse un src absolu que l utilisateur n a pas choisi (ex. ~/.ssh/id_rsa) : rien copie, rien ecrit', async () => {
     const { handler, writeFile, copyImageFile } = gestionnaire({ approved: () => false })
     await expect(
-      handler.saveDocument({ path: '/tmp/d.calque', json: documentAvecSrc('/Users/x/.ssh/id_rsa') }),
+      handler.saveDocument({ path: '/tmp/d.maquio', json: documentAvecSrc('/Users/x/.ssh/id_rsa') }),
     ).rejects.toThrow(/image/i)
     expect(copyImageFile).not.toHaveBeenCalled()
     expect(writeFile).not.toHaveBeenCalled()
@@ -254,14 +254,14 @@ describe('saveDocument', () => {
   it('refuse un fichier qui n a pas une extension d image, meme choisi', async () => {
     const { handler, copyImageFile } = gestionnaire({ approved: () => true })
     await expect(
-      handler.saveDocument({ path: '/tmp/d.calque', json: documentAvecSrc('/Users/x/.ssh/id_rsa') }),
+      handler.saveDocument({ path: '/tmp/d.maquio', json: documentAvecSrc('/Users/x/.ssh/id_rsa') }),
     ).rejects.toThrow(/image/i)
     expect(copyImageFile).not.toHaveBeenCalled()
   })
 
   it('deux images de dossiers differents et de meme nom ne s ecrasent pas', async () => {
     const { handler, writeFile, copyImageFile } = gestionnaire({ approved: () => true })
-    await handler.saveDocument({ path: '/tmp/d.calque', json: documentAvecSrc('/a/logo.png', '/b/logo.png') })
+    await handler.saveDocument({ path: '/tmp/d.maquio', json: documentAvecSrc('/a/logo.png', '/b/logo.png') })
     const destinations = copyImageFile.mock.calls.map((c) => c[1])
     expect(new Set(destinations).size).toBe(2)
     const ecrit = JSON.parse(writeFile.mock.calls[0]![1]) as { pages: { nodes: { src: string }[] }[] }

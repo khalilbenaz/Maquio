@@ -14,21 +14,21 @@
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
-  background: var(--calque-chrome-bg);
-  color: var(--calque-text);
-  border-left: 1px solid var(--calque-border);
+  background: var(--maquio-chrome-bg);
+  color: var(--maquio-text);
+  border-left: 1px solid var(--maquio-border);
   font-size: 13px;
   padding: 4px 14px 14px;
   box-sizing: border-box;
 }
 
 .inspector-empty {
-  color: var(--calque-text-muted);
+  color: var(--maquio-text-muted);
   padding: 18px 2px 8px;
 }
 
 .inspector-section {
-  border-bottom: 1px solid var(--calque-border);
+  border-bottom: 1px solid var(--maquio-border);
   padding-bottom: 14px;
   margin-bottom: 4px;
 }
@@ -42,7 +42,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  color: var(--calque-text-faint);
+  color: var(--maquio-text-faint);
   margin: 10px 0 7px;
 }
 
@@ -59,8 +59,8 @@
   gap: 7px;
   height: 30px;
   padding: 0 9px;
-  background: var(--calque-surface);
-  border: 1px solid var(--calque-border);
+  background: var(--maquio-surface);
+  border: 1px solid var(--maquio-border);
   border-radius: 7px;
   font-size: 12px;
 }
@@ -73,7 +73,7 @@
 }
 
 .inspector-field-label {
-  color: var(--calque-text-faint);
+  color: var(--maquio-text-faint);
   flex-shrink: 0;
 }
 
@@ -82,7 +82,7 @@
   min-width: 0;
   background: transparent;
   border: none;
-  color: var(--calque-text);
+  color: var(--maquio-text);
   font: inherit;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
@@ -94,15 +94,15 @@
 }
 
 .inspector-field:focus-within {
-  border-color: var(--calque-accent);
+  border-color: var(--maquio-accent);
 }
 
 .inspector-input-invalid {
-  color: var(--calque-danger);
+  color: var(--maquio-danger);
 }
 
 .inspector-field:has(.inspector-input-invalid) {
-  border-color: var(--calque-danger);
+  border-color: var(--maquio-danger);
 }
 
 /* Defaut n3 (« comment mettre l'image ? ») : bouton "Choisir une image…"
@@ -111,10 +111,10 @@
 .inspector-image-choose {
   height: 30px;
   padding: 0 9px;
-  background: var(--calque-surface);
-  border: 1px solid var(--calque-border);
+  background: var(--maquio-surface);
+  border: 1px solid var(--maquio-border);
   border-radius: 7px;
-  color: var(--calque-text);
+  color: var(--maquio-text);
   font: inherit;
   font-size: 12.5px;
   cursor: pointer;
@@ -122,7 +122,7 @@
 }
 
 .inspector-image-choose:hover {
-  border-color: var(--calque-border-strong);
+  border-color: var(--maquio-border-strong);
 }
 
 .inspector-color {
@@ -130,7 +130,7 @@
   height: 20px;
   flex-shrink: 0;
   background: transparent;
-  border: 1px solid var(--calque-border-strong);
+  border: 1px solid var(--maquio-border-strong);
   border-radius: 4px;
   padding: 0;
 }
@@ -147,9 +147,9 @@
 .inspector-error {
   margin: 6px 0 0;
   padding: 6px 8px;
-  border-radius: var(--calque-radius-sm);
+  border-radius: var(--maquio-radius-sm);
   background: rgba(229, 120, 107, 0.14);
-  color: var(--calque-danger);
+  color: var(--maquio-danger);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -165,14 +165,14 @@
   padding: 0;
   margin-bottom: 4px;
   font-size: 11px;
-  color: var(--calque-text-faint);
+  color: var(--maquio-text-faint);
 }
 
 .inspector-list-item {
   margin-bottom: 8px;
   padding: 6px;
-  border: 1px solid var(--calque-border);
-  border-radius: var(--calque-radius-sm);
+  border: 1px solid var(--maquio-border);
+  border-radius: var(--maquio-radius-sm);
 }
 
 .inspector-list-row {
@@ -188,17 +188,17 @@
 .inspector-link-button {
   margin-top: 4px;
   padding: 3px 8px;
-  border: 1px solid var(--calque-border);
-  border-radius: var(--calque-radius-sm);
+  border: 1px solid var(--maquio-border);
+  border-radius: var(--maquio-radius-sm);
   background: transparent;
-  color: var(--calque-text-soft);
+  color: var(--maquio-text-soft);
   font-size: 11px;
   cursor: pointer;
 }
 
 .inspector-link-button:hover {
-  border-color: var(--calque-accent);
-  color: var(--calque-text);
+  border-color: var(--maquio-accent);
+  color: var(--maquio-text);
 }
 
 .inspector-color-row {
@@ -218,14 +218,14 @@
   min-width: 0;
   padding: 4px 0;
   font-size: 12px;
-  color: var(--calque-text);
-  background: var(--calque-surface-2, transparent);
-  border: 1px solid var(--calque-border);
+  color: var(--maquio-text);
+  background: var(--maquio-surface-2, transparent);
+  border: 1px solid var(--maquio-border);
   border-radius: 4px;
   cursor: pointer;
 }
 .arrange-button:hover:not(:disabled) {
-  border-color: var(--calque-accent);
+  border-color: var(--maquio-accent);
 }
 .arrange-button:disabled {
   opacity: 0.35;
@@ -234,7 +234,7 @@
 
 /* Section Interactions */
 .interaction-row {
-  border: 1px solid var(--calque-border);
+  border: 1px solid var(--maquio-border);
   border-radius: 6px;
   margin: 0 0 8px;
   padding: 6px 8px 8px;

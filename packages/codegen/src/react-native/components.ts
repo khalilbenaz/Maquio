@@ -7,8 +7,8 @@
 //   - liste deroulante  : @react-native-picker/picker
 //   - selecteur de date : @react-native-community/datetimepicker
 // La navigation utilise React Navigation (pile native) : voir App.tsx.
-import type { Color, ComponentNode, DesignTokens, IconName, Node } from '@calque/core'
-import { ICONS } from '@calque/core'
+import type { Color, ComponentNode, DesignTokens, IconName, Node } from '@maquio/core'
+import { ICONS } from '@maquio/core'
 import { formatNumber } from '../shared/format-number'
 import { isRemoteUrl } from '../shared/node-helpers'
 import { itemTargets } from '../shared/screens'

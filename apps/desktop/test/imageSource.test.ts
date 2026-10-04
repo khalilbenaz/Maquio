@@ -4,7 +4,7 @@ import { resolveImageSrc } from '../src/renderer/canvas/imageSource'
 describe('resolveImageSrc (defaut n3, comment mettre l image ?)', () => {
   it('rend null pour un src vide (aucune image choisie)', () => {
     expect(resolveImageSrc('', null)).toBeNull()
-    expect(resolveImageSrc('', '/tmp/Mon document.calque')).toBeNull()
+    expect(resolveImageSrc('', '/tmp/Mon document.maquio')).toBeNull()
   })
 
   it('convertit un chemin absolu en URL file:// (document jamais enregistre)', () => {
@@ -12,7 +12,7 @@ describe('resolveImageSrc (defaut n3, comment mettre l image ?)', () => {
   })
 
   it('resout un chemin relatif par rapport a <nom-du-document>.ressources/', () => {
-    const resolu = resolveImageSrc('photo.png', '/tmp/Mon document.calque')
+    const resolu = resolveImageSrc('photo.png', '/tmp/Mon document.maquio')
     expect(resolu).toBe('file:///tmp/Mon%20document.ressources/photo.png')
   })
 

@@ -1,7 +1,7 @@
 // Logique pure de l'edition des interactions (testee sans rendu) : valeurs par
 // defaut, changement de declencheur / d'action / de transition, options.
-import { DEFAULT_TRANSITION, defaultTransition } from '@calque/core'
-import type { Action, FrameNode, Interaction, Node, OverlayKind, Transition, TransitionType, Trigger } from '@calque/core'
+import { DEFAULT_TRANSITION, defaultTransition } from '@maquio/core'
+import type { Action, FrameNode, Interaction, Node, OverlayKind, Transition, TransitionType, Trigger } from '@maquio/core'
 
 export type Ctx = {
   isScreen: boolean

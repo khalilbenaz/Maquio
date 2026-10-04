@@ -9,8 +9,8 @@ import {
   createNodeCommand,
   createScreenCommand,
   createScreenNode,
-} from '@calque/core'
-import type { ComponentNode, ComponentPropsMap, FrameNode, Node } from '@calque/core'
+} from '@maquio/core'
+import type { ComponentNode, ComponentPropsMap, FrameNode, Node } from '@maquio/core'
 import { Canvas } from '../src/renderer/canvas/Canvas'
 import { useEditorStore } from '../src/renderer/state/editorStore'
 import { apiFactice } from './helpers/apiFactice'

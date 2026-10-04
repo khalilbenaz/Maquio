@@ -6,18 +6,18 @@
    (data-testid="canvas-background") reste blanc, avec une ombre portee et
    un filet, pour se distinguer nettement du fond. */
 
-.calque-canvas {
+.maquio-canvas {
   position: relative;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: var(--calque-canvas-bg);
-  background-image: radial-gradient(var(--calque-canvas-dot) 1px, transparent 1px);
+  background-color: var(--maquio-canvas-bg);
+  background-image: radial-gradient(var(--maquio-canvas-dot) 1px, transparent 1px);
   background-size: 16px 16px;
   cursor: default;
 }
 
-.calque-canvas-artboard {
+.maquio-canvas-artboard {
   background: #ffffff;
   border-radius: 4px;
   box-shadow:
@@ -25,12 +25,12 @@
     0 0 0 1px #2a2623;
 }
 
-.calque-canvas-label {
+.maquio-canvas-label {
   position: absolute;
   text-align: center;
   font-size: 11px;
   letter-spacing: 0.4px;
-  color: var(--calque-text-faint);
+  color: var(--maquio-text-faint);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -38,8 +38,8 @@
 
 /* v2 (addendum navigation §4) : « l'étiquette de l'écran actif est en
    accent » -- l'ecran de la selection courante, ou le dernier touche. */
-.calque-canvas-label-active {
-  color: var(--calque-accent);
+.maquio-canvas-label-active {
+  color: var(--maquio-accent);
   font-weight: 600;
 }
 
@@ -47,13 +47,13 @@
    l'écran survolé par un noeud en cours de déplacement, quand il diffère de
    son écran englobant actuel -- indique où l'élément atterrira si le geste
    se termine ici (voir Canvas.tsx, dragPreview.targetScreenId). */
-.calque-canvas-drop-target {
+.maquio-canvas-drop-target {
   box-sizing: border-box;
-  border: 2px solid var(--calque-accent);
+  border: 2px solid var(--maquio-accent);
   border-radius: 4px;
 }
 
-.calque-canvas-empty {
+.maquio-canvas-empty {
   position: absolute;
   display: flex;
   flex-direction: column;
@@ -66,21 +66,21 @@
   box-sizing: border-box;
 }
 
-.calque-canvas-empty-title {
+.maquio-canvas-empty-title {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
   color: #141413;
 }
 
-.calque-canvas-empty-hint {
+.maquio-canvas-empty-hint {
   margin: 0;
   font-size: 13px;
   line-height: 1.55;
   color: #6b655e;
 }
 
-.calque-canvas-empty-shortcuts {
+.maquio-canvas-empty-shortcuts {
   padding: 4px 9px;
   font-size: 11px;
   color: #6b655e;
@@ -89,7 +89,7 @@
   border-radius: 5px;
 }
 
-.calque-canvas-toolinfo {
+.maquio-canvas-toolinfo {
   position: absolute;
   left: 50%;
   bottom: 26px;
@@ -99,19 +99,19 @@
   gap: 9px;
   padding: 8px 13px;
   font-size: 12.5px;
-  color: var(--calque-text);
-  background: var(--calque-panel-raised);
-  border: 1px solid var(--calque-border-strong);
+  color: var(--maquio-text);
+  background: var(--maquio-panel-raised);
+  border: 1px solid var(--maquio-border-strong);
   border-radius: 9px;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
   pointer-events: none;
 }
 
-.calque-canvas-toolinfo svg {
-  color: var(--calque-accent);
+.maquio-canvas-toolinfo svg {
+  color: var(--maquio-accent);
   flex-shrink: 0;
 }
 
-.calque-canvas-toolinfo strong {
+.maquio-canvas-toolinfo strong {
   font-weight: 600;
 }

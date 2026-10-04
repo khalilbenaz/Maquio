@@ -6,9 +6,9 @@
 // d'afficher le resultat (fichiers ecrits, avertissements) ou
 // l'annulation, sans jamais dupliquer cette logique.
 import { useState } from 'react'
-import { serializeDocument } from '@calque/core'
+import { serializeDocument } from '@maquio/core'
 import { useEditorStore } from '../state/editorStore'
-import type { CalqueApi, ExporterId } from '../../shared/api'
+import type { MaquioApi, ExporterId } from '../../shared/api'
 import { messageOfError } from '../../shared/errors'
 import './Dialog.css'
 
@@ -20,7 +20,7 @@ const NOMS_CIBLES: Record<ExporterId, string> = {
   swiftui: 'SwiftUI',
   compose: 'Jetpack Compose',
   svg: 'SVG (un fichier par écran)',
-  figma: 'Figma (plugin Import Calque)',
+  figma: 'Figma (plugin Import Maquio)',
 }
 
 function CloseIcon() {
@@ -36,7 +36,7 @@ export function ExportDialog({
   exporterId,
   onClose,
 }: {
-  api: CalqueApi
+  api: MaquioApi
   exporterId: ExporterId
   onClose: () => void
 }) {

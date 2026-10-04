@@ -8,7 +8,7 @@
 //
 // Decision 6 : la selection au clic ne s'appuie jamais sur la cible native
 // de l'evenement DOM (qui n'existe pas de facon fiable sous jsdom, faute de
-// mise en page reelle) mais sur hitTest() de @calque/core, interroge au
+// mise en page reelle) mais sur hitTest() de @maquio/core, interroge au
 // centre du cadre absolu du noeud clique. Cela garantit que la regle du
 // modele (verrouille/invisible ignores et leurs descendants, ordre de
 // dessin) est celle qui decide, et rend le comportement testable sans
@@ -35,11 +35,11 @@ import {
   setLinkCommand,
   snapValue,
   translateRect,
-} from '@calque/core'
-import type { CalqueDocument, FrameNode, HandleId, Node, Rect } from '@calque/core'
+} from '@maquio/core'
+import type { MaquioDocument, FrameNode, HandleId, Node, Rect } from '@maquio/core'
 import { useEditorStore } from '../state/editorStore'
 import type { DragPreview, Tool } from '../state/editorStore'
-import type { CalqueApi } from '../../shared/api'
+import type { MaquioApi } from '../../shared/api'
 
 // --- Utilitaires purs (testes directement, sans rendu) ---
 
@@ -67,7 +67,7 @@ export function deepestFrameAt(nodes: Node[], point: { x: number; y: number }): 
   return best
 }
 
-export function pageNodesOf(doc: CalqueDocument, pageId: string): Node[] {
+export function pageNodesOf(doc: MaquioDocument, pageId: string): Node[] {
   return doc.pages.find((p) => p.id === pageId)?.nodes ?? []
 }
 
@@ -158,7 +158,7 @@ export function resolvePreviewAbsoluteFrame(nodes: Node[], id: string, preview: 
 }
 
 // Parmi tous les bords du rectangle deplace (calcules par alignmentCandidates
-// de @calque/core -- la MEME derivation que celle utilisee en interne par
+// de @maquio/core -- la MEME derivation que celle utilisee en interne par
 // alignmentGuides, round de correction 1 : deux derivations separees des
 // points bord/centre/bord auraient fini par diverger, ce qui aurait pu
 // afficher un guide la ou rien n'accroche vraiment), celui qui s'accroche le
@@ -752,7 +752,7 @@ export function useLinkInteraction(nodeId: string, canvasRef: RefObject<HTMLElem
 // revient a 'select' (meme comportement de sortie que pour les autres
 // outils, pour ne jamais laisser l'outil Image actif sans que rien
 // n'indique pourquoi).
-export function useCreateInteraction(canvasRef: RefObject<HTMLElement | null>, api: CalqueApi) {
+export function useCreateInteraction(canvasRef: RefObject<HTMLElement | null>, api: MaquioApi) {
   const cleanupRef = useGestureCleanupRef()
 
   return useCallback(

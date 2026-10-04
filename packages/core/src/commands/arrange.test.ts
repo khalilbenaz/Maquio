@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createDocument } from '../model/document'
 import { createScreenNode } from '../model/screen'
-import type { CalqueDocument, Node, RectNode } from '../model/types'
+import type { MaquioDocument, Node, RectNode } from '../model/types'
 import { absoluteFrame, findNode } from '../tree/tree'
 import { History } from './history'
 import { alignNodesCommand, distributeNodesCommand, duplicateNodesCommand, pasteNodesCommand, reorderNodeCommand } from './arrange'
@@ -10,13 +10,13 @@ const device = { id: 'd', label: 'd', width: 400, height: 800, pixelRatio: 2 }
 function rect(id: string, x: number, y: number, w = 50, h = 50): RectNode {
   return { id, name: id, type: 'rect', frame: { x, y, w, h }, visible: true, locked: false, opacity: 1, rotation: 0, fills: [], strokes: [], cornerRadius: 0 }
 }
-function doc(children: Node[]): CalqueDocument {
+function doc(children: Node[]): MaquioDocument {
   const d = createDocument('t')
   const s = { ...createScreenNode('E', device, { x: 100, y: 0, w: 400, h: 800 }, children), id: 's1' }
   return { ...d, pages: [{ ...d.pages[0]!, nodes: [s] }] }
 }
-const pid = (d: CalqueDocument) => d.pages[0]!.id
-const kids = (d: CalqueDocument) => (d.pages[0]!.nodes[0] as { children: Node[] }).children
+const pid = (d: MaquioDocument) => d.pages[0]!.id
+const kids = (d: MaquioDocument) => (d.pages[0]!.nodes[0] as { children: Node[] }).children
 
 describe('reorderNodeCommand', () => {
   it('avance, recule, premier plan, arriere-plan ; annulable', () => {

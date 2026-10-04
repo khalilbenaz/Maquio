@@ -1,11 +1,11 @@
 // Adresse de l'API Figma. Par defaut l'API publique ; la variable
-// CALQUE_FIGMA_API_BASE permet de la remplacer par un serveur LOCAL (tests de
+// MAQUIO_FIGMA_API_BASE permet de la remplacer par un serveur LOCAL (tests de
 // bout en bout), et SEULEMENT local : le jeton est envoye a cette adresse, un
 // hote distant le ferait fuiter.
 export const FIGMA_API_DEFAULT = 'https://api.figma.com'
 
 export function figmaApiBase(env: Record<string, string | undefined>): string {
-  const raw = env['CALQUE_FIGMA_API_BASE']
+  const raw = env['MAQUIO_FIGMA_API_BASE']
   if (raw === undefined || raw === '') return FIGMA_API_DEFAULT
   try {
     const url = new URL(raw)

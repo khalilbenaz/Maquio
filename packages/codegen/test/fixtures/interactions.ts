@@ -1,7 +1,7 @@
 // Projet de test des interactions : transitions, appui long, delai, retour,
 // overlays (dialogue, feuille basse, snackbar) et URL, sur trois ecrans.
-import { DEVICE_PRESETS, PALETTE_ITEMS, createDocument, createScreenNode } from '@calque/core'
-import type { CalqueDocument, Interaction, Node, Rect } from '@calque/core'
+import { DEVICE_PRESETS, PALETTE_ITEMS, createDocument, createScreenNode } from '@maquio/core'
+import type { MaquioDocument, Interaction, Node, Rect } from '@maquio/core'
 
 const item = (id: string) => PALETTE_ITEMS.find((i) => i.id === id)!
 function make(id: string, frame: Partial<Rect>, name: string, props: Record<string, unknown> = {}, interactions: Interaction[] = []): Node {
@@ -12,7 +12,7 @@ function make(id: string, frame: Partial<Rect>, name: string, props: Record<stri
 }
 const nav = (target: string, transition: Interaction['transition']): Interaction => ({ trigger: { type: 'tap' }, action: { type: 'navigate', target }, transition })
 
-export function documentInteractions(): CalqueDocument {
+export function documentInteractions(): MaquioDocument {
   const d = createDocument('Interactions')
   const dialogue = make('dialog', { x: 40, y: 300, w: 313, h: 200 }, 'Confirmer', { title: 'Confirmer', message: 'Valider ?', confirmLabel: 'Oui', cancelLabel: 'Non' })
   const snack = make('snackbar', { x: 16, y: 760, w: 361, h: 48 }, 'Enregistre', { message: 'Enregistré', actionLabel: 'Annuler' })

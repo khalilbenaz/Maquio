@@ -8,7 +8,7 @@ import { DEFAULT_TRANSITION, defaultTransition, interactionSchema, isDefaultTran
 import type { Interaction } from './interactions'
 import { documentSchema } from './schema'
 import { createScreenNode } from './screen'
-import type { CalqueDocument, FrameNode, Node } from './types'
+import type { MaquioDocument, FrameNode, Node } from './types'
 import { findNode } from '../tree/tree'
 
 const R = { x: 0, y: 0, w: 100, h: 44 }
@@ -21,7 +21,7 @@ function doc() {
   const a = { ...createScreenNode('A', DEVICE_PRESETS.iphone15, { x: 0, y: 0, w: 393, h: 852 }, [bouton, dialog, snack, sheet]), id: 'A' }
   const b = { ...createScreenNode('B', DEVICE_PRESETS.iphone15, { x: 500, y: 0, w: 393, h: 852 }, []), id: 'B' }
   const pageId = d.pages[0]!.id
-  return { doc: { ...d, pages: [{ ...d.pages[0]!, nodes: [a, b] }] } as CalqueDocument, pageId }
+  return { doc: { ...d, pages: [{ ...d.pages[0]!, nodes: [a, b] }] } as MaquioDocument, pageId }
 }
 const set = (nodeId: string, its: Interaction[]) => {
   const { doc: d, pageId } = doc()

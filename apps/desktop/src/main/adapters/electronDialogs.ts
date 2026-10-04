@@ -33,7 +33,7 @@ export function confirmOverwrite(win: BrowserWindow | null): (existingFiles: str
 
 export function chooseOpenDocumentPath(win: BrowserWindow | null): () => Promise<string | null> {
   return async () => {
-    const options = { properties: ['openFile' as const], filters: [{ name: 'Document Calque', extensions: ['calque'] }] }
+    const options = { properties: ['openFile' as const], filters: [{ name: 'Document Maquio', extensions: ['maquio', 'calque'] }] }
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
     if (result.canceled || result.filePaths.length === 0) return null
     return result.filePaths[0] ?? null
@@ -42,7 +42,7 @@ export function chooseOpenDocumentPath(win: BrowserWindow | null): () => Promise
 
 export function chooseSaveDocumentPath(win: BrowserWindow | null): () => Promise<string | null> {
   return async () => {
-    const options = { filters: [{ name: 'Document Calque', extensions: ['calque'] }] }
+    const options = { filters: [{ name: 'Document Maquio', extensions: ['maquio'] }] }
     const result = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
     if (result.canceled || result.filePath === undefined || result.filePath === '') return null
     return result.filePath
@@ -71,5 +71,21 @@ export function chooseImageFile(win: BrowserWindow | null): () => Promise<string
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
     if (result.canceled || result.filePaths.length === 0) return null
     return result.filePaths[0] ?? null
+  }
+}
+
+// Ancien document `.calque` : proposition de l'enregistrer en `.maquio`.
+export function chooseLegacyExtension(win: BrowserWindow | null): (path: string) => Promise<'maquio' | 'keep' | 'cancel'> {
+  return async (path) => {
+    const options = {
+      type: 'question' as const,
+      buttons: ['Enregistrer en .maquio', 'Garder .calque', 'Annuler'],
+      defaultId: 0,
+      cancelId: 2,
+      message: 'Ce document est au format .calque (ancien nom de Maquio)',
+      detail: `${path}\n\nLe format est identique : seul le nom de l'extension change. L'ancien fichier n'est pas supprimé.`,
+    }
+    const result = win ? await dialog.showMessageBox(win, options) : await dialog.showMessageBox(options)
+    return result.response === 0 ? 'maquio' : result.response === 1 ? 'keep' : 'cancel'
   }
 }

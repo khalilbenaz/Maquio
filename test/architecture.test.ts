@@ -74,7 +74,7 @@ describe('regle de dependance (Tache 18, spec §4)', () => {
     const violations: string[] = []
     for (const fichier of listerFichiers('packages/core/src')) {
       for (const { specificateur, extrait } of listerImports(fichier)) {
-        if (specificateur.startsWith('@calque/')) {
+        if (specificateur.startsWith('@maquio/')) {
           violations.push(`${fichier} : import interdit "${specificateur}" (${extrait})`)
         }
       }
@@ -82,15 +82,15 @@ describe('regle de dependance (Tache 18, spec §4)', () => {
     expect(violations, violations.join('\n')).toEqual([])
   })
 
-  it('figma, codegen et ai n importent que @calque/core parmi les paquets du depot', () => {
+  it('figma, codegen et ai n importent que @maquio/core parmi les paquets du depot', () => {
     const violations: string[] = []
     for (const paquet of ['figma', 'codegen', 'ai']) {
       const racine = racineSrcDuPaquet(paquet)
       if (!racine) continue
       for (const fichier of listerFichiers(racine)) {
         for (const { specificateur, extrait } of listerImports(fichier)) {
-          if (specificateur.startsWith('@calque/') && specificateur !== '@calque/core') {
-            violations.push(`${fichier} : import interdit "${specificateur}" (${extrait}) -- seul @calque/core est autorise`)
+          if (specificateur.startsWith('@maquio/') && specificateur !== '@maquio/core') {
+            violations.push(`${fichier} : import interdit "${specificateur}" (${extrait}) -- seul @maquio/core est autorise`)
           }
         }
       }
@@ -116,7 +116,7 @@ describe('regle de dependance (Tache 18, spec §4)', () => {
   })
 
   it('apps/desktop/src/renderer n importe ni electron, ni node:*, ni figma/codegen/ai', () => {
-    const paquetsInterdits = new Set(['@calque/figma', '@calque/codegen', '@calque/ai'])
+    const paquetsInterdits = new Set(['@maquio/figma', '@maquio/codegen', '@maquio/ai'])
     const violations: string[] = []
     for (const fichier of listerFichiers(join('apps', 'desktop', 'src', 'renderer'))) {
       for (const { specificateur, extrait } of listerImports(fichier)) {

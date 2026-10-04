@@ -7,7 +7,7 @@ import { create } from 'zustand'
 export const RIGHT_MIN = 260
 export const RIGHT_MAX = 560
 export const RIGHT_DEFAULT = 300
-const KEY = 'calque.ui.v1'
+const KEY = 'maquio.ui.v1'
 
 type Persisted = { claudeCollapsed: boolean; rightWidth: number }
 

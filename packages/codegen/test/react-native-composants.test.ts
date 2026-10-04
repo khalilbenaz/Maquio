@@ -2,7 +2,7 @@
 // (Pressable, TextInput, Switch...), modules communautaires de reference,
 // structure d'ecran (equivalent Scaffold) et navigation React Navigation.
 import { describe, expect, it } from 'vitest'
-import type { Node } from '@calque/core'
+import type { Node } from '@maquio/core'
 import { reactNativeExporter } from '../src/react-native/react-native'
 import { docOf, linked, make, oneScreen, parent, screen, screenFile } from './helpers/composants'
 

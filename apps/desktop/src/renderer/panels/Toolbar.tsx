@@ -4,10 +4,10 @@
 //
 // Cibles d export : rendues par api.listExporters() (Tache 17), plutot
 // que par la constante locale de la Tache 16 -- le renderer n importe
-// toujours JAMAIS @calque/codegen (regle testee par ailleurs), il passe
-// desormais par le nouveau canal expose sur CalqueApi
+// toujours JAMAIS @maquio/codegen (regle testee par ailleurs), il passe
+// desormais par le nouveau canal expose sur MaquioApi
 // (apps/desktop/src/shared/api.ts). L'API est recue en propriete (comme
-// ClaudePanel), jamais via window.calque directement, pour rester
+// ClaudePanel), jamais via window.maquio directement, pour rester
 // testable sans preload.
 //
 // Import Figma et export sont maintenant actifs (Tache 17) : le bouton
@@ -45,10 +45,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { ReactNode, RefObject } from 'react'
-import { createScreenCommand, createScreenNode, isScreenNode } from '@calque/core'
+import { createScreenCommand, createScreenNode, isScreenNode } from '@maquio/core'
 import { useEditorStore } from '../state/editorStore'
 import type { Tool } from '../state/editorStore'
-import type { CalqueApi, ExporterId, ExportTargetInfo } from '../../shared/api'
+import type { MaquioApi, ExporterId, ExportTargetInfo } from '../../shared/api'
 import { FigmaImportDialog } from '../dialogs/FigmaImportDialog'
 import { ExportDialog } from '../dialogs/ExportDialog'
 import { pageNodesOf } from '../canvas/useDragInteraction'
@@ -215,7 +215,7 @@ function ExporterMenu({
   )
 }
 
-export function Toolbar({ api, onOpenSettings }: { api: CalqueApi; onOpenSettings: () => void }) {
+export function Toolbar({ api, onOpenSettings }: { api: MaquioApi; onOpenSettings: () => void }) {
   const tool = useEditorStore((s) => s.tool)
   const setTool = useEditorStore((s) => s.setTool)
   const zoom = useEditorStore((s) => s.zoom)

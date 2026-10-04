@@ -13,7 +13,7 @@
 //   parsePatch accepte.
 //
 // Opt-in STRICT (contrainte du brief) : jamais execute par `npm test` par
-// defaut -- gate par la variable d'environnement CALQUE_E2E_CLAUDE=1,
+// defaut -- gate par la variable d'environnement MAQUIO_E2E_CLAUDE=1,
 // ET ignore silencieusement (it.skip) si le binaire `claude` est absent du
 // PATH, exactement comme flutter-analyze.test.ts/flutter-dart-format.test.ts
 // pour `flutter`/`dart` -- la suite hermetique (sans reseau, sans binaire
@@ -21,17 +21,17 @@
 // "Developper") pour comment le lancer.
 import { execSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
-import { createDocument } from '@calque/core'
-import { buildPrompt, parsePatch, patchToCommand, ProcessClaudeRunner } from '@calque/ai'
+import { createDocument } from '@maquio/core'
+import { buildPrompt, parsePatch, patchToCommand, ProcessClaudeRunner } from '@maquio/ai'
 import { nodeSpawn } from '../../apps/desktop/src/main/adapters/nodeSpawn'
 import { createNeutralClaudeWorkingDirectory } from '../../apps/desktop/src/main/adapters/claudeWorkingDirectory'
 
-const ENV_FLAG = 'CALQUE_E2E_CLAUDE'
+const ENV_FLAG = 'MAQUIO_E2E_CLAUDE'
 const E2E_REQUESTED = process.env[ENV_FLAG] === '1'
 
 // Detection UNE SEULE FOIS, avant l'enregistrement des tests (comme pour
 // `flutter`/`dart` ailleurs dans ce dossier) -- jamais de spawn au chargement
-// du fichier quand CALQUE_E2E_CLAUDE n'est pas mis, pour que ce fichier
+// du fichier quand MAQUIO_E2E_CLAUDE n'est pas mis, pour que ce fichier
 // reste inoffensif dans `npm test` par defaut.
 function detecterBinaireClaude(): string | null {
   try {

@@ -29,6 +29,11 @@ export default tseslint.config(
     },
   },
   {
+    // Script Electron en CommonJS (npx electron scripts/render-svg.cjs).
+    files: ['**/*.cjs'],
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
+  {
     // Le parcours Playwright passe des fonctions au navigateur (page.evaluate).
     files: ['**/*.mjs', 'test/e2e/**'],
     languageOptions: { globals: { ...globals.browser } },

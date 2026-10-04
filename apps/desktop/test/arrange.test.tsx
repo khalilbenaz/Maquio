@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createDocument, createScreenNode } from '@calque/core'
-import type { CalqueDocument, Node, RectNode } from '@calque/core'
+import { createDocument, createScreenNode } from '@maquio/core'
+import type { MaquioDocument, Node, RectNode } from '@maquio/core'
 import { Canvas } from '../src/renderer/canvas/Canvas'
 import { InspectorPanel } from '../src/renderer/panels/InspectorPanel'
 import { useEditorStore } from '../src/renderer/state/editorStore'
@@ -10,7 +10,7 @@ import { apiFactice } from './helpers/apiFactice'
 function rect(id: string, x: number, y: number, w = 50, h = 50): RectNode {
   return { id, name: id, type: 'rect', frame: { x, y, w, h }, visible: true, locked: false, opacity: 1, rotation: 0, fills: [], strokes: [], cornerRadius: 0 }
 }
-function docDeTest(): CalqueDocument {
+function docDeTest(): MaquioDocument {
   const d = createDocument('t')
   const dev = { id: 'd', label: 'd', width: 400, height: 800, pixelRatio: 2 }
   const s = { ...createScreenNode('Ecran 1', dev, { x: 0, y: 0, w: 400, h: 800 }, [rect('a', 10, 10), rect('b', 100, 200), rect('c', 300, 400)]), id: 's1' }

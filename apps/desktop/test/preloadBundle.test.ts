@@ -25,7 +25,7 @@ const racineDesktop = resolve(__dirname, '..')
 
 describe('bundle preload (garde-fou format CommonJS)', () => {
   it('le preload construit ne contient aucune instruction import/export de haut niveau', async () => {
-    const dossierTemporaire = mkdtempSync(join(tmpdir(), 'calque-preload-build-'))
+    const dossierTemporaire = mkdtempSync(join(tmpdir(), 'maquio-preload-build-'))
     try {
       await build({
         root: racineDesktop,

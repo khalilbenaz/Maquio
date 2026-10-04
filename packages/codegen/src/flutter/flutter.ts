@@ -1,4 +1,4 @@
-// Generateur Flutter (Tache 7) : traduit un CalqueDocument en widgets Dart
+// Generateur Flutter (Tache 7) : traduit un MaquioDocument en widgets Dart
 // (un fichier par page sous lib/screens/, plus lib/theme.dart pour les
 // tokens). Voir les correspondances dans le brief (decision 7) :
 //   - frame `absolute` -> Stack de Positioned
@@ -16,7 +16,7 @@
 // tableaux et des objets a cles chaine, dont l'ordre d'iteration est
 // stable, sont parcourus).
 import type {
-  CalqueDocument,
+  MaquioDocument,
   ComponentNode,
   DesignTokens,
   EllipseNode,
@@ -28,15 +28,15 @@ import type {
   RectNode,
   Stroke,
   TextNode,
-} from '@calque/core'
-import { layoutPage } from '@calque/core'
+} from '@maquio/core'
+import { layoutPage } from '@maquio/core'
 import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
 import { hasScaffoldParts, planExport, splitScreen } from '../shared/screens'
 import { interactionFor, isNativeTransition } from '../shared/interactions'
 import type { RInteraction } from '../shared/interactions'
 import { ActionRegistry, TRANSITIONS_DART, animationStyle, navigationFunction, urlFunction } from './interactions'
 import type { ExportPlan, ScreenParts } from '../shared/screens'
-import type { Transition } from '@calque/core'
+import type { Transition } from '@maquio/core'
 import type { Exporter, ExportAsset, ExportedFile, ExportOptions, ExportResult } from '../types'
 import { planAssets } from '../shared/assets'
 import type { AssetTarget } from '../shared/assets'
@@ -289,7 +289,7 @@ function renderStackChildren(children: Node[], ctx: RenderContext, yOffset = 0):
 // `space-between` : Flutter compterait ce SizedBox comme un enfant de
 // plus et repartirait l'espace libre autour de lui EN PLUS de sa largeur
 // fixe, ce qui diverge visiblement du rendu voulu. C'est exactement la
-// semantique de `applyAutoLayout` dans @calque/core, qui ignore deja
+// semantique de `applyAutoLayout` dans @maquio/core, qui ignore deja
 // `gap` en mode `space-between` (l'espacement vient alors entierement de
 // MainAxisAlignment.spaceBetween) : le generateur doit s'aligner sur le
 // moteur de mise en page, pas le contredire.
@@ -921,7 +921,7 @@ function dartPackageName(projectName: string): string {
 function generatePubspec(projectName: string, assets: ExportAsset[], usesUrls = false): ExportedFile {
   const lines = [
     `name: ${dartPackageName(projectName)}`,
-    `description: Projet genere par Calque.`,
+    `description: Projet genere par Maquio.`,
     `publish_to: 'none'`,
     'version: 1.0.0+1',
     '',
@@ -952,7 +952,7 @@ const FLUTTER_ASSETS: AssetTarget = {
   reference: (fileName) => `assets/images/${fileName}`,
 }
 
-function exportFlutter(source: CalqueDocument, opts: ExportOptions): ExportResult {
+function exportFlutter(source: MaquioDocument, opts: ExportOptions): ExportResult {
   const assetPlan = planAssets(source, FLUTTER_ASSETS)
   const doc = assetPlan.doc
   const warnings: string[] = [...assetPlan.warnings]

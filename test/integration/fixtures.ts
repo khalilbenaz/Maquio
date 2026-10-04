@@ -7,7 +7,7 @@
 // prouve rien.
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { FigmaFileResponse } from '@calque/figma'
+import type { FigmaFileResponse } from '@maquio/figma'
 
 const FIGMA_PACKAGE_FIXTURES = join(__dirname, '..', '..', 'packages', 'figma', 'test', 'fixtures')
 

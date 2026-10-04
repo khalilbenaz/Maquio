@@ -220,7 +220,7 @@ describe('ProcessClaudeRunner', () => {
   describe('repertoire de travail neutre (defaut A)', () => {
     it('lance le sous-processus dans le repertoire fourni par la fabrique et le nettoie apres un succes', async () => {
       const cleanup = vi.fn(async () => {})
-      const workingDirectory = vi.fn(async (): Promise<WorkingDirectory> => ({ path: '/tmp/calque-claude-xyz', cleanup }))
+      const workingDirectory = vi.fn(async (): Promise<WorkingDirectory> => ({ path: '/tmp/maquio-claude-xyz', cleanup }))
       let receivedCwd: string | undefined
       const spawn: SpawnLike = vi.fn((_cmd, _args, opts) => {
         receivedCwd = opts.cwd
@@ -231,13 +231,13 @@ describe('ProcessClaudeRunner', () => {
       await r.run('x')
 
       expect(workingDirectory).toHaveBeenCalledTimes(1)
-      expect(receivedCwd).toBe('/tmp/calque-claude-xyz')
+      expect(receivedCwd).toBe('/tmp/maquio-claude-xyz')
       expect(cleanup).toHaveBeenCalledTimes(1)
     })
 
     it('nettoie aussi le repertoire de travail quand l appel echoue', async () => {
       const cleanup = vi.fn(async () => {})
-      const workingDirectory = vi.fn(async (): Promise<WorkingDirectory> => ({ path: '/tmp/calque-claude-xyz', cleanup }))
+      const workingDirectory = vi.fn(async (): Promise<WorkingDirectory> => ({ path: '/tmp/maquio-claude-xyz', cleanup }))
       const spawn: SpawnLike = vi.fn(() => ({ stdout: flux(''), stderr: flux('boom'), exitCode: Promise.resolve(1) }))
       const r = new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude', workingDirectory })
 

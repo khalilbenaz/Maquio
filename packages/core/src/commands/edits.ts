@@ -1,13 +1,13 @@
 // Fabriques de commandes annulables (Tache 5).
 //
-// Chaque fabrique rend un Command dont `apply` transforme un CalqueDocument
+// Chaque fabrique rend un Command dont `apply` transforme un MaquioDocument
 // et dont `invert` calcule, a partir du document D'AVANT application, la
 // commande qui annule cette transformation. Toutes s'appuient sur les
 // mutations immuables de tree.ts (insertNode, removeNode, replaceNode,
 // moveNode) qui preservent le partage structurel : on ne reconstruit jamais
 // l'arbre entier a la main ici.
 
-import type { CalqueDocument, DesignTokens, FrameNode, Layout, Node, Page, Rect } from '../model/types'
+import type { MaquioDocument, DesignTokens, FrameNode, Layout, Node, Page, Rect } from '../model/types'
 import type { ContainerSpec } from '../components/props'
 import { translateRect, unionRects } from '../geometry/rect'
 import { layoutPage } from '../layout/autolayout'
@@ -87,7 +87,7 @@ function commonParentId(nodes: Node[], nodeIds: string[]): string | null {
 export function createNodeCommand(pageId: string, parentId: string | null, node: Node, index?: number): Command {
   return {
     label: 'Créer',
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       return updatePageNodes(doc, pageId, (nodes) => insertNode(nodes, parentId, node, index))
     },
     invert(): Command {
@@ -104,12 +104,12 @@ export function createNodeCommand(pageId: string, parentId: string | null, node:
 function removeNodeCommand(pageId: string, nodeId: string): Command {
   return {
     label: 'Supprimer',
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       return updatePageNodes(doc, pageId, (nodes) => removeNode(nodes, nodeId))
     },
     // Capture le parent et l'index AVANT suppression pour restaurer le noeud
     // a sa position exacte dans la fratrie (point 11 du cahier des charges).
-    invert(doc: CalqueDocument): Command {
+    invert(doc: MaquioDocument): Command {
       const nodes = requirePage(doc, pageId).nodes
       const node = findNode(nodes, nodeId)
       if (node === null) throw new NodeNotFoundError(nodeId)
@@ -174,10 +174,10 @@ export function deleteNodeCommand(pageId: string, nodeId: string): Command {
 
   return {
     label: 'Supprimer',
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       return resolvedCommand(requirePage(doc, pageId).nodes).apply(doc)
     },
-    invert(doc: CalqueDocument): Command {
+    invert(doc: MaquioDocument): Command {
       return resolvedCommand(requirePage(doc, pageId).nodes).invert(doc)
     },
   }
@@ -189,7 +189,7 @@ export function deleteNodeCommand(pageId: string, nodeId: string): Command {
 export function moveNodeCommand(pageId: string, nodeId: string, dx: number, dy: number): Command {
   return {
     label: 'Déplacer',
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       return updateNodeIn(doc, pageId, nodeId, (node) => ({ ...node, frame: translateRect(node.frame, dx, dy) }))
     },
     invert(): Command {
@@ -202,10 +202,10 @@ export function moveNodeCommand(pageId: string, nodeId: string, dx: number, dy: 
 export function resizeNodeCommand(pageId: string, nodeId: string, frame: Rect): Command {
   return {
     label: 'Redimensionner',
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       return updateNodeIn(doc, pageId, nodeId, (node) => ({ ...node, frame }))
     },
-    invert(doc: CalqueDocument): Command {
+    invert(doc: MaquioDocument): Command {
       const nodes = requirePage(doc, pageId).nodes
       const node = findNode(nodes, nodeId)
       if (node === null) throw new NodeNotFoundError(nodeId)
@@ -233,7 +233,7 @@ export function reparentNodeCommand(
 ): Command {
   return {
     label: 'Changer de parent',
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       return updatePageNodes(doc, pageId, (nodes) => {
         const moved = moveNode(nodes, nodeId, newParentId, index)
         if (frame === undefined) return moved
@@ -242,7 +242,7 @@ export function reparentNodeCommand(
         return replaceNode(moved, nodeId, { ...node, frame })
       })
     },
-    invert(doc: CalqueDocument): Command {
+    invert(doc: MaquioDocument): Command {
       const nodes = requirePage(doc, pageId).nodes
       const node = findNode(nodes, nodeId)
       if (node === null) throw new NodeNotFoundError(nodeId)
@@ -267,13 +267,13 @@ export type NodePatch = Record<string, unknown>
 export function updateNodeCommand(pageId: string, nodeId: string, patch: NodePatch): Command {
   return {
     label: 'Modifier',
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       if ('id' in patch || 'type' in patch) {
         throw new InvalidPatchError("updateNodeCommand ne peut pas changer 'id' ou 'type'")
       }
       return updateNodeIn(doc, pageId, nodeId, (node) => ({ ...node, ...patch }))
     },
-    invert(doc: CalqueDocument): Command {
+    invert(doc: MaquioDocument): Command {
       const nodes = requirePage(doc, pageId).nodes
       const node = findNode(nodes, nodeId)
       if (node === null) throw new NodeNotFoundError(nodeId)
@@ -290,10 +290,10 @@ export function updateNodeCommand(pageId: string, nodeId: string, patch: NodePat
 export function setTextCommand(pageId: string, nodeId: string, characters: string): Command {
   return {
     label: 'Modifier le texte',
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       return updateNodeIn(doc, pageId, nodeId, (node) => ({ ...node, characters }))
     },
-    invert(doc: CalqueDocument): Command {
+    invert(doc: MaquioDocument): Command {
       const nodes = requirePage(doc, pageId).nodes
       const node = findNode(nodes, nodeId)
       if (node === null) throw new NodeNotFoundError(nodeId)
@@ -313,7 +313,7 @@ export function groupCommand(pageId: string, nodeIds: string[]): Command {
 
   return {
     label: 'Grouper',
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       return updatePageNodes(doc, pageId, (nodes) => {
         const parentId = commonParentId(nodes, nodeIds)
         const siblings = getSiblings(nodes, parentId)
@@ -385,7 +385,7 @@ export function groupCommand(pageId: string, nodeIds: string[]): Command {
 export function ungroupCommand(pageId: string, frameId: string): Command {
   return {
     label: 'Dégrouper',
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       return updatePageNodes(doc, pageId, (nodes) => {
         const frameNode = findNode(nodes, frameId)
         if (frameNode === null) throw new NodeNotFoundError(frameId)
@@ -409,7 +409,7 @@ export function ungroupCommand(pageId: string, frameId: string): Command {
         return setSiblings(nodes, parentId, newSiblings)
       })
     },
-    invert(doc: CalqueDocument): Command {
+    invert(doc: MaquioDocument): Command {
       const nodes = requirePage(doc, pageId).nodes
       const frameSnapshot = findNode(nodes, frameId)
       if (frameSnapshot === null) throw new NodeNotFoundError(frameId)
@@ -423,7 +423,7 @@ export function ungroupCommand(pageId: string, frameId: string): Command {
 
       return {
         label: 'Grouper',
-        apply(doc2: CalqueDocument): CalqueDocument {
+        apply(doc2: MaquioDocument): MaquioDocument {
           return updatePageNodes(doc2, pageId, (nodes2) => {
             const currentSiblings = getSiblings(nodes2, parentId)
             const childSet = new Set(childIds)
@@ -447,7 +447,7 @@ export function ungroupCommand(pageId: string, frameId: string): Command {
 export function setLayoutCommand(pageId: string, frameId: string, layout: Layout): Command {
   return {
     label: 'Modifier la disposition',
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       return updatePageNodes(doc, pageId, (nodes) => {
         const node = findNode(nodes, frameId)
         if (node === null) throw new NodeNotFoundError(frameId)
@@ -455,7 +455,7 @@ export function setLayoutCommand(pageId: string, frameId: string, layout: Layout
         return replaceNode(nodes, frameId, { ...node, layout })
       })
     },
-    invert(doc: CalqueDocument): Command {
+    invert(doc: MaquioDocument): Command {
       const nodes = requirePage(doc, pageId).nodes
       const node = findNode(nodes, frameId)
       if (node === null) throw new NodeNotFoundError(frameId)
@@ -473,7 +473,7 @@ export function setLayoutCommand(pageId: string, frameId: string, layout: Layout
 export function setContainerCommand(pageId: string, frameId: string, container: ContainerSpec | null): Command {
   return {
     label: container === null ? 'Retirer le conteneur' : 'Modifier le conteneur',
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       return updatePageNodes(doc, pageId, (nodes) => {
         const node = findNode(nodes, frameId)
         if (node === null) throw new NodeNotFoundError(frameId)
@@ -483,7 +483,7 @@ export function setContainerCommand(pageId: string, frameId: string, container: 
         return replaceNode(nodes, frameId, nodeSchema.parse(next))
       })
     },
-    invert(doc: CalqueDocument): Command {
+    invert(doc: MaquioDocument): Command {
       const nodes = requirePage(doc, pageId).nodes
       const node = findNode(nodes, frameId)
       if (node === null) throw new NodeNotFoundError(frameId)
@@ -496,10 +496,10 @@ export function setContainerCommand(pageId: string, frameId: string, container: 
 export function setTokensCommand(tokens: Partial<DesignTokens>): Command {
   return {
     label: 'Modifier les tokens',
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       return { ...doc, tokens: { ...doc.tokens, ...tokens } }
     },
-    invert(doc: CalqueDocument): Command {
+    invert(doc: MaquioDocument): Command {
       return setTokensCommand(doc.tokens)
     },
   }
@@ -570,11 +570,11 @@ function withInteractions(node: Node, interactions: Interaction[] | undefined): 
 export function setInteractionsCommand(pageId: string, nodeId: string, interactions: Interaction[]): Command {
   return {
     label: 'Modifier les interactions',
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       validateInteractions(requirePage(doc, pageId).nodes, nodeId, interactions)
       return updateNodeIn(doc, pageId, nodeId, (node) => withInteractions(node, interactions))
     },
-    invert(doc: CalqueDocument): Command {
+    invert(doc: MaquioDocument): Command {
       const node = findNode(requirePage(doc, pageId).nodes, nodeId)
       if (node === null) throw new NodeNotFoundError(nodeId)
       return setInteractionsCommand(pageId, nodeId, node.interactions ?? [])
@@ -587,7 +587,7 @@ export function setInteractionsCommand(pageId: string, nodeId: string, interacti
 function removeInteractionsTargetingCommand(pageId: string, nodeId: string, doomed: Set<string>): Command {
   return {
     label: 'Retirer les interactions',
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       return updateNodeIn(doc, pageId, nodeId, (node) =>
         withInteractions(
           node,
@@ -595,7 +595,7 @@ function removeInteractionsTargetingCommand(pageId: string, nodeId: string, doom
         ),
       )
     },
-    invert(doc: CalqueDocument): Command {
+    invert(doc: MaquioDocument): Command {
       const node = findNode(requirePage(doc, pageId).nodes, nodeId)
       if (node === null) throw new NodeNotFoundError(nodeId)
       return restoreInteractionsCommand(pageId, nodeId, node.interactions)
@@ -623,13 +623,13 @@ function restoreInteractionsCommand(pageId: string, nodeId: string, interactions
 export function setLinkCommand(pageId: string, nodeId: string, target: string, transition: Transition = DEFAULT_TRANSITION): Command {
   return {
     label: 'Lier',
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       const node = findNode(requirePage(doc, pageId).nodes, nodeId)
       if (node === null) throw new NodeNotFoundError(nodeId)
       const others = (node.interactions ?? []).filter((i) => !(i.trigger.type === 'tap' && i.action.type === 'navigate'))
       return setInteractionsCommand(pageId, nodeId, [{ trigger: { type: 'tap' }, action: { type: 'navigate', target }, transition }, ...others]).apply(doc)
     },
-    invert(doc: CalqueDocument): Command {
+    invert(doc: MaquioDocument): Command {
       const node = findNode(requirePage(doc, pageId).nodes, nodeId)
       if (node === null) throw new NodeNotFoundError(nodeId)
       return restoreInteractionsCommand(pageId, nodeId, node.interactions)
@@ -641,12 +641,12 @@ export function setLinkCommand(pageId: string, nodeId: string, target: string, t
 export function clearLinkCommand(pageId: string, nodeId: string): Command {
   return {
     label: 'Retirer le lien',
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       return updateNodeIn(doc, pageId, nodeId, (node) =>
         withInteractions(node, (node.interactions ?? []).filter((i) => !(i.trigger.type === 'tap' && i.action.type === 'navigate'))),
       )
     },
-    invert(doc: CalqueDocument): Command {
+    invert(doc: MaquioDocument): Command {
       const node = findNode(requirePage(doc, pageId).nodes, nodeId)
       if (node === null) throw new NodeNotFoundError(nodeId)
       return restoreInteractionsCommand(pageId, nodeId, node.interactions)
@@ -675,10 +675,10 @@ export function clearLinkCommand(pageId: string, nodeId: string): Command {
 export function compositeCommand(label: string, commands: Command[]): Command {
   return {
     label,
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       return commands.reduce((current, command) => command.apply(current), doc)
     },
-    invert(doc: CalqueDocument): Command {
+    invert(doc: MaquioDocument): Command {
       const inverses: Command[] = []
       let current = doc
       for (const command of commands) {
@@ -699,7 +699,7 @@ export function compositeCommand(label: string, commands: Command[]): Command {
 function restorePagesCommand(saved: Page[]): Command {
   return {
     label: 'Mise en page automatique',
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       return {
         ...doc,
         pages: doc.pages.map((p) => {
@@ -708,7 +708,7 @@ function restorePagesCommand(saved: Page[]): Command {
         }),
       }
     },
-    invert(doc: CalqueDocument): Command {
+    invert(doc: MaquioDocument): Command {
       return restorePagesCommand(doc.pages)
     },
   }
@@ -722,7 +722,7 @@ function restorePagesCommand(saved: Page[]): Command {
 export function relayoutCommand(): Command {
   return {
     label: 'Mise en page automatique',
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       let changed = false
       const pages = doc.pages.map((p) => {
         const laidOut = layoutPage(p)
@@ -731,7 +731,7 @@ export function relayoutCommand(): Command {
       })
       return changed ? { ...doc, pages } : doc
     },
-    invert(doc: CalqueDocument): Command {
+    invert(doc: MaquioDocument): Command {
       return restorePagesCommand(doc.pages)
     },
   }

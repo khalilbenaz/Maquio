@@ -2,8 +2,8 @@
 // rectangles a des identifiants fixes, places de sorte a ne jamais se
 // chevaucher (rect1 en haut-gauche, rect2 plus bas-a-droite), pour que les
 // tests de selection par clic restent sans ambiguite.
-import { createDocument } from '@calque/core'
-import type { CalqueDocument, RectNode } from '@calque/core'
+import { createDocument } from '@maquio/core'
+import type { MaquioDocument, RectNode } from '@maquio/core'
 
 function rect(id: string, x: number, y: number, w = 50, h = 50): RectNode {
   return {
@@ -21,7 +21,7 @@ function rect(id: string, x: number, y: number, w = 50, h = 50): RectNode {
   }
 }
 
-export function documentDeTest(): CalqueDocument {
+export function documentDeTest(): MaquioDocument {
   const doc = createDocument('Document de test')
   const page = doc.pages[0]!
   return {

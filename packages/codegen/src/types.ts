@@ -1,10 +1,10 @@
 // Types partages par tous les exportateurs de code (Tache 7).
 //
-// Chaque exportateur transforme un CalqueDocument en une liste de fichiers
+// Chaque exportateur transforme un MaquioDocument en une liste de fichiers
 // GARDES EN MEMOIRE : ce package n'ecrit jamais sur disque (decision 3), pour
 // rester testable par simple comparaison de chaines et pour laisser
 // l'ecriture reelle a l'application de bureau (Tache 17).
-import type { CalqueDocument } from '@calque/core'
+import type { MaquioDocument } from '@maquio/core'
 
 export type ExportedFile = { path: string; contents: string }
 
@@ -31,5 +31,5 @@ export interface Exporter {
   id: ExporterId
   label: string
   maturity: 'complete' | 'preview'
-  export(doc: CalqueDocument, opts: ExportOptions): ExportResult
+  export(doc: MaquioDocument, opts: ExportOptions): ExportResult
 }

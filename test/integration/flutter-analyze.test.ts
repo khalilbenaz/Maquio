@@ -33,10 +33,10 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { figmaToDocument } from '@calque/figma'
-import { flutterExporter } from '@calque/codegen'
-import { createDocument, createScreenNode, DEVICE_PRESETS } from '@calque/core'
-import type { CalqueDocument, FrameNode, TextNode } from '@calque/core'
+import { figmaToDocument } from '@maquio/figma'
+import { flutterExporter } from '@maquio/codegen'
+import { createDocument, createScreenNode, DEVICE_PRESETS } from '@maquio/core'
+import type { MaquioDocument, FrameNode, TextNode } from '@maquio/core'
 import { FIGMA_FIXTURES } from './fixtures'
 import { documentExempleComplet } from './fixtures/exemple-complet'
 import { documentInteractions } from '../../packages/codegen/test/fixtures/interactions'
@@ -44,7 +44,7 @@ import { documentInteractions } from '../../packages/codegen/test/fixtures/inter
 // Correctif parentage (v2, addendum navigation) : cas ajoute a CE harnais,
 // pas aux fixtures Figma partagees (fixtures.ts, consommees par d'autres
 // tests d'integration qui attendent toutes un FigmaFileResponse) -- un
-// CalqueDocument construit directement, deux ecrans, chacun avec un contenu
+// MaquioDocument construit directement, deux ecrans, chacun avec un contenu
 // PROPRE (un texte au nom distinct). C'est la preuve que le defaut corrige
 // (un element trace dans un ecran restait un frere de premier niveau, donc
 // invisible pour l'export qui ne voit que le sous-arbre de l'ecran actif --
@@ -77,7 +77,7 @@ function texteEcran(id: string, name: string, characters: string): TextNode {
   }
 }
 
-function documentDeuxEcransAvecContenuPropre(): CalqueDocument {
+function documentDeuxEcransAvecContenuPropre(): MaquioDocument {
   const device = DEVICE_PRESETS.iphone15
   const texte1 = texteEcran('texte-ecran-1', 'ContenuEcranUn', 'Contenu propre de l ecran un')
   const texte2 = texteEcran('texte-ecran-2', 'ContenuEcranDeux', 'Contenu propre de l ecran deux')
@@ -144,7 +144,7 @@ describe('garde-fou flutter analyze (preuve de compilation reelle)', () => {
   beforeAll(() => {
     if (!FLUTTER_AVAILABLE) return
     const start = Date.now()
-    packageDir = mkdtempSync(join(tmpdir(), 'calque-flutter-analyze-'))
+    packageDir = mkdtempSync(join(tmpdir(), 'maquio-flutter-analyze-'))
 
     // Paquet Flutter avec `flutter_lints` active (voir le ruling en tete de
     // fichier) : un `unused_import` ou un identifiant invalide sont deja
@@ -155,7 +155,7 @@ describe('garde-fou flutter analyze (preuve de compilation reelle)', () => {
     writeFileSync(
       join(packageDir, 'pubspec.yaml'),
       [
-        'name: calque_flutter_analyze_probe',
+        'name: maquio_flutter_analyze_probe',
         "publish_to: 'none'",
         'version: 1.0.0',
         'environment:',

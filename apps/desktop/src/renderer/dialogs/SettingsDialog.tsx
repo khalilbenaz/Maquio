@@ -2,7 +2,7 @@
 // pour les reglages Claude Code) : ecran pour le jeton personnel Figma ET
 // pour la connexion a Claude Code, au meme titre. Recoit l'API en
 // propriete, comme FigmaImportDialog et ExportDialog -- jamais
-// window.calque directement.
+// window.maquio directement.
 //
 // Le jeton n'est JAMAIS reaffiche une fois enregistre : getSettings ne
 // rend que `hasFigmaToken` (voir figmaHandlers.ts, decision 3 du brief
@@ -22,7 +22,7 @@
 // Toolbar/App, sans prop en commun) : c'est ce qui fait que le panneau
 // Claude redevient utilisable immediatement, sans redemarrer l'application.
 import { useEffect, useState } from 'react'
-import type { CalqueApi } from '../../shared/api'
+import type { MaquioApi } from '../../shared/api'
 import { messageOfError } from '../../shared/errors'
 import { useClaudeStatusStore } from '../state/claudeStatusStore'
 import './Dialog.css'
@@ -37,7 +37,7 @@ function CloseIcon() {
   )
 }
 
-export function SettingsDialog({ api, onClose }: { api: CalqueApi; onClose: () => void }) {
+export function SettingsDialog({ api, onClose }: { api: MaquioApi; onClose: () => void }) {
   const [jeton, setJeton] = useState('')
   const [hasFigmaToken, setHasFigmaToken] = useState(false)
   const [statut, setStatut] = useState<Statut>('idle')
@@ -196,7 +196,7 @@ export function SettingsDialog({ api, onClose }: { api: CalqueApi; onClose: () =
               {claudeAvailable ? `Claude Code trouvé : ${claudePath ?? ''}` : 'Claude Code introuvable'}
             </p>
             <p className="dialog-hint">
-              Calque lance le binaire 'claude' déjà installé sur cette machine et n'utilise aucune clé d'API.
+              Maquio lance le binaire 'claude' déjà installé sur cette machine et n'utilise aucune clé d'API.
             </p>
 
             <label htmlFor="claude-custom-path-input" className="dialog-field-label">

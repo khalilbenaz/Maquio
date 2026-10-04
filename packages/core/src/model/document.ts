@@ -1,9 +1,9 @@
-// Creation, (de)serialisation et validation de version d'un CalqueDocument.
+// Creation, (de)serialisation et validation de version d'un MaquioDocument.
 import { documentSchema } from './schema'
 import { DOCUMENT_VERSION } from './version'
 import { createScreenNode } from './screen'
 import { DEFAULT_TRANSITION } from './interactions'
-import type { CalqueDocument, DesignTokens, DevicePreset, Page } from './types'
+import type { MaquioDocument, DesignTokens, DevicePreset, Page } from './types'
 
 // Erreur levee quand la version du document lu n'est pas la version courante.
 // Un document plus recent n'est jamais lu partiellement ; un document plus
@@ -42,7 +42,7 @@ function emptyTokens(): DesignTokens {
 // migration v1 -> v2 (voir migrateV1ToV2 plus bas), parce que la §3.1 de
 // l'addendum l'exige explicitement pour un document EXISTANT, pas pour un
 // document neuf.
-export function createDocument(name: string, device: DevicePreset = DEVICE_PRESETS.iphone15): CalqueDocument {
+export function createDocument(name: string, device: DevicePreset = DEVICE_PRESETS.iphone15): MaquioDocument {
   const page: Page = {
     id: crypto.randomUUID(),
     name: 'Page 1',
@@ -60,7 +60,7 @@ export function createDocument(name: string, device: DevicePreset = DEVICE_PRESE
   }
 }
 
-export function serializeDocument(doc: CalqueDocument): string {
+export function serializeDocument(doc: MaquioDocument): string {
   return JSON.stringify(doc, null, 2)
 }
 
@@ -91,14 +91,14 @@ function wrapPageAsScreen(page: Page): Page {
   return { ...page, nodes: [screen] }
 }
 
-function migrateV1ToV2(doc: CalqueDocument): CalqueDocument {
+function migrateV1ToV2(doc: MaquioDocument): MaquioDocument {
   return { ...doc, version: 2, pages: doc.pages.map(wrapPageAsScreen) }
 }
 
 // v3 (composants mobiles) : aucune transformation de contenu -- les noeuds
 // `component` et le champ `container` n'existaient pas, aucun ancien
 // document n'en porte.
-function migrateV2ToV3(doc: CalqueDocument): CalqueDocument {
+function migrateV2ToV3(doc: MaquioDocument): MaquioDocument {
   return { ...doc, version: DOCUMENT_VERSION }
 }
 
@@ -128,7 +128,7 @@ function migrateLinksInRaw(raw: unknown): void {
   if (Array.isArray(pages)) for (const page of pages) if (page && Array.isArray(page.nodes)) page.nodes.forEach(visit)
 }
 
-export function parseDocument(json: string): CalqueDocument {
+export function parseDocument(json: string): MaquioDocument {
   const raw: unknown = JSON.parse(json)
   const version = readRawVersion(raw)
 
@@ -152,7 +152,7 @@ export function parseDocument(json: string): CalqueDocument {
   // documentSchema.parse() le valide deja correctement tel quel. La
   // migration proprement dite (enveloppement dans un ecran) n'a donc besoin
   // d'aucune manipulation de JSON brut non type : elle s'applique APRES
-  // validation, sur un CalqueDocument deja bien forme.
+  // validation, sur un MaquioDocument deja bien forme.
   if (version !== undefined && version < 4) migrateLinksInRaw(raw)
   const parsed = documentSchema.parse(raw)
   // Chaine de migrations : v1 -> v2 (ecrans) puis v2 -> v3 (composants).

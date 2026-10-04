@@ -1,15 +1,15 @@
 // Export « pour Figma » : un seul fichier JSON (`<projet>.figma.json`) que le
-// plugin « Import Calque » lit pour recreer ecrans, textes, formes, images,
+// plugin « Import Maquio » lit pour recreer ecrans, textes, formes, images,
 // auto-layout et composants. Le document est embarque tel quel (apres mise en
 // page automatique) avec le contenu des images locales en base64 : le
 // plugin n'a besoin d'aucun autre fichier.
-import { layoutPage } from '@calque/core'
-import type { CalqueDocument } from '@calque/core'
+import { layoutPage } from '@maquio/core'
+import type { MaquioDocument } from '@maquio/core'
 import { localImageSources, mimeOf, toBase64 } from '../shared/image-data'
 import { toSnakeCase } from '../shared/naming'
 import type { Exporter, ExportOptions, ExportResult } from '../types'
 
-export const FIGMA_BUNDLE_FORMAT = 'calque-figma'
+export const FIGMA_BUNDLE_FORMAT = 'maquio-figma'
 export const FIGMA_BUNDLE_VERSION = 1
 
 export type FigmaBundle = {
@@ -17,11 +17,11 @@ export type FigmaBundle = {
   version: number
   projectName: string
   startScreenId: string | null
-  document: CalqueDocument
+  document: MaquioDocument
   images: Record<string, { mime: string; data: string }>
 }
 
-export function buildFigmaBundle(doc: CalqueDocument, opts: ExportOptions): { bundle: FigmaBundle; warnings: string[] } {
+export function buildFigmaBundle(doc: MaquioDocument, opts: ExportOptions): { bundle: FigmaBundle; warnings: string[] } {
   const warnings: string[] = []
   const images: FigmaBundle['images'] = {}
   for (const src of localImageSources(doc)) {
@@ -29,7 +29,7 @@ export function buildFigmaBundle(doc: CalqueDocument, opts: ExportOptions): { bu
     if (bytes === null) warnings.push(`image « ${src} » introuvable : elle ne sera pas dans le fichier Figma`)
     else images[src] = { mime: mimeOf(src), data: toBase64(bytes) }
   }
-  const laidOut: CalqueDocument = { ...doc, pages: doc.pages.map((p) => layoutPage(p)) }
+  const laidOut: MaquioDocument = { ...doc, pages: doc.pages.map((p) => layoutPage(p)) }
   const firstScreen = laidOut.pages.flatMap((p) => p.nodes).find((n) => n.type === 'frame' && n.device !== undefined)
   return {
     bundle: {
@@ -44,10 +44,10 @@ export function buildFigmaBundle(doc: CalqueDocument, opts: ExportOptions): { bu
   }
 }
 
-function exportFigma(doc: CalqueDocument, opts: ExportOptions): ExportResult {
+function exportFigma(doc: MaquioDocument, opts: ExportOptions): ExportResult {
   const { bundle, warnings } = buildFigmaBundle(doc, opts)
   const name = toSnakeCase(opts.projectName) || 'projet'
   return { files: [{ path: `${name}.figma.json`, contents: JSON.stringify(bundle) }], warnings }
 }
 
-export const figmaExporter: Exporter = { id: 'figma', label: 'Figma (plugin Import Calque)', maturity: 'complete', export: exportFigma }
+export const figmaExporter: Exporter = { id: 'figma', label: 'Figma (plugin Import Maquio)', maturity: 'complete', export: exportFigma }

@@ -4,7 +4,7 @@
 // `figma-types.ts` n'est qu'un typage a la compilation : rien ne verifie au
 // runtime qu'une reponse Figma reelle le respecte (bug cote Figma, JSON
 // edite a la main, version d'API differente). Une valeur absente, d'un
-// mauvais type ou hors des bornes du modele Calque ne doit jamais faire
+// mauvais type ou hors des bornes du modele Maquio ne doit jamais faire
 // echouer `figmaToDocument` au milieu de l'import : elle est ramenee a la
 // valeur valide la plus proche, et un avertissement est emis pour toute
 // valeur *presente mais invalide* (une valeur simplement absente prend sa
@@ -24,7 +24,7 @@
 // numerique, sans lever au milieu de l'import. Ajouter une borne au modele
 // demain se fait a l'un des appels de `sanitizeNumber` ci-dessous, jamais
 // par un `Math.max`/`Math.min` disperse.
-import type { Color } from '@calque/core'
+import type { Color } from '@maquio/core'
 import type { FigmaColor, FigmaRect } from './figma-types'
 
 export type WarnFn = (property: string, reason: string) => void

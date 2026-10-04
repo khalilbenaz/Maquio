@@ -5,8 +5,8 @@
 // saisie, une commande UNIQUE au blur ou a Entree, jamais a chaque frappe.
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
-import { compositeCommand, updateNodeCommand } from '@calque/core'
-import type { Color, Command, Node as CalqueNode, NodePatch } from '@calque/core'
+import { compositeCommand, updateNodeCommand } from '@maquio/core'
+import type { Color, Command, Node as MaquioNode, NodePatch } from '@maquio/core'
 
 // --- Utilitaires generiques (valeur commune, execution groupee) ---
 
@@ -23,12 +23,12 @@ export function commonOf<N, T>(nodes: N[], get: (n: N) => T): T | null {
 // aucun noeud ne differe (valeur inchangee, y compris sur une selection
 // multiple deja homogene), aucune commande n'est executee (decision 2).
 export function commitToSelection<T>(
-  nodes: CalqueNode[],
+  nodes: MaquioNode[],
   pageId: string,
   execute: (c: Command) => void,
   label: string,
-  get: (n: CalqueNode) => T,
-  patch: (n: CalqueNode, value: T) => NodePatch,
+  get: (n: MaquioNode) => T,
+  patch: (n: MaquioNode, value: T) => NodePatch,
   value: T,
 ): void {
   const commands = nodes.filter((n) => get(n) !== value).map((n) => updateNodeCommand(pageId, n.id, patch(n, value)))

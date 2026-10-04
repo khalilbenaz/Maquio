@@ -3,8 +3,8 @@
 // suppression. Toute modification est UNE commande annulable
 // (setInteractionsCommand) ; une commande refusee affiche son message.
 import { useState } from 'react'
-import { isScreenNode, screenContaining, setInteractionsCommand } from '@calque/core'
-import type { Command, Interaction, Node as CalqueNode } from '@calque/core'
+import { isScreenNode, screenContaining, setInteractionsCommand } from '@maquio/core'
+import type { Command, Interaction, Node as MaquioNode } from '@maquio/core'
 import { NumberField, SelectField, TextField } from './inspectorFields'
 import {
   ACTION_LABELS,
@@ -32,10 +32,10 @@ export function InteractionsSection({
   execute,
   allNodes,
 }: {
-  node: CalqueNode
+  node: MaquioNode
   pageId: string
   execute: (c: Command) => void
-  allNodes: CalqueNode[]
+  allNodes: MaquioNode[]
 }) {
   const [erreur, setErreur] = useState('')
   const list: Interaction[] = node.interactions ?? []

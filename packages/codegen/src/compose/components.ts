@@ -3,8 +3,8 @@
 // ListItem, TopAppBar, NavigationBar, TabRow, AlertDialog, ModalBottomSheet...
 // Les icones viennent de material-icons-core (Icons.Default.* /
 // Icons.AutoMirrored.Filled.*), sans la dependance « extended ».
-import type { Color, ComponentNode, DesignTokens, IconName } from '@calque/core'
-import { ICONS } from '@calque/core'
+import type { Color, ComponentNode, DesignTokens, IconName } from '@maquio/core'
+import { ICONS } from '@maquio/core'
 import { formatNumber } from '../shared/format-number'
 import { pad } from '../shared/indent'
 import { isRemoteUrl } from '../shared/node-helpers'
@@ -23,7 +23,7 @@ export type ComposeEnvCtx = {
   // Un opt-in a une API experimentale de Material 3 est necessaire.
   markExperimental(): void
   // Expressions Kotlin des interactions d'un noeud (null : aucune).
-  act(node: import('@calque/core').Node): { tap: string | null; longPress: string | null }
+  act(node: import('@maquio/core').Node): { tap: string | null; longPress: string | null }
 }
 
 export type CEnv = {

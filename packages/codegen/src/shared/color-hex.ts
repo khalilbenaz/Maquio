@@ -5,7 +5,7 @@
 // correspondant), donc la meme fonction de conversion, plutot qu'une
 // derive de calcul d'arrondi entre les deux generateurs pour un meme
 // document.
-import type { Color } from '@calque/core'
+import type { Color } from '@maquio/core'
 
 export function colorByte(component: number): number {
   return Math.max(0, Math.min(255, Math.round(component * 255)))

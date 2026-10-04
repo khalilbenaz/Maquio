@@ -1,8 +1,8 @@
 // Fabriques de documents de test pour les exportateurs de composants : un
 // composant ou conteneur du catalogue place dans un ecran, un document a
 // plusieurs ecrans relies.
-import { DEVICE_PRESETS, tapLink, PALETTE_ITEMS, createDocument, createScreenNode } from '@calque/core'
-import type { CalqueDocument, ComponentNode, FrameNode, Node, Rect } from '@calque/core'
+import { DEVICE_PRESETS, tapLink, PALETTE_ITEMS, createDocument, createScreenNode } from '@maquio/core'
+import type { MaquioDocument, ComponentNode, FrameNode, Node, Rect } from '@maquio/core'
 
 export function make(id: string, frame: Partial<Rect> = {}, props: Record<string, unknown> = {}, name?: string): Node {
   const entry = PALETTE_ITEMS.find((i) => i.id === id)
@@ -24,13 +24,13 @@ export function screen(name: string, children: Node[], x = 0): FrameNode {
   return createScreenNode(name, DEVICE_PRESETS.iphone15, { x, y: 0, w: 393, h: 852 }, children)
 }
 
-export function docOf(...screens: FrameNode[]): CalqueDocument {
+export function docOf(...screens: FrameNode[]): MaquioDocument {
   const doc = createDocument('Projet')
   return { ...doc, pages: [{ ...doc.pages[0]!, nodes: screens }] }
 }
 
 // Document a un seul ecran contenant `children`.
-export function oneScreen(...children: Node[]): CalqueDocument {
+export function oneScreen(...children: Node[]): MaquioDocument {
   return docOf(screen('Accueil', children))
 }
 

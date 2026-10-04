@@ -3,7 +3,7 @@
 // separateurs d'une liste, repere d'une zone sure. Les enfants sont rendus
 // par Canvas comme pour toute frame ; ce module ne dessine que ce qui
 // distingue le widget natif d'un simple groupe.
-import type { FrameNode } from '@calque/core'
+import type { FrameNode } from '@maquio/core'
 import { M3 } from './ComponentView'
 
 export function containerShadow(node: FrameNode): string | undefined {

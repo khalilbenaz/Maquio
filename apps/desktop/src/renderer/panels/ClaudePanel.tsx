@@ -1,5 +1,5 @@
 // Panneau Claude Code (Tache 17, decisions 7 et 8 du brief). Recoit l'API
-// en propriete (jamais window.calque directement) : c'est ce qui le rend
+// en propriete (jamais window.maquio directement) : c'est ce qui le rend
 // testable sans preload (voir test/helpers/apiFactice.ts et
 // test/claudePanel.test.tsx).
 //
@@ -13,12 +13,12 @@
 // silence ou d'ecraser du travail recent -- avec un bouton pour relancer
 // la demande a partir du document a jour.
 import { useEffect, useState } from 'react'
-import { DocumentVersionError, parseDocument, serializeDocument } from '@calque/core'
-import type { CalqueDocument, Command } from '@calque/core'
+import { DocumentVersionError, parseDocument, serializeDocument } from '@maquio/core'
+import type { MaquioDocument, Command } from '@maquio/core'
 import { useEditorStore } from '../state/editorStore'
 import { useClaudeStatusStore } from '../state/claudeStatusStore'
 import { useUiPrefs } from '../state/uiPrefsStore'
-import type { CalqueApi } from '../../shared/api'
+import type { MaquioApi } from '../../shared/api'
 import { translateUnknownError, messageOfError } from '../../shared/errors'
 import './ClaudePanel.css'
 
@@ -26,11 +26,11 @@ type Statut = 'idle' | 'loading' | 'done' | 'error' | 'perime'
 
 // Commande generique qui remplace le document entier par celui recu de
 // Claude Code (deja patche cote main via la commande composite atomique
-// de @calque/ai, voir claudeHandlers.ts) et sait revenir en arriere en un
+// de @maquio/ai, voir claudeHandlers.ts) et sait revenir en arriere en un
 // seul geste : c'est ce qui garde "un seul Ctrl-Z defait toute la
-// demande" vrai, sans que ce fichier ait besoin d'importer @calque/ai
+// demande" vrai, sans que ce fichier ait besoin d'importer @maquio/ai
 // (interdit dans le renderer).
-function commandeRemplacementDocument(label: string, precedent: CalqueDocument, suivant: CalqueDocument): Command {
+function commandeRemplacementDocument(label: string, precedent: MaquioDocument, suivant: MaquioDocument): Command {
   return {
     label,
     apply: () => suivant,
@@ -42,7 +42,7 @@ function commandeRemplacementDocument(label: string, precedent: CalqueDocument, 
   }
 }
 
-export function ClaudePanel({ api, onOpenSettings }: { api: CalqueApi; onOpenSettings: () => void }) {
+export function ClaudePanel({ api, onOpenSettings }: { api: MaquioApi; onOpenSettings: () => void }) {
   const [instruction, setInstruction] = useState('')
   // La disponibilite vit dans un magasin partage avec SettingsDialog (voir
   // claudeStatusStore.ts), pas dans un etat local : c'est ce qui permet au

@@ -2,7 +2,7 @@
 // afficher autre chose que l'application, ni en ouvrir de nouvelle. Un lien
 // ou un window.open venant d'un contenu hostile (texte importe de Figma,
 // document tiers) serait sinon charge dans un renderer qui dispose du pont
-// `window.calque` (lecture/ecriture de fichiers, sous-processus claude).
+// `window.maquio` (lecture/ecriture de fichiers, sous-processus claude).
 import type { WebContents } from 'electron'
 
 export function isAllowedNavigation(url: string, devServerUrl: string | null): boolean {

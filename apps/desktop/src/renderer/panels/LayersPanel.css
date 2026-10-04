@@ -7,9 +7,9 @@
   flex-direction: column;
   height: 100%;
   overflow-y: auto;
-  background: var(--calque-chrome-bg);
-  color: var(--calque-text);
-  border-right: 1px solid var(--calque-border);
+  background: var(--maquio-chrome-bg);
+  color: var(--maquio-text);
+  border-right: 1px solid var(--maquio-border);
   font-size: 13px;
 }
 
@@ -24,7 +24,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.9px;
-  color: var(--calque-text-faint);
+  color: var(--maquio-text-faint);
 }
 
 .layers-tree {
@@ -49,12 +49,12 @@
 
 .layers-empty p:first-child {
   font-size: 13px;
-  color: var(--calque-text-muted);
+  color: var(--maquio-text-muted);
 }
 
 .layers-empty p:last-child {
   font-size: 12px;
-  color: var(--calque-text-faint);
+  color: var(--maquio-text-faint);
 }
 
 .layers-children {
@@ -81,12 +81,12 @@
 
 .layers-row-selected,
 .layers-row-selected:hover {
-  background: var(--calque-accent-wash-strong);
+  background: var(--maquio-accent-wash-strong);
   box-shadow: inset 0 0 0 1px rgba(226, 113, 74, 0.5);
 }
 
 .layers-row-selected .layers-row-name {
-  color: var(--calque-text);
+  color: var(--maquio-text);
 }
 
 .layers-row-main {
@@ -100,7 +100,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--calque-text-soft);
+  color: var(--maquio-text-soft);
 }
 
 .layers-row-actions {
@@ -113,7 +113,7 @@
 .layers-icon-button {
   background: transparent;
   border: none;
-  color: var(--calque-text-muted);
+  color: var(--maquio-text-muted);
   cursor: pointer;
   padding: 2px 4px;
   line-height: 1;
@@ -121,7 +121,7 @@
 }
 
 .layers-icon-button:hover {
-  color: var(--calque-text);
+  color: var(--maquio-text);
   background: rgba(255, 255, 255, 0.06);
 }
 

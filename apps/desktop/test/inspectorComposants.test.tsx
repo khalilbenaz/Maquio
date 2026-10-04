@@ -12,9 +12,9 @@ import {
   createScreenCommand,
   createScreenNode,
   findNode,
-} from '@calque/core'
-import { tapNavigation } from '@calque/core'
-import type { ComponentNode, FrameNode, Node } from '@calque/core'
+} from '@maquio/core'
+import { tapNavigation } from '@maquio/core'
+import type { ComponentNode, FrameNode, Node } from '@maquio/core'
 import { InspectorPanel } from '../src/renderer/panels/InspectorPanel'
 import { useEditorStore } from '../src/renderer/state/editorStore'
 import { apiFactice } from './helpers/apiFactice'

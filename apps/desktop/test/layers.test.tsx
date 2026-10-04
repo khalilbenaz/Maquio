@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createDocument, createNodeCommand, createScreenNode } from '@calque/core'
-import type { CalqueDocument, DevicePreset, FrameNode, Node as CalqueNode, RectNode } from '@calque/core'
+import { createDocument, createNodeCommand, createScreenNode } from '@maquio/core'
+import type { MaquioDocument, DevicePreset, FrameNode, Node as MaquioNode, RectNode } from '@maquio/core'
 import { Canvas } from '../src/renderer/canvas/Canvas'
 import { LayersPanel } from '../src/renderer/panels/LayersPanel'
 import { useEditorStore } from '../src/renderer/state/editorStore'
@@ -28,7 +28,7 @@ function rectNode(id: string, x: number, y: number): RectNode {
   }
 }
 
-function frameNode(id: string, children: CalqueNode[]): FrameNode {
+function frameNode(id: string, children: MaquioNode[]): FrameNode {
   return {
     id,
     name: id,
@@ -53,7 +53,7 @@ function frameNode(id: string, children: CalqueNode[]): FrameNode {
   }
 }
 
-function nestedDocument(): CalqueDocument {
+function nestedDocument(): MaquioDocument {
   const doc = createDocument('Document imbrique')
   const child = rectNode('child1', 10, 10)
   const frame1 = frameNode('frame1', [child])
@@ -176,7 +176,7 @@ describe('LayersPanel', () => {
 describe('LayersPanel - duplication d un ecran (v2, addendum navigation)', () => {
   const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
 
-  function documentAvecUnEcran(): CalqueDocument {
+  function documentAvecUnEcran(): MaquioDocument {
     const doc = createDocument('Document de test')
     const bouton = rectNode('bouton', 10, 10)
     const ecran1 = createScreenNode('Écran 1', device, { x: 0, y: 0, w: device.width, h: device.height }, [bouton])
@@ -219,7 +219,7 @@ describe('LayersPanel - duplication d un ecran (v2, addendum navigation)', () =>
 describe('LayersPanel - imbrication reelle des ecrans (correctif parentage)', () => {
   const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
 
-  function documentEcranAvecContenu(): CalqueDocument {
+  function documentEcranAvecContenu(): MaquioDocument {
     const doc = createDocument('Document de test')
     const bouton = rectNode('bouton', 10, 10)
     const ecran1 = createScreenNode('Écran 1', device, { x: 0, y: 0, w: device.width, h: device.height }, [bouton])

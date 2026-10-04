@@ -6,8 +6,8 @@
 // puisque ses identifiants sont par construction deja valides. Ce garde-
 // fou doit manger les MEMES documents que le test d'integration Critical
 // 4 (figma-to-codegen.test.ts, via ./fixtures partagees), ce qui suppose
-// d'importer a la fois `@calque/figma` (pour `figmaToDocument`) et
-// `@calque/codegen` (pour `flutterExporter`) -- interdit a `packages/
+// d'importer a la fois `@maquio/figma` (pour `figmaToDocument`) et
+// `@maquio/codegen` (pour `flutterExporter`) -- interdit a `packages/
 // codegen/test/` et `packages/figma/test/` par la regle de dependance,
 // et exactement la raison d'etre de ce dossier `test/integration/`.
 //
@@ -20,8 +20,8 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, it } from 'vitest'
-import { figmaToDocument } from '@calque/figma'
-import { flutterExporter } from '@calque/codegen'
+import { figmaToDocument } from '@maquio/figma'
+import { flutterExporter } from '@maquio/codegen'
 import { FIGMA_FIXTURES } from './fixtures'
 import { documentExempleComplet } from './fixtures/exemple-complet'
 import { documentInteractions } from '../../packages/codegen/test/fixtures/interactions'
@@ -43,7 +43,7 @@ describe('garde-fou dart format (spec §7)', () => {
 
   beforeAll(() => {
     if (!DART_AVAILABLE) return
-    dir = mkdtempSync(join(tmpdir(), 'calque-dart-format-'))
+    dir = mkdtempSync(join(tmpdir(), 'maquio-dart-format-'))
   })
 
   afterAll(() => {

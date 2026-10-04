@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import type { CalqueDocument } from '@calque/core'
+import type { MaquioDocument } from '@maquio/core'
 import { reactNativeExporter } from '../src/react-native/react-native'
 import { loginScreenDocument } from './fixtures/login-screen'
 
@@ -31,7 +31,7 @@ describe('reactNativeExporter', () => {
 
   const baseDevice = loginScreenDocument.pages[0]!.device
 
-  function docWithNodes(nodes: CalqueDocument['pages'][number]['nodes'], pageName = 'Sample'): CalqueDocument {
+  function docWithNodes(nodes: MaquioDocument['pages'][number]['nodes'], pageName = 'Sample'): MaquioDocument {
     return {
       version: loginScreenDocument.version,
       id: 'doc-sample',

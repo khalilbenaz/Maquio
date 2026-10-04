@@ -1,13 +1,13 @@
 // Fixture partagee : un ecran de connexion minimal, utilise a la fois par
 // les tests de generateurs (ce package) et, plus tard, par les tests de
 // l'application de bureau (Tache 17) via l'export
-// "@calque/codegen/test/fixtures/login-screen" (decision 1 du brief), pour
+// "@maquio/codegen/test/fixtures/login-screen" (decision 1 du brief), pour
 // eviter que deux verites divergent.
 //
 // Les identifiants sont fixes et lisibles (pas de crypto.randomUUID) : un
 // fichier temoin ne peut pas etre stable sinon.
-import type { CalqueDocument, Page } from '@calque/core'
-import { DEVICE_PRESETS, DOCUMENT_VERSION } from '@calque/core'
+import type { MaquioDocument, Page } from '@maquio/core'
+import { DEVICE_PRESETS, DOCUMENT_VERSION } from '@maquio/core'
 
 const white = { r: 1, g: 1, b: 1, a: 1 }
 const black = { r: 0, g: 0, b: 0, a: 1 }
@@ -135,7 +135,7 @@ const loginScreenPage: Page = {
   ],
 }
 
-export const loginScreenDocument: CalqueDocument = {
+export const loginScreenDocument: MaquioDocument = {
   version: DOCUMENT_VERSION,
   id: 'doc-login-screen',
   name: 'LoginScreen',

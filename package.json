@@ -1,5 +1,5 @@
 {
-  "name": "calque",
+  "name": "maquio",
   "private": true,
   "type": "module",
   "engines": {
@@ -19,7 +19,7 @@
     "test:e2e": "node test/e2e/parcours.mjs && node test/e2e/fonctions.mjs && node test/e2e/persistance.mjs && node test/e2e/claude-faux.mjs && node test/e2e/prototype.mjs",
     "lint": "eslint .",
     "test:coverage": "vitest run --coverage",
-    "test:e2e:claude": "CALQUE_E2E_CLAUDE=1 node test/e2e/claude-reel.mjs",
+    "test:e2e:claude": "MAQUIO_E2E_CLAUDE=1 node test/e2e/claude-reel.mjs",
     "build:plugin": "npm run build --workspace=apps/figma-plugin"
   },
   "devDependencies": {

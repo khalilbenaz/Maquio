@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createComponentNode, createContainerNode, createScreenNode, DEVICE_PRESETS, tapLink } from '@calque/core'
-import type { FrameNode, Interaction, Node } from '@calque/core'
+import { createComponentNode, createContainerNode, createScreenNode, DEVICE_PRESETS, tapLink } from '@maquio/core'
+import type { FrameNode, Interaction, Node } from '@maquio/core'
 import { animationFor, applyAction, currentScreenId, delayInteractions, overlayAnimation, referencedOverlays, resolveGesture, startState } from '../src/renderer/prototype/prototypeEngine'
 
 const none = { type: 'none' } as const

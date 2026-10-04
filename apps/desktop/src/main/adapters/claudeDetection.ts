@@ -45,7 +45,7 @@ export async function validateClaudeBinaryPath(path: string, fs: ClaudePathFs): 
 // quand il pointe vers un executable valide, et retombe sur la recherche de
 // secours (dans le PATH) sinon -- que le chemin personnalise soit absent,
 // ou qu'il ne pointe plus vers un executable valide (fichier deplace ou
-// supprime apres avoir ete enregistre). @calque/ai n'a besoin de rien
+// supprime apres avoir ete enregistre). @maquio/ai n'a besoin de rien
 // savoir de la notion de reglages : cette composition vit entierement cote
 // application de bureau, c'est elle qui est injectee dans
 // ProcessClaudeRunner (voir main.ts).

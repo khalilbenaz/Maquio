@@ -26,7 +26,7 @@ figma.ui.onmessage = async (msg: FromUi) => {
     figma.currentPage.selection = screens
     if (screens.length > 0) figma.viewport.scrollAndZoomIntoView(screens)
     figma.ui.postMessage({ type: 'done', report: { ...report, reactions: proto.reactions } })
-    figma.notify(`Calque : ${report.screens} écran(s) importé(s)`)
+    figma.notify(`Maquio : ${report.screens} écran(s) importé(s)`)
   } catch (e) {
     const message = e instanceof BundleError ? e.message : `Import impossible : ${e instanceof Error ? e.message : String(e)}`
     figma.ui.postMessage({ type: 'error', message })

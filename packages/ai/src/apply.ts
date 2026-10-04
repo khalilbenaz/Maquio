@@ -14,8 +14,8 @@ import {
   reparentNodeCommand,
   setTokensCommand,
   updateNodeCommand,
-} from '@calque/core'
-import type { CalqueDocument, Command } from '@calque/core'
+} from '@maquio/core'
+import type { MaquioDocument, Command } from '@maquio/core'
 import type { DocumentPatch, PatchOp } from './patch'
 
 // PatchOp 'moveNode' porte (nodeId, parentId, index) : cette forme est celle
@@ -62,7 +62,7 @@ export function patchToCommands(patch: DocumentPatch, pageId: string): Command[]
 // Elle prend le document en parametre pour valider IMMEDIATEMENT, avant de
 // rendre une quelconque Command : un patch invalide leve ici, avant meme
 // que l'appelant ait pu executer quoi que ce soit via History.
-function applyAllOps(patch: DocumentPatch, pageId: string, document: CalqueDocument): CalqueDocument {
+function applyAllOps(patch: DocumentPatch, pageId: string, document: MaquioDocument): MaquioDocument {
   let current = document
   for (const op of patch.ops) {
     current = opToCommand(op, pageId).apply(current)
@@ -70,7 +70,7 @@ function applyAllOps(patch: DocumentPatch, pageId: string, document: CalqueDocum
   return current
 }
 
-export function patchToCommand(patch: DocumentPatch, pageId: string, document: CalqueDocument): Command {
+export function patchToCommand(patch: DocumentPatch, pageId: string, document: MaquioDocument): Command {
   // Validation immediate et eager : si une operation echoue, on leve ICI,
   // avant de rendre quoi que ce soit. Le resultat est jete (seul l'effet de
   // bord "ne leve pas" nous interesse a ce stade) ; apply() ci-dessous
@@ -80,17 +80,17 @@ export function patchToCommand(patch: DocumentPatch, pageId: string, document: C
 
   return {
     label: patch.summary,
-    apply(doc: CalqueDocument): CalqueDocument {
+    apply(doc: MaquioDocument): MaquioDocument {
       return applyAllOps(patch, pageId, doc)
     },
-    invert(doc: CalqueDocument): Command {
+    invert(doc: MaquioDocument): Command {
       // `doc` est l'etat D'AVANT application (History appelle toujours
       // invert(current) puis apply(current) sur le meme `current`) : le
       // restaurer est une simple restitution en une seule etape, pas une
       // reconstruction operation par operation.
       return {
         label: patch.summary,
-        apply(): CalqueDocument {
+        apply(): MaquioDocument {
           return doc
         },
         invert(): Command {

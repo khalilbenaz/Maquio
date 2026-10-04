@@ -1,4 +1,4 @@
-// Vrai `flutter build web` des exports Flutter (opt-in : CALQUE_VERIF_FULL=1,
+// Vrai `flutter build web` des exports Flutter (opt-in : MAQUIO_VERIF_FULL=1,
 // telecharge le SDK web au premier passage et prend ~1 minute). Prouve que le
 // projet exporte est un projet Flutter COMPLET : pubspec.yaml valide, assets
 // copies ET declares (un asset declare mais absent fait echouer le build),
@@ -8,11 +8,11 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { flutterExporter } from '@calque/codegen'
+import { flutterExporter } from '@maquio/codegen'
 import { documentExempleComplet } from './fixtures/exemple-complet'
 import { PNG_1X1, documentProjetImages } from './fixtures/projet-images'
 
-const FULL = process.env.CALQUE_VERIF_FULL === '1'
+const FULL = process.env.MAQUIO_VERIF_FULL === '1'
 const HAS_FLUTTER = spawnSync('flutter', ['--version'], { stdio: 'ignore' }).status === 0
 
 function run(cmd: string, args: string[], cwd: string) {
@@ -25,7 +25,7 @@ describe.each([
   ['projet multi-ecrans avec images', () => documentProjetImages('/tmp/autre/logo.png')],
 ])('flutter build web : %s', (_label, makeDoc) => {
   it.runIf(FULL && HAS_FLUTTER)('analyze 0 remontee puis build web', () => {
-    const root = mkdtempSync(join(tmpdir(), 'calque-flutter-build-'))
+    const root = mkdtempSync(join(tmpdir(), 'maquio-flutter-build-'))
     try {
       const created = run('flutter', ['create', '--platforms=web', '--project-name=demo', '--no-pub', '.'], root)
       expect(created.status, created.out).toBe(0)

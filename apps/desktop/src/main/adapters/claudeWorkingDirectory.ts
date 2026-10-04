@@ -16,10 +16,10 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import type { WorkingDirectory, WorkingDirectoryProvider } from '@calque/ai'
+import type { WorkingDirectory, WorkingDirectoryProvider } from '@maquio/ai'
 
 export const createNeutralClaudeWorkingDirectory: WorkingDirectoryProvider = async (): Promise<WorkingDirectory> => {
-  const dir = await mkdtemp(path.join(tmpdir(), 'calque-claude-'))
+  const dir = await mkdtemp(path.join(tmpdir(), 'maquio-claude-'))
   return {
     path: dir,
     cleanup: async () => {

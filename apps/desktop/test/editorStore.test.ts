@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createNodeCommand, findNode } from '@calque/core'
-import type { FrameNode, RectNode } from '@calque/core'
+import { createNodeCommand, findNode } from '@maquio/core'
+import type { FrameNode, RectNode } from '@maquio/core'
 import { useEditorStore } from '../src/renderer/state/editorStore'
 import { documentDeTest } from './helpers/documentDeTest'
 

@@ -9,8 +9,8 @@
 // tiroir a gauche, feuille basse en bas, boite de dialogue centree. C'est ce
 // qui permet a l'export de reconnaitre un Scaffold sans que l'utilisateur ait
 // a aligner quoi que ce soit au pixel.
-import { absoluteFrame, findParent, hitTest, screenAtPoint } from '@calque/core'
-import type { FrameNode, Node, PaletteItem, Rect } from '@calque/core'
+import { absoluteFrame, findParent, hitTest, screenAtPoint } from '@maquio/core'
+import type { FrameNode, Node, PaletteItem, Rect } from '@maquio/core'
 
 export type Placement = { parentId: string | null; frame: Rect }
 

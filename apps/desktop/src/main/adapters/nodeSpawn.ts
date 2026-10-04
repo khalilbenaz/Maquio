@@ -1,10 +1,10 @@
 // Adaptateur reel de sous-processus (Tache 17, decision 2 du brief) :
-// enveloppe node:child_process dans SpawnLike (@calque/ai), pour que
+// enveloppe node:child_process dans SpawnLike (@maquio/ai), pour que
 // ProcessClaudeRunner puisse reellement lancer le binaire `claude` sans
-// que le paquet @calque/ai n'importe jamais node:child_process lui-meme
+// que le paquet @maquio/ai n'importe jamais node:child_process lui-meme
 // (voir packages/ai/src/runner.ts).
 import { spawn } from 'node:child_process'
-import type { SpawnLike } from '@calque/ai'
+import type { SpawnLike } from '@maquio/ai'
 
 export const nodeSpawn: SpawnLike = (cmd, args, opts) => {
   // Defaut A (reparation du pont) : `opts.cwd`, quand fourni, est

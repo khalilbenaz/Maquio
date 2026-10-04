@@ -17,8 +17,8 @@ import {
   reorderNodeCommand,
   screenContaining,
   ungroupCommand,
-} from '@calque/core'
-import type { AlignMode, DistributeAxis, FrameNode, Node, ReorderDirection } from '@calque/core'
+} from '@maquio/core'
+import type { AlignMode, DistributeAxis, FrameNode, Node, ReorderDirection } from '@maquio/core'
 import { useEditorStore } from './editorStore'
 import { outermostSelection, pageNodesOf } from '../canvas/useDragInteraction'
 

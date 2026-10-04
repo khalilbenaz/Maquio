@@ -1,4 +1,4 @@
-// Types du modele de document Calque (Tache 2).
+// Types du modele de document Maquio (Tache 2).
 // Ce sont les formes canoniques : les schemas Zod de schema.ts en sont le miroir exact.
 import type { ComponentKind, ComponentPropsMap, ContainerSpec } from '../components/props'
 import type { Interaction } from './interactions'
@@ -33,7 +33,7 @@ export type NodeBase = {
   // de ce type (Figma, etc.) : c'est cet inspecteur (Tache 16) qui lit et
   // ecrit ce champ directement, donc l'unite naturelle pour la saisie/
   // l'affichage prime sur le confort d'un seul generateur de code. Les
-  // exportateurs (ex. @calque/codegen/flutter) convertissent en radians
+  // exportateurs (ex. @maquio/codegen/flutter) convertissent en radians
   // quand leur cible l'exige.
   rotation: number
   // v2 (addendum navigation) : identifiant d'un ecran (frame de premier
@@ -122,7 +122,7 @@ export type DesignTokens = {
   spacing: Record<string, number>
 }
 
-export type CalqueDocument = {
+export type MaquioDocument = {
   version: number
   id: string
   name: string
