@@ -39,6 +39,7 @@ import { createDocument, createScreenNode, DEVICE_PRESETS } from '@calque/core'
 import type { CalqueDocument, FrameNode, TextNode } from '@calque/core'
 import { FIGMA_FIXTURES } from './fixtures'
 import { documentExempleComplet } from './fixtures/exemple-complet'
+import { documentInteractions } from '../../packages/codegen/test/fixtures/interactions'
 
 // Correctif parentage (v2, addendum navigation) : cas ajoute a CE harnais,
 // pas aux fixtures Figma partagees (fixtures.ts, consommees par d'autres
@@ -162,6 +163,7 @@ describe('garde-fou flutter analyze (preuve de compilation reelle)', () => {
         'dependencies:',
         '  flutter:',
         '    sdk: flutter',
+        '  url_launcher: ^6.3.0',
         'dev_dependencies:',
         '  flutter_lints: ^6.0.0',
         '',
@@ -204,10 +206,12 @@ describe('garde-fou flutter analyze (preuve de compilation reelle)', () => {
     // conteneurs, 3 ecrans relies) -- la preuve que chaque widget natif
     // emis compile et ne leve aucune remontee, `flutter_lints` compris.
     const exempleComplet = flutterExporter.export(documentExempleComplet(), { projectName: 'demo' })
+    const interactions = flutterExporter.export(documentInteractions(), { projectName: 'demo' })
     for (const [namespace, result] of [
       ['multi-screen-content-ecran1', exportEcran1],
       ['multi-screen-content-ecran2', exportEcran2],
       ['exemple-complet', exempleComplet],
+      ['interactions', interactions],
     ] as const) {
       for (const file of result.files.filter((f) => f.path.startsWith('lib/'))) {
         const relative = file.path.replace(/^lib\//, '')

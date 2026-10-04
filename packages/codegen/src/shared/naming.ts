@@ -31,6 +31,16 @@ export function toPascalCase(input: string): string {
   return /^[0-9]/.test(pascal) ? `${PAGE_FALLBACK}${pascal}` : pascal
 }
 
+// camelCase : identifiants de fonctions / d'etats (showConfirmDialog).
+export function toCamelCase(input: string): string {
+  const pascal = nameWords(input)
+    .map((part) => part[0]!.toUpperCase() + part.slice(1))
+    .join('')
+  if (pascal === '') return ''
+  const camel = pascal[0]!.toLowerCase() + pascal.slice(1)
+  return /^[0-9]/.test(camel) ? `n${camel}` : camel
+}
+
 // snake_case : noms de fichiers Dart (login_screen.dart).
 export function toSnakeCase(input: string): string {
   const spaced = stripAccents(input).replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/[^a-zA-Z0-9]+/g, '_')

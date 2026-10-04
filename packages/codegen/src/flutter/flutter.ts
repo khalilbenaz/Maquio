@@ -31,8 +31,12 @@ import type {
 } from '@calque/core'
 import { layoutPage } from '@calque/core'
 import { emptyImageSourceWarning, firstSolidFillColor, firstStroke, isRemoteUrl } from '../shared/node-helpers'
-import { hasScaffoldParts, linkTargetOf, planExport, splitScreen } from '../shared/screens'
+import { hasScaffoldParts, planExport, splitScreen } from '../shared/screens'
+import { interactionFor, isNativeTransition } from '../shared/interactions'
+import type { RInteraction } from '../shared/interactions'
+import { ActionRegistry, TRANSITIONS_DART, animationStyle, navigationFunction, urlFunction } from './interactions'
 import type { ExportPlan, ScreenParts } from '../shared/screens'
+import type { Transition } from '@calque/core'
 import type { Exporter, ExportAsset, ExportedFile, ExportOptions, ExportResult } from '../types'
 import { planAssets } from '../shared/assets'
 import type { AssetTarget } from '../shared/assets'
@@ -50,6 +54,7 @@ import {
 import { toPascalCase, toSnakeCase } from '../shared/naming'
 import { generateThemeFile } from './theme'
 import { navigateExpr, renderComponent } from './components'
+import type { Acts } from './components'
 
 // `usesTheme` (D4 du rapport dart-correctness) : mis a `true` des qu'une
 // reference `AppColors.*` est effectivement emise pour la page en cours
@@ -68,6 +73,36 @@ type RenderContext = {
   usesComponents: boolean
   // `scheme` (ColorScheme du theme) est reference : voir renderUnit.
   usesScheme: boolean
+  // Registre des actions (navigations animees, overlays, URL) du projet.
+  actions: ActionRegistry
+  // L'ecran appelle une fonction de lib/actions.dart.
+  usesActions: boolean
+}
+
+// Expression Dart d'une interaction, appelee depuis un widget qui dispose de `context`.
+function dartExpr(ri: RInteraction, ctx: RenderContext): string {
+  const a = ri.action
+  switch (a.type) {
+    case 'navigate':
+      if (isNativeTransition(ri.transition)) return navigateExpr(a.screen)
+      ctx.usesActions = true
+      return `${ctx.actions.navigate(a.screen, ri.transition)}(context)`
+    case 'back':
+    case 'closeOverlay':
+      return 'Navigator.of(context).maybePop()'
+    case 'openOverlay':
+      ctx.usesActions = true
+      return `${ctx.actions.overlay(a.overlay, ri.transition)}(context)`
+    case 'openUrl':
+      ctx.usesActions = true
+      return `${ctx.actions.url(a.url)}()`
+  }
+}
+
+export function dartActs(node: Node, ctx: RenderContext): Acts {
+  const tap = interactionFor(node, ctx.plan, 'tap')
+  const longPress = interactionFor(node, ctx.plan, 'longPress')
+  return { tap: tap === null ? null : dartExpr(tap, ctx), longPress: longPress === null ? null : dartExpr(longPress, ctx) }
 }
 
 // Un enfant est place soit dans un Stack (Positioned fournit sa taille),
@@ -497,6 +532,7 @@ function renderNodeInner(node: Node, ctx: RenderContext, parent: Parent, spacerI
     case 'component': {
       ctx.usesComponents = true
       const rendered = renderComponent(node, {
+        act: (n) => dartActs(n, ctx),
         tokens: ctx.tokens,
         plan: ctx.plan,
         hasDrawer: ctx.hasDrawer,
@@ -539,19 +575,24 @@ function renderNodeInner(node: Node, ctx: RenderContext, parent: Parent, spacerI
 
 function renderNode(node: Node, ctx: RenderContext, parent: Parent = 'stack', spacerIsFlex = true): Block | null {
   if (!node.visible) return null
+  // Une overlay ouverte par une interaction est un gabarit : jamais en place dans l'ecran.
+  if (ctx.plan.overlays.has(node.id)) return null
 
   const rendered = renderNodeInner(node, ctx, parent, spacerIsFlex)
   if (rendered === null) return null
 
   let block = rendered.block
-  // Navigation : un noeud lie a un ecran devient cliquable. Les widgets qui
-  // gerent deja un rappel (boutons, element de liste...) l'ont branche eux-memes.
-  const target = linkTargetOf(node, ctx.plan)
-  if (target !== null && !rendered.consumesLink) {
+  // Interactions : un noeud avec un clic (hors widgets qui le gerent deja
+  // eux-memes : boutons, element de liste...) ou un appui long devient
+  // sensible au geste.
+  const acts = dartActs(node, ctx)
+  const wrapTap = acts.tap !== null && !rendered.consumesLink
+  if (wrapTap || acts.longPress !== null) {
     ctx.usesComponents = true
     block = call('GestureDetector', [
       { key: 'behavior', block: lit('HitTestBehavior.opaque') },
-      { key: 'onTap', block: lit(`() => ${navigateExpr(target)}`) },
+      ...(wrapTap ? [{ key: 'onTap', block: lit(`() => ${acts.tap}`) }] : []),
+      ...(acts.longPress !== null ? [{ key: 'onLongPress', block: lit(`() => ${acts.longPress}`) }] : []),
       { key: 'child', block },
     ])
   }
@@ -613,6 +654,7 @@ function scaffoldBlock(screen: FrameNode, parts: ScreenParts, ctx: RenderContext
 // Scaffold dimensionne lui-meme appBar, barre basse et bouton flottant).
 function renderComponentSlot(node: ComponentNode, ctx: RenderContext): Block | null {
   const rendered = renderComponent(node, {
+    act: (n) => dartActs(n, ctx),
     tokens: ctx.tokens,
     plan: ctx.plan,
     hasDrawer: ctx.hasDrawer,
@@ -666,24 +708,162 @@ function renderUnit(
     ? ['// ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables', '']
     : []
 
-  const lines = [
-    ...ignoreLines,
-    `import 'package:flutter/material.dart';`,
-    '',
-    ...themeImportLines,
-    `class ${className} extends StatelessWidget {`,
-    `  const ${className}({super.key});`,
-    '',
+  // `afterDelay` (interaction de l'ecran) : un minuteur arme a l'affichage.
+  const delay = unit.screen === null ? null : interactionFor(unit.screen, ctx.plan, 'afterDelay')
+  const delayTrigger = unit.screen?.interactions?.find((i) => i.trigger.type === 'afterDelay')?.trigger
+  const delayMs = delayTrigger?.type === 'afterDelay' ? delayTrigger.ms : 0
+  const delayExpr = delay === null ? null : dartExpr(delay, ctx)
+  const actionsImport = ctx.usesActions ? [`import '../actions.dart';`, ''] : []
+  const buildBody = [
     '  @override',
     '  Widget build(BuildContext context) {',
     ...(ctx.usesScheme ? ['    final scheme = Theme.of(context).colorScheme;', ''] : []),
     ...attach('return ', rootBlock, 2, ';'),
     '  }',
-    '}',
+  ]
+  const classLines =
+    delayExpr === null
+      ? [`class ${className} extends StatelessWidget {`, `  const ${className}({super.key});`, '', ...buildBody, '}']
+      : [
+          `class ${className} extends StatefulWidget {`,
+          `  const ${className}({super.key});`,
+          '',
+          '  @override',
+          `  State<${className}> createState() => _${className}State();`,
+          '}',
+          '',
+          `class _${className}State extends State<${className}> {`,
+          '  Timer? _timer;',
+          '',
+          '  @override',
+          '  void initState() {',
+          '    super.initState();',
+          `    _timer = Timer(const Duration(milliseconds: ${delayMs}), () {`,
+          `      if (mounted) ${delayExpr};`,
+          '    });',
+          '  }',
+          '',
+          '  @override',
+          '  void dispose() {',
+          '    _timer?.cancel();',
+          '    super.dispose();',
+          '  }',
+          '',
+          ...buildBody,
+          '}',
+        ]
+
+  const lines = [
+    ...ignoreLines,
+    ...(delayExpr === null ? [] : [`import 'dart:async';`, '']),
+    `import 'package:flutter/material.dart';`,
+    '',
+    ...themeImportLines,
+    ...actionsImport,
+    ...classLines,
     '',
   ]
 
   return { path: `lib/screens/${fileName}.dart`, contents: collapseShortCalls(lines).join('\n') }
+}
+
+// Corps d'une fonction qui affiche une overlay (dialogue, feuille basse,
+// snackbar) : le widget est celui du composant / conteneur du design.
+function overlayFunction(name: string, ref: { kind: string; node: Node }, transition: Transition, ctx: RenderContext): string[] {
+  const node = ref.node
+  let call_: Block
+  if (ref.kind === 'dialog' && node.type === 'component') {
+    const widget = renderComponentSlot(node, ctx) ?? lit('const SizedBox()')
+    call_ = call('showDialog<void>', [
+      { key: 'context', block: lit('context') },
+      { key: 'animationStyle', block: animationStyle(transition) },
+      { key: 'builder', block: builder(widget) },
+    ])
+  } else if (ref.kind === 'bottomSheet' && node.type === 'frame') {
+    const content = frameContent(node, ctx)
+    const fill = firstSolidFillColor(node.fills)
+    call_ = call('showModalBottomSheet<void>', [
+      { key: 'context', block: lit('context') },
+      { key: 'isScrollControlled', block: lit('true') },
+      ...(fill ? [{ key: 'backgroundColor', block: lit(colorExpr(fill, ctx.tokens, () => { ctx.usesTheme = true })) }] : []),
+      {
+        key: 'shape',
+        block: call('RoundedRectangleBorder', [
+          { key: 'borderRadius', block: lit(`BorderRadius.vertical(top: Radius.circular(${formatNumber(node.cornerRadius)}))`) },
+        ]),
+      },
+      { key: 'sheetAnimationStyle', block: animationStyle(transition) },
+      { key: 'builder', block: builder(call('SizedBox', [{ key: 'height', block: lit(formatNumber(node.frame.h)) }, { key: 'child', block: content }])) },
+    ])
+  } else if (node.type === 'component' && node.kind === 'snackbar') {
+    const p = node.props
+    const snackArgs: Arg[] = [{ key: 'content', block: call('Text', [{ block: lit(dartString(p.message)) }]) }]
+    if (p.actionLabel !== '') {
+      snackArgs.push({
+        key: 'action',
+        block: call('SnackBarAction', [
+          { key: 'label', block: lit(dartString(p.actionLabel)) },
+          { key: 'onPressed', block: lit('() {}') },
+        ]),
+      })
+    }
+    call_ = attach('ScaffoldMessenger.of(context).', call('showSnackBar', [{ block: call('SnackBar', snackArgs) }]), 0, '').map((l) => l)
+  } else {
+    call_ = lit('')
+  }
+  return [
+    `void ${name}(BuildContext context) {`,
+    ...(ctx.usesScheme ? ['  final scheme = Theme.of(context).colorScheme;'] : []),
+    ...attach('', call_, 1, ';'),
+    '}',
+  ]
+}
+
+// lib/transitions.dart (si une navigation est animee) et lib/actions.dart :
+// une fonction par navigation animee, overlay et URL du design. Traiter une
+// overlay peut en reveler une autre (un bouton d'une feuille qui en ouvre une
+// autre) : on itere jusqu'a stabilite.
+function generateActionFiles(actions: ActionRegistry, tokens: DesignTokens, plan: ExportPlan, warnings: string[]): ExportedFile[] {
+  const bodies: string[][] = []
+  const doneOverlays = new Set<string>()
+  let usesTheme = false
+  let usesComponents = false
+  const navLines = new Map<string, string[]>()
+  const screensUsed = new Set<string>()
+  for (let guard = 0; guard < 50; guard += 1) {
+    let progressed = false
+    for (const [key, ov] of [...actions.overlays.entries()]) {
+      if (doneOverlays.has(key)) continue
+      doneOverlays.add(key)
+      progressed = true
+      const ctx: RenderContext = { tokens, warnings, usesTheme: false, plan, hasDrawer: false, usesComponents: true, usesScheme: false, actions, usesActions: false }
+      bodies.push(overlayFunction(ov.name, ov.ref, ov.transition, ctx))
+      usesTheme = usesTheme || ctx.usesTheme
+      usesComponents = true
+    }
+    for (const [key, n] of [...actions.navs.entries()]) {
+      if (navLines.has(key)) continue
+      progressed = true
+      navLines.set(key, navigationFunction(n))
+      screensUsed.add(n.screen.snake)
+    }
+    if (!progressed) break
+  }
+  const header = [
+    ...(usesComponents ? ['// ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables', ''] : []),
+    `import 'package:flutter/material.dart';`,
+    ...(actions.usesUrls ? [`import 'package:url_launcher/url_launcher.dart';`] : []),
+    '',
+    ...(usesTheme ? [`import 'theme.dart';`] : []),
+    ...[...screensUsed].sort().map((s) => `import 'screens/${s}.dart';`),
+    ...(navLines.size > 0 ? [`import 'transitions.dart';`] : []),
+    '',
+  ]
+  const fnBlocks = [...navLines.values(), ...bodies, ...[...actions.urls.entries()].map(([url, name]) => urlFunction(name, url))]
+  const lines = [...header, ...fnBlocks.flatMap((b, i) => (i === 0 ? b : ['', ...b])), '']
+  const files: ExportedFile[] = [{ path: 'lib/actions.dart', contents: collapseShortCalls(lines).join('\n') }]
+  if (navLines.size > 0) files.push({ path: 'lib/transitions.dart', contents: TRANSITIONS_DART })
+  return files
 }
 
 // Point d'entree de l'application : un MaterialApp dont `routes` expose
@@ -738,7 +918,7 @@ function dartPackageName(projectName: string): string {
 // pubspec.yaml du projet exporte : sans lui le dossier n'est pas un paquet
 // Flutter et les images ne seraient jamais declarees. Les dossiers
 // android/ ios/ sont a creer par `flutter create .` (sans toucher a lib/).
-function generatePubspec(projectName: string, assets: ExportAsset[]): ExportedFile {
+function generatePubspec(projectName: string, assets: ExportAsset[], usesUrls = false): ExportedFile {
   const lines = [
     `name: ${dartPackageName(projectName)}`,
     `description: Projet genere par Calque.`,
@@ -751,6 +931,7 @@ function generatePubspec(projectName: string, assets: ExportAsset[]): ExportedFi
     'dependencies:',
     '  flutter:',
     '    sdk: flutter',
+    ...(usesUrls ? ['  url_launcher: ^6.3.0'] : []),
     '',
     'dev_dependencies:',
     '  flutter_lints: ^6.0.0',
@@ -777,6 +958,7 @@ function exportFlutter(source: CalqueDocument, opts: ExportOptions): ExportResul
   const warnings: string[] = [...assetPlan.warnings]
   const files: ExportedFile[] = []
   const plan = planExport(doc, opts.activeScreenId)
+  const actions = new ActionRegistry()
 
   for (const unit of plan.units) {
     const ctx: RenderContext = {
@@ -787,6 +969,8 @@ function exportFlutter(source: CalqueDocument, opts: ExportOptions): ExportResul
       hasDrawer: false,
       usesComponents: false,
       usesScheme: false,
+      actions,
+      usesActions: false,
     }
     if (unit.kind === 'page') {
       const laidOutPage = layoutPage(unit.page)
@@ -805,7 +989,8 @@ function exportFlutter(source: CalqueDocument, opts: ExportOptions): ExportResul
   if (plan.initial !== null) {
     files.push(generateMain(plan, opts.projectName))
   }
-  files.push(generatePubspec(opts.projectName, assetPlan.assets))
+  if (!actions.isEmpty) files.push(...generateActionFiles(actions, doc.tokens, plan, warnings))
+  files.push(generatePubspec(opts.projectName, assetPlan.assets, actions.usesUrls))
 
   return { files, warnings, assets: assetPlan.assets }
 }

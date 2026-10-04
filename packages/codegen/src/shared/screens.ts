@@ -6,6 +6,8 @@
 import { tapNavigation } from '@calque/core'
 import type { CalqueDocument, ComponentNode, FrameNode, Node, Page } from '@calque/core'
 import { createPageNamer } from './naming'
+import { collectOverlays, resolveInteractions } from './interactions'
+import type { OverlayRef } from './interactions'
 
 export type ScreenRef = {
   id: string
@@ -31,6 +33,9 @@ export type ExportPlan = {
   initial: ScreenRef | null
   // Compose : paquet de l'application (pour `R.drawable`).
   androidPackage?: string
+  // Overlays (dialogue, feuille basse, snackbar) ouvertes par une interaction :
+  // rendues a la demande, jamais en place dans l'ecran.
+  overlays: Map<string, OverlayRef>
 }
 
 export function isScreen(node: Node): node is FrameNode {
@@ -64,7 +69,8 @@ export function planExport(doc: CalqueDocument, activeScreenId: string | undefin
   }
 
   const initial = (activeScreenId !== undefined ? byId.get(activeScreenId) : undefined) ?? screens[0] ?? null
-  return { units, screens, byId, initial }
+  const overlays = collectOverlays(doc.pages.map((p) => p.nodes))
+  return { units, screens, byId, initial, overlays }
 }
 
 // --- Decomposition d'un ecran en Scaffold + corps ---
@@ -127,12 +133,12 @@ export function itemTargets(node: ComponentNode, plan: ExportPlan): (ScreenRef |
   return node.props.items.map((item) => (item.target === undefined ? null : (plan.byId.get(item.target) ?? null)))
 }
 
-// Y a-t-il au moins une navigation (lien de noeud ou entree de barre) dans
-// ce sous-arbre ? Sert a n'ajouter un parametre de navigation qu'aux ecrans
-// qui s'en servent.
+// Y a-t-il au moins une interaction (navigation, retour, overlay...) ou une
+// entree de barre qui navigue dans ce sous-arbre ? Sert a n'ajouter un
+// parametre de navigation qu'aux ecrans qui s'en servent.
 export function usesNavigation(nodes: Node[], plan: ExportPlan): boolean {
   for (const n of nodes) {
-    if (linkTargetOf(n, plan) !== null) return true
+    if (resolveInteractions(n, plan).length > 0) return true
     if (n.type === 'component' && itemTargets(n, plan).some((t) => t !== null)) return true
     if (n.type === 'component' && n.kind === 'appBar' && n.props.leading === 'back') return true
     if (n.type === 'frame' && usesNavigation(n.children, plan)) return true

@@ -6,15 +6,20 @@
 // fonctions vides (`() {}`) sauf la navigation, produite a partir de
 // `link.target` (ou de la cible d'une entree de barre) via
 // `Navigator.of(context).pushNamed`.
-import type { Color, ComponentNode, DesignTokens, IconName } from '@calque/core'
+import type { Color, ComponentNode, DesignTokens, IconName, Node } from '@calque/core'
 import { ICONS } from '@calque/core'
-import { itemTargets, linkTargetOf } from '../shared/screens'
+import { itemTargets } from '../shared/screens'
 import type { ExportPlan, ScreenRef } from '../shared/screens'
 import { isRemoteUrl } from '../shared/node-helpers'
 import { type Arg, type Block, call, lit, list } from './dart-writer'
 import { colorExpr, escapeDartString, formatNumber } from './dart-utils'
 
+// Expressions Dart des interactions d'un noeud (null : aucune).
+export type Acts = { tap: string | null; longPress: string | null }
+
 export type ComponentEnv = {
+  // Interactions du noeud, deja traduites en expressions Dart.
+  act(node: Node): Acts
   tokens: DesignTokens
   plan: ExportPlan
   // L'ecran courant a un tiroir (le bouton « menu » de la barre l'ouvre).
@@ -52,13 +57,13 @@ export function navigateExpr(ref: ScreenRef): string {
   return `Navigator.of(context).pushNamed(${str(ref.route)})`
 }
 
-function onTap(ref: ScreenRef | null): Block {
-  return lit(ref === null ? '() {}' : `() => ${navigateExpr(ref)}`)
+function onTap(expr: string | null): Block {
+  return lit(expr === null ? '() {}' : `() => ${expr}`)
 }
 
 // Rappel d'un widget qui devient inactif : `null` (Flutter grise le widget).
-function onPressed(disabled: boolean, ref: ScreenRef | null, key = 'onPressed'): Arg {
-  return { key, block: disabled ? lit('null') : onTap(ref) }
+function onPressed(disabled: boolean, expr: string | null, key = 'onPressed'): Arg {
+  return { key, block: disabled ? lit('null') : onTap(expr) }
 }
 
 function onChanged(disabled: boolean): Arg {
@@ -92,7 +97,7 @@ function routePicker(targets: (ScreenRef | null)[], push: 'pushReplacementNamed'
 // Rend le widget d'un composant. `consumesLink` : le widget gere lui-meme le
 // lien de son noeud (sinon l'appelant l'enveloppe dans un GestureDetector).
 export function renderComponent(node: ComponentNode, env: ComponentEnv): { block: Block; consumesLink: boolean } | null {
-  const link = linkTargetOf(node, env.plan)
+  const link = env.act(node).tap
   const w = node.frame.w
   const h = node.frame.h
   const own = (block: Block) => ({ block, consumesLink: true })
