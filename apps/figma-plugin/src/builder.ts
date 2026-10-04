@@ -350,5 +350,19 @@ export async function buildInFigma(figma: PluginAPI, plan: Plan, bundle: Bundle)
     report.screens += 1
   }
   for (const l of plan.loose) figma.currentPage.appendChild(await createNode(ctx, l, null))
+
+  // Overlays : un cadre par overlay, a droite des ecrans, destination des actions « overlay ».
+  let ox = Math.max(0, ...plan.screens.map((s) => s.x + s.w)) + 200
+  for (const o of plan.overlays) {
+    const frame = (await createNode(ctx, o.frame, null)) as FrameNode
+    figma.currentPage.appendChild(frame)
+    frame.x = ox
+    frame.y = 0
+    ox += o.frame.w + 120
+    frame.fills = []
+    frame.clipsContent = false
+    ctx.created.set(`overlay:${o.id}`, frame)
+  }
+  if (plan.overlays.length > 0) report.warnings.push("overlays : la position et le voile de chaque overlay se règlent dans Figma (le plugin ne peut pas les définir) — sélectionnez le cadre « Overlay · … »")
   return { report, screens, created: ctx.created }
 }

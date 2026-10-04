@@ -21,7 +21,7 @@ figma.ui.onmessage = async (msg: FromUi) => {
     const plan = buildPlan(bundle)
     figma.ui.postMessage({ type: 'progress', text: `Création de ${plan.screens.length} écran(s)…` })
     const { report, screens, created } = await buildInFigma(figma, plan, bundle)
-    const proto = await applyPrototype(figma, bundle, created)
+    const proto = await applyPrototype(figma, plan, created)
     report.warnings.push(...proto.warnings)
     figma.currentPage.selection = screens
     if (screens.length > 0) figma.viewport.scrollAndZoomIntoView(screens)
