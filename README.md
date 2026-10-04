@@ -429,7 +429,7 @@ précédente version de ce document, vérifié avec le vrai SDK Dart via
 
 ## Licence
 
-Projet personnel, sans licence explicite pour l'instant.
+Distribué sous licence [MIT](LICENSE) © 2026 Khalil Benazzouz.
 
 ## Limites connues des exports
 

@@ -1,6 +1,7 @@
 {
   "name": "@maquio/desktop",
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "license": "MIT",
   "private": true,
   "description": "Maquio - de la maquette au code natif (editeur d'interfaces mobiles)",
   "author": "Maquio",
