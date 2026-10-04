@@ -18,9 +18,14 @@ export type ExportResult = { files: ExportedFile[]; warnings: string[]; assets?:
 // `activeScreenId` : ecran de depart de la navigation generee (route
 // initiale, `startDestination`, racine de la pile). TOUS les ecrans sont
 // exportes ; absent ou inconnu, le premier ecran est l'ecran de depart.
-export type ExportOptions = { projectName: string; nullSafety?: boolean; activeScreenId?: string; androidPackage?: string }
+export type ExportOptions = { projectName: string; nullSafety?: boolean; activeScreenId?: string
+  androidPackage?: string
+  // Lecture d'une image locale (octets) fournie par l'application : sert aux
+  // sorties autonomes (SVG, Figma). null = introuvable.
+  loadImage?: (src: string) => Uint8Array | null
+}
 
-export type ExporterId = 'flutter' | 'react-native' | 'swiftui' | 'compose'
+export type ExporterId = 'flutter' | 'react-native' | 'swiftui' | 'compose' | 'svg' | 'figma'
 
 export interface Exporter {
   id: ExporterId

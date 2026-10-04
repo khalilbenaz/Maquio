@@ -7,9 +7,11 @@ import { composeExporter } from './compose/compose'
 import { flutterExporter } from './flutter/flutter'
 import { reactNativeExporter } from './react-native/react-native'
 import { swiftuiExporter } from './swiftui/swiftui'
+import { svgExporter } from './svg/svg'
+import { figmaExporter } from './figma/figma'
 import type { Exporter, ExporterId } from './types'
 
-const exporters: Exporter[] = [flutterExporter, reactNativeExporter, swiftuiExporter, composeExporter]
+const exporters: Exporter[] = [flutterExporter, reactNativeExporter, swiftuiExporter, composeExporter, svgExporter, figmaExporter]
 
 export function listExporters(): Exporter[] {
   return exporters
