@@ -75,7 +75,7 @@ function txt(nom: string, characters: string, x: number, y: number, w: number, s
 const bouton = (label: string, y: number, interactions: Interaction[], variant: 'primary' | 'secondary' | 'text' = 'primary', x = 24, w = W - 48, extra: Partial<ComponentPropsMap['button']> = {}) =>
   comp('button', { x, y, w, h: 48 }, { label, variant, color: MARQUE, ...extra }, { interactions, nom: `Bouton ${label}` })
 const barre = (titre: string, retour: boolean, actions: ComponentPropsMap['appBar']['actions'] = []) =>
-  comp('appBar', { x: 0, y: 0, w: W, h: 56 }, { title: titre, leading: retour ? 'back' : 'none', actions, centerTitle: false, color: BLANC }, { nom: `Barre ${titre}`, interactions: retour ? [back()] : [] })
+  comp('appBar', { x: 0, y: 0, w: W, h: 56 }, { title: titre, leading: retour ? 'back' : 'none', actions, centerTitle: false }, { nom: `Barre ${titre}`, interactions: retour ? [back()] : [] })
 const ligne = (titre: string, sous: string, y: number, interactions: Interaction[], icone?: ComponentPropsMap['listTile']['leadingIcon'], fin: ComponentPropsMap['listTile']['trailingIcon'] = 'chevronRight') =>
   comp('listTile', { x: 0, y, w: W, h: 64 }, { title: titre, subtitle: sous, ...(icone ? { leadingIcon: icone } : {}), trailingIcon: fin }, { interactions, nom: `Ligne ${titre}` })
 const champ = (label: string, y: number, props: Partial<ComponentPropsMap['textField']> = {}) => comp('textField', { x: 24, y, w: W - 48, h: 56 }, { label, ...props }, { nom: `Champ ${label}` })
@@ -157,11 +157,9 @@ function ecrans(): Ecran[] {
       enfants: [
         barre('Code PIN', true),
         txt('Titre', 'Saisissez votre code PIN', 24, 90, W - 48, 22, 700, ENCRE, 'center'),
-        ...[0, 1, 2, 3, 4, 5].map((i) => comp('badge', { x: 105 + i * 32, y: 150, w: 14, h: 14 }, { text: '', color: i < 4 ? MARQUE : undefined }, { nom: `Point ${i + 1}` })),
-        ...['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '✓'].map((t, i) =>
-          t === ''
-            ? comp('spacer', { x: 40, y: 230 + 3 * 100, w: 90, h: 80 }, {}, { nom: 'Vide' })
-            : comp('button', { x: 40 + (i % 3) * 110, y: 230 + Math.floor(i / 3) * 100, w: 90, h: 80 }, { label: t, variant: t === '✓' ? 'primary' : 'secondary', color: MARQUE }, { nom: `Touche ${t}`, interactions: t === '✓' ? [tap(accueil, fade)] : [] }),
+        ...[0, 1, 2, 3].map((i) => comp('badge', { x: 147 + i * 28, y: 150, w: 14, h: 14 }, { text: '', color: MARQUE }, { nom: `Point ${i + 1}` })),
+        ...['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', '✓'].map((t, i) =>
+          comp('button', { x: 40 + (i % 3) * 110, y: 230 + Math.floor(i / 3) * 100, w: 90, h: 80 }, { label: t, variant: t === '✓' ? 'primary' : 'secondary', color: MARQUE }, { nom: `Touche ${t}`, interactions: t === '✓' ? [tap(accueil, fade)] : [] }),
         ),
         bouton('Utiliser la biométrie', 700, [tap(accueil, fade)], 'text', 24, W - 48, { icon: 'person' }),
       ],
@@ -170,7 +168,7 @@ function ecrans(): Ecran[] {
     {
       cle: 'accueil', nom: 'Accueil',
       enfants: [
-        comp('appBar', { x: 0, y: 0, w: W, h: 56 }, { title: 'Bonjour, Alex', leading: 'none', actions: ['notifications'], centerTitle: false, color: BLANC }, { nom: 'Barre Accueil', interactions: [] }),
+        comp('appBar', { x: 0, y: 0, w: W, h: 56 }, { title: 'Bonjour, Alex', leading: 'none', actions: ['notifications'], centerTitle: false }, { nom: 'Barre Accueil', interactions: [] }),
         cont('card', { x: 16, y: 72, w: W - 32, h: 110 }, {
           nom: 'Solde total', fill: MARQUE, radius: 16, spec: { elevation: 2 }, interactions: [tap(id('comptes'), fade)],
           children: [txt('Libellé', 'Solde total', 20, 16, 200, 14, 400, BLANC), txt('Montant', '10 570,32 €', 20, 44, 300, 32, 700, BLANC)],
