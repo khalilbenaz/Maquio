@@ -1,5 +1,5 @@
 {
-  "name": "@calque/ai",
+  "name": "@maquio/ai",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@calque/core": "*",
+    "@maquio/core": "*",
     "zod": "^3.23.0"
   }
 }

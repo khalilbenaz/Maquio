@@ -1,5 +1,5 @@
 // Generateur Jetpack Compose en apercu (Tache 9) : traduit un
-// CalqueDocument en une fonction @Composable par page
+// MaquioDocument en une fonction @Composable par page
 // (src/main/kotlin/screens/<PascalCase>.kt).
 //
 // Couverture d'apercu identique a SwiftUI (decision 4 du brief) : frame,
@@ -22,7 +22,7 @@
 // ici (decision 9 : Compose reste en apercu), avec un commentaire
 // `// nom` quand la couleur correspond exactement a un token du document.
 import type {
-  CalqueDocument,
+  MaquioDocument,
   ComponentNode,
   DesignTokens,
   EllipseNode,
@@ -34,8 +34,8 @@ import type {
   RectNode,
   Stroke,
   TextNode,
-} from '@calque/core'
-import { layoutPage } from '@calque/core'
+} from '@maquio/core'
+import { layoutPage } from '@maquio/core'
 import { renderComposeComponent, renderTopAppBar } from './components'
 import type { CEnv } from './components'
 import { formatNumber } from '../shared/format-number'
@@ -46,7 +46,7 @@ import { planExport, splitScreen } from '../shared/screens'
 import { interactionFor, isNativeTransition } from '../shared/interactions'
 import type { OverlayRef, RInteraction } from '../shared/interactions'
 import { ANIMATION_IMPORTS, destinationTransitions } from './interactions'
-import type { Transition } from '@calque/core'
+import type { Transition } from '@maquio/core'
 import type { ExportPlan, ScreenParts } from '../shared/screens'
 import { PREVIEW_SUPPORTED_NODE_TYPES, unsupportedNodeWarning } from '../shared/preview-coverage'
 import { planAssets } from '../shared/assets'
@@ -987,7 +987,7 @@ const COMPOSE_ASSETS: AssetTarget = {
   reference: (fileName) => fileName.replace(/\.[^.]+$/, ''),
 }
 
-function exportCompose(source: CalqueDocument, opts: ExportOptions): ExportResult {
+function exportCompose(source: MaquioDocument, opts: ExportOptions): ExportResult {
   const assetPlan = planAssets(source, COMPOSE_ASSETS, ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp'])
   const doc = assetPlan.doc
   const warnings: string[] = [...assetPlan.warnings]

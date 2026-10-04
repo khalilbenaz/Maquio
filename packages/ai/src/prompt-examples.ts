@@ -20,8 +20,8 @@
 // schema.ts derive un jour de types.ts sans que ce fichier suive, le
 // prompt lui-meme refuse de se construire plutot que d'envoyer a Claude
 // Code un exemple que son propre validateur rejetterait.
-import { nodeSchema } from '@calque/core'
-import type { ComponentNode, EllipseNode, FrameNode, ImageNode, LineNode, Node, RectNode, TextNode } from '@calque/core'
+import { nodeSchema } from '@maquio/core'
+import type { ComponentNode, EllipseNode, FrameNode, ImageNode, LineNode, Node, RectNode, TextNode } from '@maquio/core'
 
 // Gabarit d'ecran (v2, addendum navigation §3.1) : une frame de PREMIER
 // NIVEAU qui porte `device` EST un ecran -- aucun type de noeud dedie.

@@ -7,9 +7,9 @@
 // noeuds, avertissements) est affiche a la fin pour que l'utilisateur
 // voie ce qui a ete approxime.
 import { useState } from 'react'
-import { parseDocument } from '@calque/core'
+import { parseDocument } from '@maquio/core'
 import { useEditorStore } from '../state/editorStore'
-import type { CalqueApi } from '../../shared/api'
+import type { MaquioApi } from '../../shared/api'
 import { messageOfError } from '../../shared/errors'
 import './Dialog.css'
 
@@ -23,7 +23,7 @@ function CloseIcon() {
   )
 }
 
-export function FigmaImportDialog({ api, onClose }: { api: CalqueApi; onClose: () => void }) {
+export function FigmaImportDialog({ api, onClose }: { api: MaquioApi; onClose: () => void }) {
   const [cleOuLien, setCleOuLien] = useState('')
   const [statut, setStatut] = useState<Statut>('idle')
   const [erreur, setErreur] = useState('')

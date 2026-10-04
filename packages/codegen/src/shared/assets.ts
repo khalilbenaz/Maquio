@@ -6,7 +6,7 @@
 // Principe : le document est reecrit AVANT le rendu, chaque `src` local
 // devenant la reference propre a la cible ; le rendu existant n'a ainsi
 // qu'a emettre `Image.asset(src)` / `require(src)` / `Image(src)`.
-import type { CalqueDocument, Node } from '@calque/core'
+import type { MaquioDocument, Node } from '@maquio/core'
 import { isRemoteUrl } from './node-helpers'
 import type { ExportAsset } from '../types'
 
@@ -41,9 +41,9 @@ export type AssetTarget = {
   extra?: (fileName: string) => { path: string; contents: string }[]
 }
 
-export type AssetPlan = { doc: CalqueDocument; assets: ExportAsset[]; extraFiles: { path: string; contents: string }[]; warnings: string[] }
+export type AssetPlan = { doc: MaquioDocument; assets: ExportAsset[]; extraFiles: { path: string; contents: string }[]; warnings: string[] }
 
-export function planAssets(doc: CalqueDocument, target: AssetTarget, supported?: readonly string[]): AssetPlan {
+export function planAssets(doc: MaquioDocument, target: AssetTarget, supported?: readonly string[]): AssetPlan {
   const bySrc = new Map<string, string>()
   const used = new Set<string>()
   const assets: ExportAsset[] = []
@@ -77,6 +77,6 @@ export function planAssets(doc: CalqueDocument, target: AssetTarget, supported?:
     return node
   }
 
-  const next: CalqueDocument = { ...doc, pages: doc.pages.map((p) => ({ ...p, nodes: p.nodes.map(visit) })) }
+  const next: MaquioDocument = { ...doc, pages: doc.pages.map((p) => ({ ...p, nodes: p.nodes.map(visit) })) }
   return { doc: next, assets, extraFiles, warnings }
 }

@@ -1,7 +1,7 @@
 // Interactions SwiftUI : transitions personnalisees (pile de navigation
 // maison, utilisee des qu'une navigation du design n'est pas la poussee
 // native), actions, URL. Le modele de transition vit dans Navigation.swift.
-import type { Easing, Transition } from '@calque/core'
+import type { Easing, Transition } from '@maquio/core'
 
 const CURVES: Record<Easing, string> = { linear: '.linear', easeIn: '.easeIn', easeOut: '.easeOut', easeInOut: '.easeInOut', spring: '.spring' }
 

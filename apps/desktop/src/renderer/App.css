@@ -2,108 +2,153 @@
    corps en trois colonnes (calques 248px / canevas flexible / inspecteur +
    Claude 300px), au style des maquettes de reference. */
 
-.calque-gateway-error {
+.maquio-gateway-error {
   display: flex;
   align-items: center;
   justify-content: center;
   height: 100vh;
   padding: 24px;
-  background: var(--calque-chrome-bg);
-  color: var(--calque-text);
+  background: var(--maquio-chrome-bg);
+  color: var(--maquio-text);
 }
 
-.calque-gateway-error p {
+.maquio-gateway-error p {
   max-width: 480px;
   text-align: center;
   line-height: 1.5;
 }
 
-.calque-app {
+.maquio-app {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: var(--calque-chrome-bg);
-  color: var(--calque-text);
+  background: var(--maquio-chrome-bg);
+  color: var(--maquio-text);
 }
 
-.calque-titlebar {
-  height: var(--calque-titlebar-height);
+.maquio-titlebar {
+  height: var(--maquio-titlebar-height);
   flex-shrink: 0;
   box-sizing: border-box;
   padding: 0 16px;
   display: flex;
   align-items: center;
   gap: 12px;
-  background: var(--calque-chrome-bg);
-  border-bottom: 1px solid var(--calque-border);
+  background: var(--maquio-chrome-bg);
+  border-bottom: 1px solid var(--maquio-border);
 }
 
-.calque-wordmark {
-  font-family: var(--calque-font-display);
-  font-size: 20px;
-  letter-spacing: 0.2px;
-  color: var(--calque-text);
+/* Logotype : « maquio » en minuscules, Bricolage Grotesque 800, avec l'icone. */
+.maquio-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
 }
 
-.calque-titlebar-separator {
+.maquio-brand-icon {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+.maquio-wordmark {
+  font-family: var(--maquio-font-display);
+  font-weight: 800;
+  font-size: 21px;
+  letter-spacing: -0.5px;
+  line-height: 1;
+  color: var(--maquio-text);
+}
+
+.maquio-about-icon {
+  width: 96px;
+  height: 96px;
+}
+
+.maquio-about-wordmark {
+  font-family: var(--maquio-font-display);
+  font-weight: 800;
+  font-size: 44px;
+  letter-spacing: -1.5px;
+  line-height: 1;
+  margin: 8px 0 4px;
+}
+
+.maquio-about-tagline {
+  color: var(--maquio-text-muted);
+  margin: 0 0 4px;
+}
+
+.maquio-about-version {
+  color: var(--maquio-text-faint);
+  font-size: 12px;
+  margin: 0;
+}
+
+.maquio-titlebar-separator {
   width: 1px;
   height: 16px;
-  background: var(--calque-border);
+  background: var(--maquio-border);
 }
 
-.calque-titlebar-document {
+.maquio-titlebar-document {
   margin: 0;
   font-size: 13px;
   font-weight: 400;
-  color: var(--calque-text-muted);
+  color: var(--maquio-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.calque-titlebar-dirty {
+.maquio-titlebar-dirty {
   margin-left: 6px;
-  color: var(--calque-accent);
+  color: var(--maquio-accent);
 }
 
-.calque-titlebar-spacer {
+.maquio-titlebar-spacer {
   flex-grow: 1;
 }
 
-.calque-titlebar-device {
+.maquio-titlebar-device {
   font-size: 12px;
-  color: var(--calque-text-faint);
+  color: var(--maquio-text-faint);
   white-space: nowrap;
 }
 
-.calque-body {
+.maquio-body {
   flex: 1;
   min-height: 0;
   display: flex;
 }
 
-.calque-column-layers {
-  width: var(--calque-layers-width);
+.maquio-column-layers {
+  width: var(--maquio-layers-width);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-right: 1px solid var(--calque-border);
+  border-right: 1px solid var(--maquio-border);
 }
 
-.calque-left-tabs {
+.maquio-left-tabs {
   display: flex;
   flex-shrink: 0;
-  border-bottom: 1px solid var(--calque-border);
+  border-bottom: 1px solid var(--maquio-border);
 }
 
-.calque-left-tab {
+.maquio-left-tab {
   flex: 1;
   height: 34px;
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
-  color: var(--calque-text-faint);
+  color: var(--maquio-text-faint);
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -111,29 +156,29 @@
   cursor: pointer;
 }
 
-.calque-left-tab-active {
-  color: var(--calque-text);
-  border-bottom-color: var(--calque-accent);
+.maquio-left-tab-active {
+  color: var(--maquio-text);
+  border-bottom-color: var(--maquio-accent);
 }
 
-.calque-left-body {
+.maquio-left-body {
   flex: 1;
   min-height: 0;
 }
 
-.calque-column-canvas {
+.maquio-column-canvas {
   flex: 1;
   min-width: 0;
 }
 
-.calque-column-right {
-  width: var(--calque-right-width);
+.maquio-column-right {
+  width: var(--maquio-right-width);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
 }
 
-.calque-error-banner {
+.maquio-error-banner {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -143,7 +188,7 @@
   font-size: 13px;
 }
 
-.calque-error-banner button {
+.maquio-error-banner button {
   margin-left: auto;
   background: transparent;
   border: 0;
@@ -152,10 +197,10 @@
   cursor: pointer;
 }
 
-.calque-column-right {
+.maquio-column-right {
   position: relative;
 }
-.calque-right-resizer {
+.maquio-right-resizer {
   position: absolute;
   left: -3px;
   top: 0;
@@ -164,7 +209,7 @@
   cursor: col-resize;
   z-index: 10;
 }
-.calque-right-resizer:hover {
-  background: var(--calque-accent);
+.maquio-right-resizer:hover {
+  background: var(--maquio-accent);
   opacity: 0.4;
 }

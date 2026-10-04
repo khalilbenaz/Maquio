@@ -2,7 +2,7 @@
 // natif, le Scaffold d'un ecran, la navigation par routes et l'export de tous
 // les ecrans.
 import { describe, expect, it } from 'vitest'
-import type { Node } from '@calque/core'
+import type { Node } from '@maquio/core'
 import { flutterExporter } from '../src/flutter/flutter'
 import { docOf, linked, make, oneScreen, parent, screen, screenFile } from './helpers/composants'
 

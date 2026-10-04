@@ -14,8 +14,8 @@
 // dans packages/core/src/commands/edits.ts pour NodePatch. On ne la
 // reinvente pas ici.
 import { z } from 'zod'
-import { colorSchema, nodeSchema, textStyleSchema } from '@calque/core'
-import type { DesignTokens, Node, NodePatch } from '@calque/core'
+import { colorSchema, nodeSchema, textStyleSchema } from '@maquio/core'
+import type { DesignTokens, Node, NodePatch } from '@maquio/core'
 
 export class InvalidPatchError extends Error {
   // `options.cause` (point 4 de la reparation du pont) : quand le rejet
@@ -166,7 +166,7 @@ function extractFirstJsonObject(raw: string): string {
 }
 
 // Un objet qui porte a la fois "version" et "pages" est la signature d'un
-// CalqueDocument complet : c'est precisement ce que le patch ne doit jamais
+// MaquioDocument complet : c'est precisement ce que le patch ne doit jamais
 // etre (decision 3), independamment du fait qu'il porterait par ailleurs
 // "summary"/"ops".
 function looksLikeFullDocument(value: unknown): boolean {

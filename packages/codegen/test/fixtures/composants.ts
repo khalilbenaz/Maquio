@@ -2,7 +2,7 @@
 // relies (Connexion -> Accueil), couvrant les trois grandes familles de
 // sortie (Scaffold avec barre et barre basse, formulaire, liste). Identifiants
 // STABLES : les sorties (cles de style React Native, etc.) en dependent.
-import type { CalqueDocument, ComponentNode, FrameNode, Node } from '@calque/core'
+import type { MaquioDocument, ComponentNode, FrameNode, Node } from '@maquio/core'
 import { docOf, linked, make, parent, screen } from '../helpers/composants'
 
 type Renumbered = { nodes: Node[]; map: Map<string, string> }
@@ -32,7 +32,7 @@ function retarget(nodes: Node[], map: Map<string, string>): Node[] {
   })
 }
 
-export function documentComposants(): CalqueDocument {
+export function documentComposants(): MaquioDocument {
   const accueil = screen('Accueil', [], 500)
   const connexion = screen('Connexion', [
     make('appBar', {}, { title: 'Connexion', leading: 'none', centerTitle: true }),

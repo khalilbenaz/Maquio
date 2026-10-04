@@ -10,10 +10,11 @@
 // ecrit : chooseDirectory/confirmOverwrite sont toujours resolus avant le
 // premier appel a writeFile.
 import { basename, dirname, extname, isAbsolute, join, relative, sep } from 'node:path'
-import { getExporter, localImageSources } from '@calque/codegen'
-import type { ExporterId, ExportResult } from '@calque/codegen'
-import { DocumentVersionError, parseDocument } from '@calque/core'
+import { getExporter, localImageSources } from '@maquio/codegen'
+import type { ExporterId, ExportResult } from '@maquio/codegen'
+import { DocumentVersionError, parseDocument } from '@maquio/core'
 import { translateUnknownError } from '../../shared/errors'
+import { stripDocumentExtension } from '../../shared/documentFile'
 
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'])
 
@@ -32,7 +33,7 @@ export function resolveAssetSource(
     return isApproved(src) ? { path: src } : { reason: "fichier local non choisi avec le sélecteur d'image" }
   }
   if (documentPath === null) return { reason: "le document n'est pas enregistré, ses ressources sont introuvables" }
-  const resources = join(dirname(documentPath), `${basename(documentPath, '.calque')}.ressources`)
+  const resources = join(dirname(stripDocumentExtension(documentPath)), `${basename(stripDocumentExtension(documentPath))}.ressources`)
   const full = join(resources, src)
   const rel = relative(resources, full)
   if (rel === '' || rel.startsWith('..') || isAbsolute(rel) || rel.split(sep).includes('..')) return { reason: 'chemin hors du dossier de ressources' }

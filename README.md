@@ -1,11 +1,11 @@
-# Calque
+# Maquio
 
-Calque est une application de bureau pour concevoir des interfaces mobiles
+Maquio est une application de bureau pour concevoir des interfaces mobiles
 au drag & drop, sur un canvas type Figma. Elle importe une maquette Figma
 existante comme point de départ, laisse Claude Code créer ou modifier
 l'interface en langage naturel, puis exporte l'écran obtenu en code natif
 (Flutter, React Native, SwiftUI, Jetpack Compose). Le document produit est
-un fichier `.calque` — du JSON lisible, versionné, fait pour vivre dans un
+un fichier `.maquio` — du JSON lisible, versionné, fait pour vivre dans un
 dépôt à côté du code qu'il décrit.
 
 ## Ce que ça fait
@@ -71,9 +71,9 @@ Pour importer depuis l'API Figma, il faut un jeton d'accès personnel :
 4. copier le jeton immédiatement — Figma ne le réaffiche plus ensuite.
 
 Ce jeton se colle dans le champ correspondant (masqué, type mot de
-passe) puis **Enregistrer**. Calque le chiffre avec `safeStorage`
+passe) puis **Enregistrer**. Maquio le chiffre avec `safeStorage`
 d'Electron et l'écrit dans le dossier de données de l'application —
-jamais dans le document `.calque`, jamais dans le dépôt. Une fois
+jamais dans le document `.maquio`, jamais dans le dépôt. Une fois
 enregistré, le jeton n'est plus jamais réaffiché : l'écran indique
 seulement si un jeton est présent ou non. **Si le chiffrement du système
 n'est pas disponible sur la machine courante, l'enregistrement est
@@ -94,13 +94,13 @@ gestionnaire de version (nvm, asdf...) ou dans un dossier hors des
 emplacements standards reste invisible à la détection automatique tant
 que son chemin n'est pas renseigné explicitement.
 
-**Calque lance le binaire `claude` déjà installé sur la machine et
+**Maquio lance le binaire `claude` déjà installé sur la machine et
 n'utilise, ne stocke ni ne transmet aucune clé d'API.** Si `claude` est
 introuvable, le panneau Claude de l'interface se désactive avec un
 message qui renvoie vers les Réglages, dès l'ouverture de l'application.
 
 Chaque appel s'exécute dans un **répertoire de travail temporaire et
-vide**, créé par Calque puis supprimé juste après (jamais le dossier de
+vide**, créé par Maquio puis supprimé juste après (jamais le dossier de
 l'utilisateur, jamais celui du document ouvert) : lancé sans ce
 répertoire neutre, `claude -p` hérite du répertoire courant du processus
 et, dans un dossier de projet, part l'explorer (mémoire, hooks, contexte
@@ -150,7 +150,7 @@ les valeurs par défaut et le prompt de l'assistant.
 
 Un projet d'exemple contenant TOUS les composants (3 écrans reliés, barre,
 tiroir, barre basse, dialogue...) est livré dans
-`exemples/tous-les-composants.calque`.
+`exemples/tous-les-composants.maquio`.
 
 ## Export
 
@@ -198,7 +198,7 @@ Le code généré est **compilé pour de vrai** sur le projet d'exemple : Dart p
 `flutter analyze` (0 remontée, `flutter_lints` compris) et `dart format` ;
 Swift par `swiftc -typecheck` ; TypeScript par `tsc --strict` avec
 `react-native`, `@types/react` et React Navigation ; Kotlin par Gradle
-(`compileDebugKotlin`). Voir `test/verif/README.md` (`CALQUE_VERIF_FULL=1` pour
+(`compileDebugKotlin`). Voir `test/verif/README.md` (`MAQUIO_VERIF_FULL=1` pour
 React Native et Compose, qui installent des dépendances volumineuses).
 
 Le Dart généré par l'export Flutter est vérifié par `flutter analyze`
@@ -218,7 +218,7 @@ workspaces npm :
 ```
 packages/
   core/          modele de document, geometrie, commandes, historique   (0 dependance Electron/React)
-  figma/         client API Figma + traducteur Figma -> document Calque  (depend de core)
+  figma/         client API Figma + traducteur Figma -> document Maquio  (depend de core)
   codegen/       registre d'exportateurs + generateurs par framework     (depend de core)
   ai/            pont Claude Code : prompt -> patch de document          (depend de core)
 apps/
@@ -229,14 +229,14 @@ apps/
 
 - `packages/core` n'importe aucun autre paquet du dépôt ;
 - `packages/figma`, `packages/codegen` et `packages/ai` n'importent que
-  `@calque/core` ;
+  `@maquio/core` ;
 - aucun paquet de cœur (`core`, `figma`, `codegen`, `ai`) n'importe
   `electron`, `react` ni `react-dom` ;
 - `apps/desktop/src/renderer` n'importe jamais `electron`, un module
-  `node:*`, ni `@calque/figma`, `@calque/codegen` ou `@calque/ai` : le
+  `node:*`, ni `@maquio/figma`, `@maquio/codegen` ou `@maquio/ai` : le
   renderer ne touche jamais au disque, au réseau ni à un sous-processus
   directement — tout cela passe par le processus main via le preload
-  (`window.calque`).
+  (`window.maquio`).
 
 Cette règle est ce qui rend le monorepo testable et prévisible : le cœur
 reste une bibliothèque de transformation de données pure, exécutable sous
@@ -246,9 +246,9 @@ test exécutable**, `test/architecture.test.ts`, qui lit les fichiers
 sources et fait échouer la suite en nommant le fichier et l'import fautif
 dès qu'elle est violée.
 
-## Le format `.calque`
+## Le format `.maquio`
 
-Un document Calque est un fichier `.calque` : du JSON versionné
+Un document Maquio est un fichier `.maquio` : du JSON versionné
 (`{ version, id, name, pages, tokens }`), sérialisé avec une
 indentation lisible plutôt que minifié. Chaque page porte un appareil
 cible (iPhone 15, Pixel 8, iPad mini) et un arbre de nœuds (`Frame`,
@@ -287,7 +287,7 @@ niveaux :
 - **parcours réel** (`npm run test:e2e`, après `npm run build`) — pilote
   l'application Electron avec Playwright (`_electron`) : créer un écran,
   tracer, déplacer, redimensionner, multi-sélection, propriétés,
-  annuler/rétablir, enregistrer puis rouvrir un `.calque`, exporter vers
+  annuler/rétablir, enregistrer puis rouvrir un `.maquio`, exporter vers
   les quatre cibles, compiler le Swift généré, vérifier qu'un document
   hostile est refusé. Les dialogues natifs sont simulés côté processus
   principal. Les captures vont dans `OUT=<dossier>`.
@@ -308,7 +308,7 @@ même quand la variable d'environnement ci-dessous est mise si `claude`
 est introuvable dans le `PATH`.
 
 ```bash
-CALQUE_E2E_CLAUDE=1 npx vitest run test/integration/claude-e2e.test.ts
+MAQUIO_E2E_CLAUDE=1 npx vitest run test/integration/claude-e2e.test.ts
 ```
 
 Il consomme un vrai appel réseau/API via le binaire `claude` installé
@@ -350,7 +350,7 @@ assumé, à reprendre plus tard) :
   par frame nommée, contrairement à ce que décrit le §7 de la spec
   (le `Scaffold` et les routes sont désormais émis) ;
 - la première édition d'un nœud réordonne ses clés dans le fichier
-  `.calque` (vérifié : un nœud fraîchement créé conserve l'ordre littéral
+  `.maquio` (vérifié : un nœud fraîchement créé conserve l'ordre littéral
   de ses champs, une fois passé par une commande de modification ses
   clés sont réordonnées selon le schéma de validation) — le document
   reste lisible et valide, mais le premier `git diff` qui suit une

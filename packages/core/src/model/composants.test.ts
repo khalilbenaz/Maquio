@@ -16,7 +16,7 @@ import {
   serializeDocument,
   DEVICE_PRESETS,
 } from '../index'
-import type { CalqueDocument, ComponentNode, FrameNode, Node } from '../index'
+import type { MaquioDocument, ComponentNode, FrameNode, Node } from '../index'
 
 const RECT = { x: 0, y: 0, w: 100, h: 40 }
 
@@ -24,7 +24,7 @@ function screenWith(children: Node[]) {
   return createScreenNode('Accueil', DEVICE_PRESETS.iphone15, { x: 0, y: 0, w: 393, h: 852 }, children)
 }
 
-function docWith(...screens: FrameNode[]): CalqueDocument {
+function docWith(...screens: FrameNode[]): MaquioDocument {
   const doc = createDocument('Test')
   return { ...doc, pages: [{ ...doc.pages[0]!, nodes: screens }] }
 }
@@ -116,7 +116,7 @@ describe('cibles de navigation des barres (bottomNav, tabs)', () => {
 })
 
 describe('migration v1/v2 -> v3', () => {
-  function jsonAtVersion(version: number, doc: CalqueDocument): string {
+  function jsonAtVersion(version: number, doc: MaquioDocument): string {
     return JSON.stringify({ ...doc, version })
   }
 
@@ -149,7 +149,7 @@ describe('migration v1/v2 -> v3', () => {
   it('ouvre un document v1 : ecran enveloppe puis version 4', () => {
     const doc = createDocument('v1')
     const page = doc.pages[0]!
-    const v1: CalqueDocument = { ...doc, pages: [{ ...page, nodes: [{ id: 'r', name: 'r', type: 'rect', frame: RECT, visible: true, locked: false, opacity: 1, rotation: 0, fills: [], strokes: [], cornerRadius: 0 }] }] }
+    const v1: MaquioDocument = { ...doc, pages: [{ ...page, nodes: [{ id: 'r', name: 'r', type: 'rect', frame: RECT, visible: true, locked: false, opacity: 1, rotation: 0, fills: [], strokes: [], cornerRadius: 0 }] }] }
     const migre = parseDocument(jsonAtVersion(1, v1))
     expect(migre.version).toBe(4)
     const top = migre.pages[0]!.nodes[0] as FrameNode

@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createDocument, createScreenNode, moveNodeCommand } from '@calque/core'
-import type { CalqueDocument, DevicePreset } from '@calque/core'
+import { createDocument, createScreenNode, moveNodeCommand } from '@maquio/core'
+import type { MaquioDocument, DevicePreset } from '@maquio/core'
 import { Toolbar } from '../src/renderer/panels/Toolbar'
 import { SCREEN_GUTTER } from '../src/renderer/canvas/screenLayout'
 import { useEditorStore } from '../src/renderer/state/editorStore'
@@ -139,7 +139,7 @@ describe('Toolbar', () => {
 describe('Toolbar - "Nouvel écran" (v2, addendum navigation)', () => {
   const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
 
-  function documentAvecUnEcran(): CalqueDocument {
+  function documentAvecUnEcran(): MaquioDocument {
     const doc = createDocument('Document de test')
     const page = doc.pages[0]!
     const ecran1 = createScreenNode('Écran 1', device, { x: 0, y: 0, w: device.width, h: device.height })

@@ -1,8 +1,8 @@
 // Moteur du mode prototype : etat de navigation (pile d'ecrans, overlays
 // ouverts), resolution d'un geste en interaction, animations de transition.
 // Pur et teste sans rendu ; PrototypeView.tsx ne fait que l'afficher.
-import { absoluteFrame, hitTest, isScreenNode, pathToNode } from '@calque/core'
-import type { Action, Easing, Interaction, Node, Transition, Trigger } from '@calque/core'
+import { absoluteFrame, hitTest, isScreenNode, pathToNode } from '@maquio/core'
+import type { Action, Easing, Interaction, Node, Transition, Trigger } from '@maquio/core'
 
 export type StackEntry = { screenId: string; via: Transition | null }
 export type ProtoState = { stack: StackEntry[]; overlays: string[] }

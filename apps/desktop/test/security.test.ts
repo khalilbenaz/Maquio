@@ -76,7 +76,7 @@ describe('fenetre principale', () => {
 
 describe('controle de l appelant IPC (isTrustedSender)', async () => {
   const { isTrustedSender } = await import('../src/main/security')
-  const prod = 'file:///Applications/Calque.app/Contents/Resources/app/dist/renderer/index.html'
+  const prod = 'file:///Applications/Maquio.app/Contents/Resources/app/dist/renderer/index.html'
   it('accepte le cadre principal charge depuis l application', () => {
     const frame = { url: prod }
     expect(isTrustedSender({ senderFrame: frame, sender: { mainFrame: frame } }, null)).toBe(true)

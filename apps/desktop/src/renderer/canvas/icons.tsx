@@ -1,8 +1,8 @@
-// Pictogrammes du jeu d'icones commun (voir ICON_NAMES dans @calque/core),
+// Pictogrammes du jeu d'icones commun (voir ICON_NAMES dans @maquio/core),
 // dessines en traits sur une grille 24x24. Ils servent UNIQUEMENT a
 // l'affichage du canevas : l'export emet l'icone native de la cible
 // (Icons.* Flutter, SF Symbol, Icons.Default.* Compose, MaterialIcons RN).
-import type { IconName } from '@calque/core'
+import type { IconName } from '@maquio/core'
 
 const PATHS: Record<IconName, string> = {
   home: 'M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10',

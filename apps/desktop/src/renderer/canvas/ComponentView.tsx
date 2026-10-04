@@ -4,7 +4,7 @@
 // (hauteur de bouton, piste de curseur, barre de navigation...) pour que ce
 // qu'on voit au canevas soit ce que l'export produit.
 import type { CSSProperties, ReactNode } from 'react'
-import type { Color, ComponentNode, ComponentPropsMap, IconName } from '@calque/core'
+import type { Color, ComponentNode, ComponentPropsMap, IconName } from '@maquio/core'
 import { IconGlyph } from './icons'
 import { resolveImageSrc } from './imageSource'
 import { useEditorStore } from '../state/editorStore'

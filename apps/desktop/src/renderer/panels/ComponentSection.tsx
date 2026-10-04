@@ -1,5 +1,5 @@
 // Proprietes d'un composant mobile et de son conteneur dans l'inspecteur.
-// Les champs sont DERIVES du catalogue de @calque/core (FieldDef) : ajouter
+// Les champs sont DERIVES du catalogue de @maquio/core (FieldDef) : ajouter
 // une propriete au catalogue la rend editable ici sans code supplementaire.
 // Toute edition passe par updateNodeCommand / setContainerCommand -- donc
 // annulable et groupee en un seul geste sur une selection multiple. Une
@@ -15,8 +15,8 @@ import {
   compositeCommand,
   setContainerCommand,
   updateNodeCommand,
-} from '@calque/core'
-import type { Command, ComponentKind, ComponentNode, ContainerKind, ContainerSpec, FieldDef, FrameNode, IconName } from '@calque/core'
+} from '@maquio/core'
+import type { Command, ComponentKind, ComponentNode, ContainerKind, ContainerSpec, FieldDef, FrameNode, IconName } from '@maquio/core'
 import { CheckboxField, ColorField, NumberField, SelectField, TextAreaField, TextField, colorToHex, hexToColor } from './inspectorFields'
 import { M3 } from '../canvas/ComponentView'
 

@@ -3,7 +3,7 @@
 // (voir test/figmaHandlers.test.ts). main.ts se contente de les cabler
 // avec FigmaClient (nodeFetch.ts), le dialogue natif de choix de fichier
 // (electronDialogs.ts) et le stockage chiffre du jeton (secretStore.ts).
-import { serializeDocument } from '@calque/core'
+import { serializeDocument } from '@maquio/core'
 import {
   FigmaAuthError,
   FigmaClient,
@@ -13,8 +13,8 @@ import {
   FigmaResponseError,
   figmaToDocument,
   parseFigmaFileKey,
-} from '@calque/figma'
-import type { FigmaFileResponse, ImportReport } from '@calque/figma'
+} from '@maquio/figma'
+import type { FigmaFileResponse, ImportReport } from '@maquio/figma'
 import type { SecretStore } from '../adapters/secretStore'
 import { SecretStorageUnavailableError } from '../adapters/secretStore'
 import { translateUnknownError } from '../../shared/errors'
@@ -47,7 +47,7 @@ export class FigmaFileInvalidError extends Error {
   }
 }
 
-// Decision 4 : chaque erreur nommee du paquet @calque/figma (ou de ce
+// Decision 4 : chaque erreur nommee du paquet @maquio/figma (ou de ce
 // fichier) porte deja un message francais actionnable et ne contient
 // jamais le jeton (voir packages/figma/src/client.ts) -- on le relaie tel
 // quel, jamais la cause d'origine. Tout le reste (y compris un dump

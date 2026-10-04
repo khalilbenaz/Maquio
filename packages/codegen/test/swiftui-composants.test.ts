@@ -2,7 +2,7 @@
 // Toggle, Slider, Picker, DatePicker, TabView...), NavigationStack et
 // navigation par Navigator.
 import { describe, expect, it } from 'vitest'
-import type { Node } from '@calque/core'
+import type { Node } from '@maquio/core'
 import { swiftuiExporter } from '../src/swiftui/swiftui'
 import { docOf, linked, make, oneScreen, parent, screen, screenFile } from './helpers/composants'
 

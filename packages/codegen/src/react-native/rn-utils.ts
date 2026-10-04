@@ -2,7 +2,7 @@
 // theme.ts (Tache 8), pour que le format des couleurs, l'echappement des
 // chaines et la casse des noms ne divergent jamais entre l'ecran genere et
 // le theme genere.
-import type { Color, DesignTokens } from '@calque/core'
+import type { Color, DesignTokens } from '@maquio/core'
 import { colorByte } from '../shared/color-hex'
 import { toSafeIdentifier } from '../shared/identifier'
 import { findColorToken } from '../shared/tokens'

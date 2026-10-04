@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createComponentNode, createDocument, createScreenNode, DEVICE_PRESETS } from '@calque/core'
-import type { CalqueDocument, Node } from '@calque/core'
+import { createComponentNode, createDocument, createScreenNode, DEVICE_PRESETS } from '@maquio/core'
+import type { MaquioDocument, Node } from '@maquio/core'
 import { buildFigmaBundle } from '../src/figma/figma'
 import { getExporter, listExporters } from '../src/registry'
 import { svgExporter } from '../src/svg/svg'
@@ -8,7 +8,7 @@ import { svgExporter } from '../src/svg/svg'
 const base = { visible: true, locked: false, opacity: 1, rotation: 0 }
 const PNG = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10])
 
-function doc(): CalqueDocument {
+function doc(): MaquioDocument {
   const d = createDocument('Doc')
   const texte: Node = { ...base, id: 't', name: 'Titre <&>', type: 'text', frame: { x: 10, y: 20, w: 200, h: 40 }, characters: 'Salut <b>\nmonde', style: { fontFamily: 'Inter', fontSize: 20, fontWeight: 700, lineHeight: 24, letterSpacing: 0, color: { r: 1, g: 0, b: 0, a: 1 }, align: 'left' } }
   const rect: Node = { ...base, id: 'r', name: 'Carte', type: 'rect', frame: { x: 10, y: 80, w: 100, h: 60 }, fills: [{ type: 'solid', color: { r: 0, g: 0.5, b: 1, a: 1 } }], strokes: [{ color: { r: 0, g: 0, b: 0, a: 1 }, width: 2 }], cornerRadius: 8, opacity: 0.5 }
@@ -62,7 +62,7 @@ describe('export SVG', () => {
 describe('export Figma (bundle)', () => {
   it('embarque le document apres mise en page et les images en base64', () => {
     const { bundle, warnings } = buildFigmaBundle(doc(), { projectName: 'demo', loadImage: () => PNG })
-    expect(bundle.format).toBe('calque-figma')
+    expect(bundle.format).toBe('maquio-figma')
     expect(Object.keys(bundle.images)).toEqual(['logo.png'])
     expect(bundle.images['logo.png']!.mime).toBe('image/png')
     expect(warnings).toEqual([])

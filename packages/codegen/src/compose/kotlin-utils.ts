@@ -5,7 +5,7 @@
 // imports de compose.ts (round de correction 1, Important 2 du
 // coordinateur : la version precedente dupliquait ce commentaire a
 // l'identique dans swift-utils.ts).
-import type { Color, DesignTokens } from '@calque/core'
+import type { Color, DesignTokens } from '@maquio/core'
 import { colorHexARGB } from '../shared/color-hex'
 
 export { colorTokenComment } from '../shared/color-token-comment'

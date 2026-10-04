@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { createDocument } from '@calque/core'
-import type { CalqueDocument } from '@calque/core'
+import { createDocument } from '@maquio/core'
+import type { MaquioDocument } from '@maquio/core'
 import { flutterExporter } from '../src/flutter/flutter'
 import { loginScreenDocument } from './fixtures/login-screen'
 
@@ -40,7 +40,7 @@ describe('flutterExporter', () => {
   // produire un litteral Dart valide et correctement echappe. Un generateur
   // qui produit du code non compilable est pire qu'inutile.
   it('echappe correctement apostrophe, antislash, dollar et saut de ligne', () => {
-    const tricky: CalqueDocument = {
+    const tricky: MaquioDocument = {
       version: loginScreenDocument.version,
       id: 'doc-tricky',
       name: 'Tricky',
@@ -87,7 +87,7 @@ describe('flutterExporter', () => {
   // fichier) n'emet plus `Image.asset('')` en silence -- avertit, et
   // n'emet aucune reference a la ressource vide.
   it('avertit pour un noeud image de src vide au lieu d emettre Image.asset(\'\')', () => {
-    const docAvecImageVide: CalqueDocument = {
+    const docAvecImageVide: MaquioDocument = {
       version: loginScreenDocument.version,
       id: 'doc-image-vide',
       name: 'ImageVide',
@@ -124,7 +124,7 @@ describe('flutterExporter', () => {
 
   // Decision 11 du brief Tache 7 : un type de noeud inconnu du generateur
   // n'est jamais ignore en silence, il ajoute une ligne dans warnings. On
-  // force ce cas via un cast, un CalqueDocument valide ne peut pas le
+  // force ce cas via un cast, un MaquioDocument valide ne peut pas le
   // produire naturellement (union exhaustive de Node).
   it('signale un type de noeud inconnu dans warnings au lieu de l ignorer', () => {
     const unknownNode = {
@@ -136,9 +136,9 @@ describe('flutterExporter', () => {
       locked: false,
       opacity: 1,
       rotation: 0,
-    } as unknown as CalqueDocument['pages'][number]['nodes'][number]
+    } as unknown as MaquioDocument['pages'][number]['nodes'][number]
 
-    const doc: CalqueDocument = {
+    const doc: MaquioDocument = {
       version: loginScreenDocument.version,
       id: 'doc-unknown',
       name: 'Unknown',
@@ -160,13 +160,13 @@ describe('flutterExporter', () => {
 
   // Correction round 1 (Important 1) : alignMain: 'space-between' ne doit
   // JAMAIS inserer de SizedBox de gap entre les enfants. `applyAutoLayout`
-  // de @calque/core ignore deja `gap` dans ce mode (l'espacement vient
+  // de @maquio/core ignore deja `gap` dans ce mode (l'espacement vient
   // entierement de MainAxisAlignment.spaceBetween) ; un SizedBox compterait
   // comme un enfant de plus pour Flutter, qui repartirait l'espace libre
   // autour de lui EN PLUS de sa largeur fixe — divergence visible du rendu
   // voulu, reproduite par le relecteur avant ce correctif.
   it('n insere aucun SizedBox de gap en mode space-between', () => {
-    const doc: CalqueDocument = {
+    const doc: MaquioDocument = {
       version: loginScreenDocument.version,
       id: 'doc-space-between',
       name: 'SpaceBetween',
@@ -243,7 +243,7 @@ describe('flutterExporter', () => {
   // en radians pour Transform.rotate. On fige la forme exacte produite
   // pour 90 degres plutot que de verifier une valeur approximative.
   it('convertit rotation (degres) en radians pour Transform.rotate', () => {
-    const doc: CalqueDocument = {
+    const doc: MaquioDocument = {
       version: loginScreenDocument.version,
       id: 'doc-rotated',
       name: 'Rotated',

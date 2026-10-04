@@ -7,7 +7,7 @@
 // kotlin-utils.ts (round de correction 1, Important 2 du coordinateur) :
 // `shared/preview-coverage.ts` existait deja pour cette meme raison
 // (eviter que les deux cibles preview divergent sur un format partage).
-import type { Color, DesignTokens } from '@calque/core'
+import type { Color, DesignTokens } from '@maquio/core'
 import { findColorToken } from './tokens'
 
 // `// nom` si la couleur correspond exactement a un token du document,

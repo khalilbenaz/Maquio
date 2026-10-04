@@ -3,7 +3,7 @@
 // avec barre d'application, tiroir, barre de navigation basse, bouton flottant,
 // feuille basse, boite de dialogue et snackbar. Sert de garde-fou « vrai
 // compilateur » (flutter analyze, tsc, swiftc, Gradle) et d'exemple livre dans
-// `exemples/tous-les-composants.calque`.
+// `exemples/tous-les-composants.maquio`.
 import {
   COMPONENT_KINDS,
   tapLink,
@@ -12,8 +12,8 @@ import {
   createDocument,
   createScreenNode,
   layoutPage,
-} from '@calque/core'
-import type { CalqueDocument, ComponentNode, FrameNode, Node, Rect } from '@calque/core'
+} from '@maquio/core'
+import type { MaquioDocument, ComponentNode, FrameNode, Node, Rect } from '@maquio/core'
 
 const item = (id: string) => PALETTE_ITEMS.find((i) => i.id === id)!
 
@@ -55,7 +55,7 @@ function text(name: string, characters: string, x: number, y: number, size = 20,
 // Identifiants STABLES (`ex-1`, `ex-2`...) : le fichier d'exemple livre dans
 // `exemples/` doit etre reproductible octet pour octet, et les liens (cible
 // d'un lien, d'une entree de barre) suivent la renumerotation.
-function stabiliser(doc: CalqueDocument): CalqueDocument {
+function stabiliser(doc: MaquioDocument): MaquioDocument {
   const map = new Map<string, string>()
   let counter = 0
   const renumber = (nodes: Node[]): Node[] =>
@@ -81,11 +81,11 @@ function stabiliser(doc: CalqueDocument): CalqueDocument {
   return { ...doc, id: 'exemple-tous-les-composants', pages: [{ ...page, id: 'page-1', nodes }] }
 }
 
-export function documentExempleComplet(): CalqueDocument {
+export function documentExempleComplet(): MaquioDocument {
   return stabiliser(construireExemple())
 }
 
-function construireExemple(): CalqueDocument {
+function construireExemple(): MaquioDocument {
   const device = DEVICE_PRESETS.iphone15
   const frame = (x: number): Rect => ({ x, y: 0, w: device.width, h: device.height })
   const accueilBase = createScreenNode('Accueil', device, frame(0))
@@ -216,7 +216,7 @@ function construireExemple(): CalqueDocument {
 
 // Tous les `kind` de composant doivent apparaitre dans l'exemple : si le
 // catalogue s'enrichit, ce garde-fou impose d'enrichir l'exemple.
-export function kindsPresents(doc: CalqueDocument): Set<string> {
+export function kindsPresents(doc: MaquioDocument): Set<string> {
   const kinds = new Set<string>()
   const visit = (nodes: Node[]) => {
     for (const n of nodes) {

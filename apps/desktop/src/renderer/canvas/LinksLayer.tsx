@@ -6,8 +6,8 @@
 // (linksVisible) et JAMAIS pendant un glissement quel qu'il soit
 // (dragPreview !== null), pour ne pas encombrer le geste -- voir Canvas.tsx,
 // qui ne rend ce composant que sous ces deux conditions.
-import { absoluteFrame, isScreenNode } from '@calque/core'
-import type { Node as CalqueNode, Rect } from '@calque/core'
+import { absoluteFrame, isScreenNode } from '@maquio/core'
+import type { Node as MaquioNode, Rect } from '@maquio/core'
 import { useEditorStore } from '../state/editorStore'
 import { pageNodesOf } from './useDragInteraction'
 
@@ -26,15 +26,15 @@ function nearestPointOnRect(rect: Rect, point: { x: number; y: number }): { x: n
   }
 }
 
-type Connector = { key: string; testId: string; node: CalqueNode; target: string; label: string; first: boolean }
+type Connector = { key: string; testId: string; node: MaquioNode; target: string; label: string; first: boolean }
 
 const TRIGGER_SHORT = { tap: 'clic', longPress: 'appui long', afterDelay: 'délai' } as const
 const TRANSITION_SHORT = { none: 'sans transition', slide: 'glissement', push: 'poussée', fade: 'fondu', modal: 'modale' } as const
 
 // Une fleche par interaction de navigation (declencheur + transition en legende).
-function collectConnectors(nodes: CalqueNode[]): Connector[] {
+function collectConnectors(nodes: MaquioNode[]): Connector[] {
   const result: Connector[] = []
-  function visit(list: CalqueNode[]): void {
+  function visit(list: MaquioNode[]): void {
     for (const n of list) {
       let first = true
       ;(n.interactions ?? []).forEach((it, i) => {

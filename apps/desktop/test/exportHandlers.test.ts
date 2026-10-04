@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { serializeDocument } from '@calque/core'
-import { loginScreenDocument } from '@calque/codegen/test/fixtures/login-screen'
+import { serializeDocument } from '@maquio/core'
+import { loginScreenDocument } from '@maquio/codegen/test/fixtures/login-screen'
 import { createExportHandler } from '../src/main/handlers/exportHandlers'
 import { documentJsonDeFormeInvalide } from './helpers/documentJsonInvalide'
 
@@ -121,7 +121,7 @@ describe('export vers le disque', () => {
 // Images locales : copiees dans le projet exporte.
 describe('export : copie des images locales', () => {
   async function docAvecImage(src: string): Promise<string> {
-    const { createDocument, createScreenNode, DEVICE_PRESETS } = await import('@calque/core')
+    const { createDocument, createScreenNode, DEVICE_PRESETS } = await import('@maquio/core')
     const d = createDocument('Doc')
     const image = { id: 'i', name: 'i', type: 'image' as const, frame: { x: 0, y: 0, w: 10, h: 10 }, visible: true, locked: false, opacity: 1, rotation: 0, src, fit: 'cover' as const }
     const ecran = createScreenNode('Accueil', DEVICE_PRESETS.iphone15, { x: 0, y: 0, w: 393, h: 852 }, [image])
@@ -141,7 +141,7 @@ describe('export : copie des images locales', () => {
 
   it('copie une image relative depuis <document>.ressources/ vers assets/images/ (Flutter)', async () => {
     const d = deps()
-    const out = await createExportHandler(d)({ exporterId: 'flutter', json: await docAvecImage('logo.png'), projectName: 'demo', documentPath: '/docs/mon.calque' })
+    const out = await createExportHandler(d)({ exporterId: 'flutter', json: await docAvecImage('logo.png'), projectName: 'demo', documentPath: '/docs/mon.maquio' })
     expect(d.copyFile).toHaveBeenCalledWith('/docs/mon.ressources/logo.png', '/out/assets/images/logo.png')
     expect(out!.files).toContain('assets/images/logo.png')
     expect(out!.files).toContain('pubspec.yaml')
@@ -149,10 +149,10 @@ describe('export : copie des images locales', () => {
   })
   it('copie vers res/drawable pour Compose et un .imageset pour SwiftUI', async () => {
     const d = deps()
-    await createExportHandler(d)({ exporterId: 'compose', json: await docAvecImage('Mon Logo.png'), projectName: 'demo', documentPath: '/docs/mon.calque' })
+    await createExportHandler(d)({ exporterId: 'compose', json: await docAvecImage('Mon Logo.png'), projectName: 'demo', documentPath: '/docs/mon.maquio' })
     expect(d.copyFile).toHaveBeenCalledWith('/docs/mon.ressources/Mon Logo.png', '/out/src/main/res/drawable/mon_logo.png')
     const d2 = deps()
-    await createExportHandler(d2)({ exporterId: 'swiftui', json: await docAvecImage('logo.png'), projectName: 'demo', documentPath: '/docs/mon.calque' })
+    await createExportHandler(d2)({ exporterId: 'swiftui', json: await docAvecImage('logo.png'), projectName: 'demo', documentPath: '/docs/mon.maquio' })
     expect(d2.copyFile).toHaveBeenCalledWith('/docs/mon.ressources/logo.png', '/out/Sources/Assets.xcassets/logo.imageset/logo.png')
   })
   it('un chemin absolu non choisi avec le selecteur n est jamais copie (avertissement)', async () => {
@@ -168,13 +168,13 @@ describe('export : copie des images locales', () => {
   })
   it('un src relatif qui sort du dossier de ressources est refuse', async () => {
     const d = deps()
-    const out = await createExportHandler(d)({ exporterId: 'flutter', json: await docAvecImage('../secret.png'), projectName: 'demo', documentPath: '/docs/mon.calque' })
+    const out = await createExportHandler(d)({ exporterId: 'flutter', json: await docAvecImage('../secret.png'), projectName: 'demo', documentPath: '/docs/mon.maquio' })
     expect(d.copyFile).not.toHaveBeenCalled()
     expect(out!.warnings.some((w) => w.includes('secret.png'))).toBe(true)
   })
   it('une image introuvable est signalee sans faire echouer l export', async () => {
     const d = deps({ pathExists: async () => false })
-    const out = await createExportHandler(d)({ exporterId: 'flutter', json: await docAvecImage('absente.png'), projectName: 'demo', documentPath: '/docs/mon.calque' })
+    const out = await createExportHandler(d)({ exporterId: 'flutter', json: await docAvecImage('absente.png'), projectName: 'demo', documentPath: '/docs/mon.maquio' })
     expect(d.copyFile).not.toHaveBeenCalled()
     expect(out!.warnings.some((w) => w.includes('absente.png'))).toBe(true)
   })
@@ -182,7 +182,7 @@ describe('export : copie des images locales', () => {
 
 describe('export SVG et Figma : contenu des images embarque', () => {
   it('lit l image (memes regles de securite que la copie) et l embarque', async () => {
-    const { createDocument, createScreenNode, DEVICE_PRESETS } = await import('@calque/core')
+    const { createDocument, createScreenNode, DEVICE_PRESETS } = await import('@maquio/core')
     const d = createDocument('Doc')
     const image = { id: 'i', name: 'i', type: 'image' as const, frame: { x: 0, y: 0, w: 10, h: 10 }, visible: true, locked: false, opacity: 1, rotation: 0, src: 'logo.png', fit: 'cover' as const }
     const ecran = createScreenNode('Accueil', DEVICE_PRESETS.iphone15, { x: 0, y: 0, w: 393, h: 852 }, [image])
@@ -196,22 +196,22 @@ describe('export SVG et Figma : contenu des images embarque', () => {
       pathExists: async (p) => p.includes('.ressources'),
       readBinary,
     })
-    const out = await handler({ exporterId: 'svg', json, projectName: 'demo', documentPath: '/docs/mon.calque' })
+    const out = await handler({ exporterId: 'svg', json, projectName: 'demo', documentPath: '/docs/mon.maquio' })
     expect(readBinary).toHaveBeenCalledWith('/docs/mon.ressources/logo.png')
     expect(out!.files).toEqual(['svg/accueil.svg'])
     expect(written['/out/svg/accueil.svg']).toContain('data:image/png;base64,AQID')
-    const fig = await handler({ exporterId: 'figma', json, projectName: 'demo', documentPath: '/docs/mon.calque' })
+    const fig = await handler({ exporterId: 'figma', json, projectName: 'demo', documentPath: '/docs/mon.maquio' })
     expect(fig!.files).toEqual(['demo.figma.json'])
     expect(JSON.parse(written['/out/demo.figma.json']!).images['logo.png'].data).toBe('AQID')
   })
   it('un chemin hors des ressources n est jamais lu', async () => {
-    const { createDocument, createScreenNode, DEVICE_PRESETS } = await import('@calque/core')
+    const { createDocument, createScreenNode, DEVICE_PRESETS } = await import('@maquio/core')
     const d = createDocument('Doc')
     const image = { id: 'i', name: 'i', type: 'image' as const, frame: { x: 0, y: 0, w: 10, h: 10 }, visible: true, locked: false, opacity: 1, rotation: 0, src: '../../etc/secret.png', fit: 'cover' as const }
     const ecran = createScreenNode('A', DEVICE_PRESETS.iphone15, { x: 0, y: 0, w: 393, h: 852 }, [image])
     const readBinary = vi.fn(async () => Uint8Array.from([1]))
     const out = await createExportHandler({ writeFile: async () => {}, mkdir: async () => {}, chooseDirectory: async () => '/out', pathExists: async () => false, readBinary })({
-      exporterId: 'svg', json: serializeDocument({ ...d, pages: [{ ...d.pages[0]!, nodes: [ecran] }] }), projectName: 'demo', documentPath: '/docs/mon.calque',
+      exporterId: 'svg', json: serializeDocument({ ...d, pages: [{ ...d.pages[0]!, nodes: [ecran] }] }), projectName: 'demo', documentPath: '/docs/mon.maquio',
     })
     expect(readBinary).not.toHaveBeenCalled()
     expect(out!.warnings.some((w) => w.includes('secret.png'))).toBe(true)

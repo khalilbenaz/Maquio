@@ -1,10 +1,10 @@
-// Assistance Claude REELLE (opt-in : CALQUE_E2E_CLAUDE=1) : le vrai binaire
+// Assistance Claude REELLE (opt-in : MAQUIO_E2E_CLAUDE=1) : le vrai binaire
 // `claude` est appele depuis le panneau de l'application lancee. Trois appels
 // seulement (chacun coute de l'ordre de 0,5 $). Verifie que le document est
 // modifie, de facon valide, et annulable en un geste.
 import { lancer } from './helpers.mjs'
 
-if (process.env.CALQUE_E2E_CLAUDE !== '1') { console.log('ignore (CALQUE_E2E_CLAUDE=1 pour lancer, appels payants)'); process.exit(0) }
+if (process.env.MAQUIO_E2E_CLAUDE !== '1') { console.log('ignore (MAQUIO_E2E_CLAUDE=1 pour lancer, appels payants)'); process.exit(0) }
 
 const t = await lancer()
 const { win, check, shot, box, ids, nodes, sceneBox, drag, selected } = t

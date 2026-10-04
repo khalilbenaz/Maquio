@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createDocument, createNodeCommand, History, findNode } from '@calque/core'
-import type { Node } from '@calque/core'
+import { createDocument, createNodeCommand, History, findNode } from '@maquio/core'
+import type { Node } from '@maquio/core'
 import { patchToCommand, patchToCommands } from '../src/apply'
 
 function rect(id: string, name: string): Node {

@@ -7,8 +7,8 @@
 // action qui touche l'historique (load/execute/undo/redo) : il n'existe pas
 // de deuxieme source de verite a tenir synchronisee a la main.
 import { create } from 'zustand'
-import { createDocument, History, screenContaining, withAutoLayout } from '@calque/core'
-import type { CalqueDocument, Command, HandleId, Rect } from '@calque/core'
+import { createDocument, History, screenContaining, withAutoLayout } from '@maquio/core'
+import type { MaquioDocument, Command, HandleId, Rect } from '@maquio/core'
 
 export type Tool = 'select' | 'frame' | 'rect' | 'ellipse' | 'text' | 'image'
 
@@ -52,14 +52,14 @@ export type DragPreview =
 
 export type EditorState = {
   history: History
-  document: CalqueDocument
+  document: MaquioDocument
   pageId: string
   selection: string[]
   tool: Tool
   zoom: number
   pan: { x: number; y: number }
   dragPreview: DragPreview
-  // Chemin du fichier .calque courant, null tant que le document n'a
+  // Chemin du fichier .maquio courant, null tant que le document n'a
   // jamais ete enregistre (defaut n3, ruling sur le stockage des images) :
   // NodeView (canvas) en a besoin pour resoudre le src RELATIF d'un noeud
   // image (relatif a `<nom-du-document>.ressources/`, voir
@@ -102,7 +102,7 @@ export type EditorState = {
   // Mode prototype (apercu plein ecran) ouvert.
   prototypeOpen: boolean
 
-  load(doc: CalqueDocument): void
+  load(doc: MaquioDocument): void
   select(ids: string[]): void
   execute(cmd: Command): void
   undo(): void
@@ -119,13 +119,13 @@ export type EditorState = {
   setPrototypeOpen(open: boolean): void
 }
 
-// L'ecran (au sens screenContaining de @calque/core) du premier noeud d'une
+// L'ecran (au sens screenContaining de @maquio/core) du premier noeud d'une
 // selection, ou l'ecran de premier niveau lui-meme s'il n'a pas de parent
 // direct connu -- partage par select() et load() ci-dessous. Rend `null` si
 // la selection est vide ou si le premier noeud selectionne n'appartient a
 // aucun ecran (page sans ecran, ou noeud de premier niveau qui n'en est pas
 // un).
-function screenOfFirstSelected(doc: CalqueDocument, pageId: string, ids: string[]): string | null {
+function screenOfFirstSelected(doc: MaquioDocument, pageId: string, ids: string[]): string | null {
   const firstId = ids[0]
   if (firstId === undefined) return null
   const nodes = doc.pages.find((p) => p.id === pageId)?.nodes ?? []
@@ -135,13 +135,13 @@ function screenOfFirstSelected(doc: CalqueDocument, pageId: string, ids: string[
 // Le premier ecran de la page, ou `null` si elle n'en contient aucun --
 // utilise par load() pour initialiser activeScreenId a l'ouverture d'un
 // document (avant toute selection ou tout geste).
-function firstScreenOf(doc: CalqueDocument, pageId: string): string | null {
+function firstScreenOf(doc: MaquioDocument, pageId: string): string | null {
   const nodes = doc.pages.find((p) => p.id === pageId)?.nodes ?? []
   const first = nodes.find((n) => n.type === 'frame' && n.device !== undefined)
   return first ? first.id : null
 }
 
-function initialDocument(): CalqueDocument {
+function initialDocument(): MaquioDocument {
   return createDocument('Document sans titre')
 }
 

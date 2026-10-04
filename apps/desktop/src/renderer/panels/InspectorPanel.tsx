@@ -19,7 +19,7 @@
 // noeuds selectionnes s'affiche vide ; le valider applique le nouveau
 // contenu a tous les noeuds concernes via une seule compositeCommand
 // (decision 4), pour qu'un seul "annuler" desfasse toute l'edition.
-import { compositeCommand, findNode, isScreenNode, setTextCommand, updateNodeCommand } from '@calque/core'
+import { compositeCommand, findNode, isScreenNode, setTextCommand, updateNodeCommand } from '@maquio/core'
 import type {
   Command,
   ComponentNode,
@@ -28,18 +28,18 @@ import type {
   FrameNode,
   ImageNode,
   LayoutMode,
-  Node as CalqueNode,
+  Node as MaquioNode,
   RectNode,
   Stroke,
   TextNode,
-} from '@calque/core'
+} from '@maquio/core'
 import { CheckboxField, ColorField, NumberField, SelectField, TextField, colorToHex, commitToSelection, commonOf, hexToColor } from './inspectorFields'
 import { ComponentSection, ContainerSection } from './ComponentSection'
 import { ArrangeSection } from './ArrangeSection'
 import { InteractionsSection } from './InteractionsSection'
 import { useEditorStore } from '../state/editorStore'
 import { pageNodesOf } from '../canvas/useDragInteraction'
-import type { CalqueApi } from '../../shared/api'
+import type { MaquioApi } from '../../shared/api'
 import './InspectorPanel.css'
 
 
@@ -47,23 +47,23 @@ import './InspectorPanel.css'
 
 type FillableNode = FrameNode | RectNode | EllipseNode
 
-function hasCornerRadius(n: CalqueNode): n is FrameNode | RectNode {
+function hasCornerRadius(n: MaquioNode): n is FrameNode | RectNode {
   return n.type === 'frame' || n.type === 'rect'
 }
 
-function isFillable(n: CalqueNode): n is FillableNode {
+function isFillable(n: MaquioNode): n is FillableNode {
   return n.type === 'frame' || n.type === 'rect' || n.type === 'ellipse'
 }
 
-function isTextNode(n: CalqueNode): n is TextNode {
+function isTextNode(n: MaquioNode): n is TextNode {
   return n.type === 'text'
 }
 
-function isFrameNode(n: CalqueNode): n is FrameNode {
+function isFrameNode(n: MaquioNode): n is FrameNode {
   return n.type === 'frame'
 }
 
-function isImageNode(n: CalqueNode): n is ImageNode {
+function isImageNode(n: MaquioNode): n is ImageNode {
   return n.type === 'image'
 }
 
@@ -446,7 +446,7 @@ function ImageSection({
   nodes: ImageNode[]
   pageId: string
   execute: (c: Command) => void
-  api: CalqueApi
+  api: MaquioApi
 }) {
   async function choisirImage() {
     const chosenPath = await api.chooseImage()
@@ -480,7 +480,7 @@ function ImageSection({
 
 // --- Composant principal ---
 
-export function InspectorPanel({ api }: { api: CalqueApi }) {
+export function InspectorPanel({ api }: { api: MaquioApi }) {
   const document_ = useEditorStore((s) => s.document)
   const pageId = useEditorStore((s) => s.pageId)
   const selection = useEditorStore((s) => s.selection)
@@ -489,7 +489,7 @@ export function InspectorPanel({ api }: { api: CalqueApi }) {
   const allNodes = pageNodesOf(document_, pageId)
   const selectedNodes = selection
     .map((id) => findNode(allNodes, id))
-    .filter((n): n is CalqueNode => n !== null)
+    .filter((n): n is MaquioNode => n !== null)
 
   if (selectedNodes.length === 0) {
     return (

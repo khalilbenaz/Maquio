@@ -1,7 +1,7 @@
 // Traduction des DesignTokens en `lib/theme.dart` (decision 8 du brief
 // Tache 7) : AppColors / AppSpacing / AppTextStyles en constantes, plus un
 // ThemeData pret a l'emploi.
-import type { DesignTokens } from '@calque/core'
+import type { DesignTokens } from '@maquio/core'
 import { buildTokenIdentifiers } from '../shared/token-identifiers'
 import type { ExportedFile } from '../types'
 import { type Arg, attach, call, collapseShortCalls, lit } from './dart-writer'
@@ -95,13 +95,13 @@ export function generateThemeFile(tokens: DesignTokens): ExportedFile {
   const lines = [
     `import 'package:flutter/material.dart';`,
     '',
-    '/// Couleurs du design system, generees depuis les tokens Calque.',
+    '/// Couleurs du design system, generees depuis les tokens Maquio.',
     ...classBody('AppColors', colorConstantLines(tokens)),
     '',
-    '/// Espacements du design system, generes depuis les tokens Calque.',
+    '/// Espacements du design system, generes depuis les tokens Maquio.',
     ...classBody('AppSpacing', spacingConstantLines(tokens)),
     '',
-    '/// Styles de texte du design system, generes depuis les tokens Calque.',
+    '/// Styles de texte du design system, generes depuis les tokens Maquio.',
     ...classBody('AppTextStyles', textStyleLines(tokens)),
     '',
     ...attach('final ThemeData appTheme = ', call('ThemeData', themeArgs), 0, ';'),

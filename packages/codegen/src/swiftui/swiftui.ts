@@ -1,4 +1,4 @@
-// Generateur SwiftUI en apercu (Tache 9) : traduit un CalqueDocument en
+// Generateur SwiftUI en apercu (Tache 9) : traduit un MaquioDocument en
 // une struct SwiftUI par page (Sources/Screens/<PascalCase>.swift).
 //
 // Couverture d'apercu (decision 4 du brief) : seuls frame, text, rect,
@@ -23,7 +23,7 @@
 // Deterministe, comme les autres generateurs : aucun horodatage, aucun
 // identifiant aleatoire.
 import type {
-  CalqueDocument,
+  MaquioDocument,
   DesignTokens,
   EllipseNode,
   Fill,
@@ -34,8 +34,8 @@ import type {
   RectNode,
   Stroke,
   TextNode,
-} from '@calque/core'
-import { ICONS, layoutPage } from '@calque/core'
+} from '@maquio/core'
+import { ICONS, layoutPage } from '@maquio/core'
 import { formatNumber } from '../shared/format-number'
 import { pad } from '../shared/indent'
 import { toPascalCase } from '../shared/naming'
@@ -46,7 +46,7 @@ import { interactionFor, isNativeTransition } from '../shared/interactions'
 import type { RInteraction } from '../shared/interactions'
 import { APP_TRANSITION_SWIFT, transitionExpr } from './interactions'
 import type { OverlayRef } from '../shared/interactions'
-import type { Transition } from '@calque/core'
+import type { Transition } from '@maquio/core'
 import type { ExportPlan, ScreenParts } from '../shared/screens'
 import { PREVIEW_SUPPORTED_NODE_TYPES, unsupportedNodeWarning } from '../shared/preview-coverage'
 import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../types'
@@ -239,7 +239,7 @@ function stackBlock(frame: FrameNode, ctx: RenderContext, depth: number, childre
   const spec = frame.container
   // SwiftUI n'a pas d'Arrangement.SpaceBetween natif comme Compose : en
   // mode `space-between`, `gap` est ignore (comme partout ailleurs dans le
-  // modele — @calque/core l'ignore deja) et l'espacement vient de
+  // modele — @maquio/core l'ignore deja) et l'espacement vient de
   // `Spacer()` interleaves entre les enfants plutot que d'un `spacing:`
   // fixe, qui romprait l'effet de repartition sur tout l'espace libre.
   const isSpaceBetween = frame.layout.alignMain === 'space-between'
@@ -800,12 +800,12 @@ const SWIFT_ASSETS: AssetTarget = {
   extra: (fileName) => [
     {
       path: `Sources/Assets.xcassets/${stemOf(fileName)}.imageset/Contents.json`,
-      contents: JSON.stringify({ images: [{ filename: fileName, idiom: 'universal' }], info: { author: 'calque', version: 1 } }, null, 2) + '\n',
+      contents: JSON.stringify({ images: [{ filename: fileName, idiom: 'universal' }], info: { author: 'maquio', version: 1 } }, null, 2) + '\n',
     },
   ],
 }
 
-function exportSwiftUI(source: CalqueDocument, opts: ExportOptions): ExportResult {
+function exportSwiftUI(source: MaquioDocument, opts: ExportOptions): ExportResult {
   const assetPlan = planAssets(source, SWIFT_ASSETS)
   const doc = assetPlan.doc
   const warnings: string[] = [...assetPlan.warnings]
@@ -825,7 +825,7 @@ function exportSwiftUI(source: CalqueDocument, opts: ExportOptions): ExportResul
   if (plan.initial !== null) files.push(generateNavigation(plan, custom), generateApp(plan, opts.projectName, custom))
   if (assetPlan.assets.length > 0) {
     files.push(
-      { path: 'Sources/Assets.xcassets/Contents.json', contents: JSON.stringify({ info: { author: 'calque', version: 1 } }, null, 2) + '\n' },
+      { path: 'Sources/Assets.xcassets/Contents.json', contents: JSON.stringify({ info: { author: 'maquio', version: 1 } }, null, 2) + '\n' },
       ...assetPlan.extraFiles,
     )
   }

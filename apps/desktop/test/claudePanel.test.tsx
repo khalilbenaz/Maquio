@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { moveNodeCommand, serializeDocument } from '@calque/core'
+import { moveNodeCommand, serializeDocument } from '@maquio/core'
 import { ClaudePanel } from '../src/renderer/panels/ClaudePanel'
 import { useEditorStore } from '../src/renderer/state/editorStore'
 import { useClaudeStatusStore } from '../src/renderer/state/claudeStatusStore'

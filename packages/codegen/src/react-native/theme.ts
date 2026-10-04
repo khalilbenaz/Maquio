@@ -4,7 +4,7 @@
 // qu'imbrique dans `theme`) precisement pour que `typography.*.color`
 // puisse s'y referer (`colors.black`) sans auto-reference de l'objet
 // litteral `theme`.
-import type { Color, DesignTokens } from '@calque/core'
+import type { Color, DesignTokens } from '@maquio/core'
 import { buildTokenIdentifiers } from '../shared/token-identifiers'
 import { findColorToken } from '../shared/tokens'
 import type { ExportedFile } from '../types'
@@ -71,7 +71,7 @@ function typographyLines(tokens: DesignTokens): string[] {
 
 export function generateThemeFile(tokens: DesignTokens): ExportedFile {
   const lines = [
-    '// Theme genere depuis les tokens Calque design system.',
+    '// Theme genere depuis les tokens Maquio design system.',
     `const colors = ${colorLines(tokens).join('\n')};`,
     '',
     `const spacing = ${spacingLines(tokens).join('\n')};`,

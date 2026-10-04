@@ -1,6 +1,6 @@
 // Images embarquees (SVG autonome, export Figma) : lecture injectee par
 // l'application (le paquet ne touche jamais au disque), encodage base64 pur.
-import type { CalqueDocument, Node } from '@calque/core'
+import type { MaquioDocument, Node } from '@maquio/core'
 import { isLocalImageSrc } from './assets'
 
 const MIME: Record<string, string> = {
@@ -26,7 +26,7 @@ export function toBase64(bytes: Uint8Array): string {
 }
 
 // Sources d'images locales du document (noeuds image et avatars), sans doublon.
-export function localImageSources(doc: CalqueDocument): string[] {
+export function localImageSources(doc: MaquioDocument): string[] {
   const out = new Set<string>()
   const visit = (n: Node) => {
     if (n.type === 'image' && isLocalImageSrc(n.src)) out.add(n.src)

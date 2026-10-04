@@ -15,9 +15,9 @@
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
-  background: var(--calque-panel-raised);
-  color: var(--calque-text);
-  border-top: 1px solid var(--calque-border);
+  background: var(--maquio-panel-raised);
+  color: var(--maquio-text);
+  border-top: 1px solid var(--maquio-border);
   font-size: 13px;
   box-sizing: border-box;
 }
@@ -40,11 +40,11 @@
 }
 
 .claude-panel-dot-on {
-  background: var(--calque-success);
+  background: var(--maquio-success);
 }
 
 .claude-panel-dot-off {
-  background: var(--calque-text-faint);
+  background: var(--maquio-text-faint);
 }
 
 .claude-panel-title {
@@ -52,7 +52,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.9px;
-  color: var(--calque-text-faint);
+  color: var(--maquio-text-faint);
 }
 
 .claude-panel-header-spacer {
@@ -61,7 +61,7 @@
 
 .claude-panel-status {
   font-size: 11px;
-  color: var(--calque-text-faint);
+  color: var(--maquio-text-faint);
 }
 
 .claude-panel-body {
@@ -72,7 +72,7 @@
 }
 
 .claude-panel label {
-  color: var(--calque-text-muted);
+  color: var(--maquio-text-muted);
   font-size: 12px;
 }
 
@@ -82,9 +82,9 @@
   box-sizing: border-box;
   width: 100%;
   padding: 9px 10px;
-  background: var(--calque-surface);
-  border: 1px solid var(--calque-border);
-  color: var(--calque-text);
+  background: var(--maquio-surface);
+  border: 1px solid var(--maquio-border);
+  color: var(--maquio-text);
   border-radius: 8px;
   font: inherit;
   font-size: 13px;
@@ -93,15 +93,15 @@
 }
 
 .claude-panel textarea:focus {
-  border-color: var(--calque-accent);
+  border-color: var(--maquio-accent);
 }
 
 .claude-panel button {
   align-self: stretch;
   height: 34px;
-  background: var(--calque-accent);
+  background: var(--maquio-accent);
   border: none;
-  color: var(--calque-chrome-bg);
+  color: var(--maquio-chrome-bg);
   border-radius: 8px;
   font: inherit;
   font-size: 13px;
@@ -111,7 +111,7 @@
 }
 
 .claude-panel button:hover:not(:disabled) {
-  background: var(--calque-accent-hover);
+  background: var(--maquio-accent-hover);
 }
 
 .claude-panel button:disabled {
@@ -130,8 +130,8 @@
   height: auto;
   padding: 6px 10px;
   background: transparent;
-  border: 1px solid var(--calque-border);
-  color: var(--calque-text);
+  border: 1px solid var(--maquio-border);
+  color: var(--maquio-text);
   border-radius: 7px;
   font: inherit;
   font-size: 12.5px;
@@ -140,7 +140,7 @@
 }
 
 .claude-panel .claude-panel-settings-link:hover {
-  border-color: var(--calque-border-strong);
+  border-color: var(--maquio-border-strong);
 }
 
 .claude-panel-alert {
@@ -149,7 +149,7 @@
   background: rgba(229, 120, 107, 0.1);
   border: 1px solid rgba(229, 120, 107, 0.32);
   border-radius: 8px;
-  color: var(--calque-text-soft);
+  color: var(--maquio-text-soft);
   font-size: 12.5px;
   line-height: 1.5;
 }
@@ -165,10 +165,10 @@
   gap: 7px;
   margin: 0;
   padding: 9px 11px;
-  background: var(--calque-surface);
-  border: 1px solid var(--calque-border);
+  background: var(--maquio-surface);
+  border: 1px solid var(--maquio-border);
   border-radius: 8px;
-  color: var(--calque-text-muted);
+  color: var(--maquio-text-muted);
   font-size: 12.5px;
   line-height: 1.5;
 }
@@ -181,7 +181,7 @@
   margin: 0;
   font-size: 12.5px;
   line-height: 1.5;
-  color: var(--calque-text-muted);
+  color: var(--maquio-text-muted);
   word-break: break-word;
 }
 
@@ -211,7 +211,7 @@
 .claude-panel-fold {
   background: transparent;
   border: 0;
-  color: var(--calque-text-faint);
+  color: var(--maquio-text-faint);
   cursor: pointer;
   font-size: 12px;
 }
@@ -222,11 +222,11 @@
   flex-shrink: 0;
 }
 .claude-badge-loading {
-  background: var(--calque-accent);
+  background: var(--maquio-accent);
   animation: claude-pulse 1s ease-in-out infinite;
 }
 .claude-badge-done {
-  background: var(--calque-success);
+  background: var(--maquio-success);
 }
 .claude-badge-error {
   background: #e5534b;
@@ -243,7 +243,7 @@
 
 .claude-panel .claude-panel-fold {
   background: transparent;
-  color: var(--calque-text-faint);
+  color: var(--maquio-text-faint);
   padding: 2px 6px;
   width: auto;
   margin: 0;

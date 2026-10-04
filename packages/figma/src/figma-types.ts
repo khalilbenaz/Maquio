@@ -41,7 +41,7 @@ export type FigmaNode = {
   type: string
   visible?: boolean
   opacity?: number
-  // Degres, comme dans le modele Calque (voir NodeBase.rotation).
+  // Degres, comme dans le modele Maquio (voir NodeBase.rotation).
   rotation?: number
   absoluteBoundingBox?: FigmaRect
   fills?: FigmaPaint[]

@@ -12,7 +12,7 @@
 // voudrait la granularite fine, mais un `cmds.forEach(h.execute)` naif sur
 // ce tableau n'est PAS atomique pour un patch a plusieurs operations (voir
 // apply.ts).
-import type { CalqueDocument, Command } from '@calque/core'
+import type { MaquioDocument, Command } from '@maquio/core'
 import { buildPrompt } from './prompt'
 import { parsePatch } from './patch'
 import type { DocumentPatch } from './patch'
@@ -50,7 +50,7 @@ export class AiService {
   async ask(
     input: {
       instruction: string
-      document: CalqueDocument
+      document: MaquioDocument
       selectionIds: string[]
       pageId: string
     },

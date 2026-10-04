@@ -5,8 +5,8 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  background: var(--calque-chrome-bg);
-  color: var(--calque-text);
+  background: var(--maquio-chrome-bg);
+  color: var(--maquio-text);
   font-size: 13px;
 }
 
@@ -18,16 +18,16 @@
   width: 100%;
   height: 30px;
   padding: 0 10px;
-  border-radius: var(--calque-radius-sm);
-  border: 1px solid var(--calque-border);
-  background: var(--calque-surface);
-  color: var(--calque-text);
+  border-radius: var(--maquio-radius-sm);
+  border: 1px solid var(--maquio-border);
+  background: var(--maquio-surface);
+  color: var(--maquio-text);
   font-size: 13px;
 }
 
 .palette-search input:focus {
   outline: none;
-  border-color: var(--calque-accent);
+  border-color: var(--maquio-accent);
 }
 
 .palette-scroll {
@@ -43,7 +43,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.9px;
-  color: var(--calque-text-faint);
+  color: var(--maquio-text-faint);
 }
 
 .palette-items {
@@ -60,18 +60,18 @@
   min-height: 30px;
   padding: 6px 8px;
   text-align: left;
-  border: 1px solid var(--calque-border);
-  border-radius: var(--calque-radius-sm);
-  background: var(--calque-panel-raised);
-  color: var(--calque-text-soft);
+  border: 1px solid var(--maquio-border);
+  border-radius: var(--maquio-radius-sm);
+  background: var(--maquio-panel-raised);
+  color: var(--maquio-text-soft);
   font-size: 12px;
   line-height: 1.25;
   cursor: grab;
 }
 
 .palette-item:hover {
-  border-color: var(--calque-accent);
-  color: var(--calque-text);
+  border-color: var(--maquio-accent);
+  color: var(--maquio-text);
 }
 
 .palette-item:active {
@@ -80,6 +80,6 @@
 
 .palette-empty {
   margin: 16px 12px;
-  color: var(--calque-text-faint);
+  color: var(--maquio-text-faint);
   line-height: 1.5;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createComponentNode, createContainerNode, createDocument, createScreenNode, DEVICE_PRESETS } from '@calque/core'
-import type { CalqueDocument, Node } from '@calque/core'
+import { createComponentNode, createContainerNode, createDocument, createScreenNode, DEVICE_PRESETS } from '@maquio/core'
+import type { MaquioDocument, Node } from '@maquio/core'
 import { buildInFigma, loadFont } from '../src/builder'
 import type { BuildReport } from '../src/builder'
 import { buildPlan } from '../src/mapping'
@@ -51,12 +51,12 @@ function fakeFigma(opts: { missingFonts?: string[] } = {}) {
 }
 
 const base = { visible: true, locked: false, opacity: 1, rotation: 0 }
-function doc(children: Node[]): CalqueDocument {
+function doc(children: Node[]): MaquioDocument {
   const d = createDocument('P')
   const e1 = { ...createScreenNode('Accueil', DEVICE_PRESETS.iphone15, { x: 0, y: 0, w: 393, h: 852 }, children), id: 'e1' }
   return { ...d, pages: [{ ...d.pages[0]!, nodes: [e1] }] }
 }
-const run = async (document: CalqueDocument, images = {}, opts = {}) => {
+const run = async (document: MaquioDocument, images = {}, opts = {}) => {
   const f = fakeFigma(opts)
   const bundle = { document, images, projectName: 'p', startScreenId: null }
   const out = await buildInFigma(f.figma, buildPlan(bundle), bundle)

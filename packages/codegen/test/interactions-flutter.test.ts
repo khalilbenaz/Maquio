@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { documentSchema } from '@calque/core'
+import { documentSchema } from '@maquio/core'
 import { flutterExporter } from '../src/flutter/flutter'
 import { documentInteractions } from './fixtures/interactions'
 
@@ -81,10 +81,10 @@ describe('Flutter : interactions', () => {
 
 function documentInteractionsSansSpecial() {
   const d = documentInteractions()
-  const strip = (n: import('@calque/core').Node): import('@calque/core').Node => {
+  const strip = (n: import('@maquio/core').Node): import('@maquio/core').Node => {
     const { interactions: _i, ...rest } = n as never as Record<string, unknown>
     void _i
-    const copy = rest as unknown as import('@calque/core').Node
+    const copy = rest as unknown as import('@maquio/core').Node
     return copy.type === 'frame' ? { ...copy, children: copy.children.map(strip) } : copy
   }
   return { ...d, pages: [{ ...d.pages[0]!, nodes: d.pages[0]!.nodes.map(strip) }] }

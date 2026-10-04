@@ -18,8 +18,8 @@ import {
   pathToNode,
   reparentNodeCommand,
   updateNodeCommand,
-} from '@calque/core'
-import type { FrameNode, Node as CalqueNode } from '@calque/core'
+} from '@maquio/core'
+import type { FrameNode, Node as MaquioNode } from '@maquio/core'
 import { useEditorStore } from '../state/editorStore'
 import { pageNodesOf } from '../canvas/useDragInteraction'
 import { nextScreenPosition } from '../canvas/screenLayout'
@@ -31,15 +31,15 @@ import './LayersPanel.css'
 // de passer par dataTransfer pour transporter l'information.
 let draggedNodeId: string | null = null
 
-function isSelfOrDescendant(nodes: CalqueNode[], ancestorCandidateId: string, id: string): boolean {
+function isSelfOrDescendant(nodes: MaquioNode[], ancestorCandidateId: string, id: string): boolean {
   if (ancestorCandidateId === id) return true
   return pathToNode(nodes, id).includes(ancestorCandidateId)
 }
 
 type RowProps = {
-  node: CalqueNode
+  node: MaquioNode
   depth: number
-  nodes: CalqueNode[]
+  nodes: MaquioNode[]
   pageId: string
   collapsed: Set<string>
   onToggleCollapse: (id: string) => void

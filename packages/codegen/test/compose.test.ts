@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import type { CalqueDocument } from '@calque/core'
+import type { MaquioDocument } from '@maquio/core'
 import { composeExporter } from '../src/compose/compose'
 import { loginScreenDocument } from './fixtures/login-screen'
 
@@ -34,7 +34,7 @@ describe('composeExporter', () => {
   const baseDevice = loginScreenDocument.pages[0]!.device
 
   it('avertit pour un noeud non couvert au lieu de l ignorer en silence', () => {
-    const doc: CalqueDocument = {
+    const doc: MaquioDocument = {
       version: loginScreenDocument.version,
       id: 'doc-with-line',
       name: 'WithLine',
@@ -64,7 +64,7 @@ describe('composeExporter', () => {
     expect(out.warnings).toContain('line non pris en charge par l export compose (apercu)')
   })
 
-  function docWithNodes(nodes: CalqueDocument['pages'][number]['nodes']): CalqueDocument {
+  function docWithNodes(nodes: MaquioDocument['pages'][number]['nodes']): MaquioDocument {
     return {
       version: loginScreenDocument.version,
       id: 'doc-sample',

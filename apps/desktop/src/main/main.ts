@@ -12,10 +12,11 @@
 import { access, constants, copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { app, BrowserWindow, ipcMain, Menu, safeStorage } from 'electron'
-import { AiService, ProcessClaudeRunner } from '@calque/ai'
-import { FigmaClient } from '@calque/figma'
-import { listExporters } from '@calque/codegen'
+import { AiService, ProcessClaudeRunner } from '@maquio/ai'
+import { FigmaClient } from '@maquio/figma'
+import { listExporters } from '@maquio/codegen'
 import { cheminIcone, creerFenetrePrincipale } from './window'
+import { isDocumentPath } from '../shared/documentFile'
 import { isTrustedSender, UntrustedSenderError } from './security'
 import { nodeSpawn } from './adapters/nodeSpawn'
 import { nodeFetch } from './adapters/nodeFetch'
@@ -29,6 +30,7 @@ import {
   chooseDirectory,
   chooseFigmaJsonFile,
   chooseImageFile,
+  chooseLegacyExtension,
   chooseOpenDocumentPath,
   chooseSaveDocumentPath,
   confirmOverwrite,
@@ -89,7 +91,7 @@ let magasinReglagesClaude: ReturnType<typeof createClaudeSettingsStore> | undefi
 // `which` reellement injecte dans ProcessClaudeRunner : donne la priorite
 // au chemin personnalise des reglages quand il pointe vers un executable
 // valide, retombe sur la recherche dans le PATH sinon (decision du brief :
-// @calque/ai ne connait jamais la notion de reglages, toute la composition
+// @maquio/ai ne connait jamais la notion de reglages, toute la composition
 // vit ici). resolveClaudeStatus() (utilise par les gestionnaires de
 // reglages ci-dessous) appelle ce MEME `which` : l'etat affiche dans les
 // reglages est donc exactement celui qui determine ce que `claude -p ...`
@@ -121,8 +123,8 @@ const lanceurClaude = new ProcessClaudeRunner({
   which: whichClaude,
   workingDirectory: createNeutralClaudeWorkingDirectory,
   // Delai personnalisable (tests de bout en bout) ; absent ou invalide : 2 minutes.
-  ...(Number.isFinite(Number(process.env['CALQUE_CLAUDE_TIMEOUT_MS'])) && Number(process.env['CALQUE_CLAUDE_TIMEOUT_MS']) > 0
-    ? { timeoutMs: Number(process.env['CALQUE_CLAUDE_TIMEOUT_MS']) }
+  ...(Number.isFinite(Number(process.env['MAQUIO_CLAUDE_TIMEOUT_MS'])) && Number(process.env['MAQUIO_CLAUDE_TIMEOUT_MS']) > 0
+    ? { timeoutMs: Number(process.env['MAQUIO_CLAUDE_TIMEOUT_MS']) }
     : {}),
 })
 const serviceClaude = new AiService(lanceurClaude)
@@ -173,6 +175,16 @@ function enregistrerLesGestionnaires(): void {
     }).openDocument()
   })
 
+  handle('openDocumentAt', (event, path: string) => {
+    const win = fenetreDepuisEvenement(event)
+    return createDocumentHandler({
+      readFile: (p) => readFile(p, 'utf8'),
+      writeFile: (p, contents) => writeFile(p, contents, 'utf8'),
+      chooseOpenPath: chooseOpenDocumentPath(win),
+      chooseSavePath: chooseSaveDocumentPath(win),
+    }).openDocumentAt(path)
+  })
+
   handle('saveDocument', (event, input) => {
     const win = fenetreDepuisEvenement(event)
     return createDocumentHandler({
@@ -180,6 +192,8 @@ function enregistrerLesGestionnaires(): void {
       writeFile: (p, contents) => writeFile(p, contents, 'utf8'),
       chooseOpenPath: chooseOpenDocumentPath(win),
       chooseSavePath: chooseSaveDocumentPath(win),
+      chooseLegacyExtension: chooseLegacyExtension(win),
+      pathExists,
       copyImageFile: (source, dest) => copyFile(source, dest),
       ensureDir: async (dirPath) => {
         await mkdir(dirPath, { recursive: true })
@@ -264,13 +278,13 @@ function construireLeMenu(): Menu {
   return Menu.buildFromTemplate([
     // Menu application standard (finition v1, Critical) : sur macOS, le
     // system (Cocoa/NSMenu) affiche TOUJOURS le tout premier menu de la
-    // barre avec le nom du processus ("Calque"), quel que soit le `label`
+    // barre avec le nom du processus ("Maquio"), quel que soit le `label`
     // qu'on lui donne -- c'est ce qui avalait silencieusement le menu
     // "Fichier" ci-dessous quand il occupait la premiere position : ses
     // elements (Nouveau/Ouvrir/Enregistrer/Enregistrer sous/Quitter)
     // fonctionnaient bel et bien, mais le menu qui les contenait
-    // s'affichait sous le nom "Calque", jamais sous "Fichier" -- d'ou le
-    // defaut signale ("la barre de menus n'a que Calque et Édition").
+    // s'affichait sous le nom "Maquio", jamais sous "Fichier" -- d'ou le
+    // defaut signale ("la barre de menus n'a que Maquio et Édition").
     // `role: 'appMenu'` cede cette premiere position au menu standard
     // (À propos, Services, Masquer, Quitter...), deja localise par le
     // systeme, et laisse "Fichier" apparaitre normalement en deuxieme
@@ -282,22 +296,22 @@ function construireLeMenu(): Menu {
         {
           label: 'Nouveau',
           accelerator: 'CmdOrCtrl+N',
-          click: () => envoyerAuxFenetres('calque:menu-new'),
+          click: () => envoyerAuxFenetres('maquio:menu-new'),
         },
         {
           label: 'Ouvrir...',
           accelerator: 'CmdOrCtrl+O',
-          click: () => envoyerAuxFenetres('calque:menu-open'),
+          click: () => envoyerAuxFenetres('maquio:menu-open'),
         },
         {
           label: 'Enregistrer',
           accelerator: 'CmdOrCtrl+S',
-          click: () => envoyerAuxFenetres('calque:menu-save'),
+          click: () => envoyerAuxFenetres('maquio:menu-save'),
         },
         {
           label: 'Enregistrer sous...',
           accelerator: 'CmdOrCtrl+Shift+S',
-          click: () => envoyerAuxFenetres('calque:menu-save-as'),
+          click: () => envoyerAuxFenetres('maquio:menu-save-as'),
         },
       ],
     },
@@ -316,8 +330,32 @@ function construireLeMenu(): Menu {
   ])
 }
 
+// Ouverture demandee par le systeme (double-clic sur un .maquio / .calque dans
+// le Finder, `open -a Maquio fichier`) : memorisee jusqu'a ce que la fenetre
+// soit prete, puis envoyee au renderer.
+let cheminsEnAttente: string[] = []
+function demanderOuverture(chemin: string): void {
+  if (!isDocumentPath(chemin)) return
+  const fenetre = BrowserWindow.getAllWindows()[0]
+  if (fenetre && !fenetre.webContents.isLoading()) fenetre.webContents.send('maquio:open-path', chemin)
+  else cheminsEnAttente.push(chemin)
+}
+app.on('open-file', (event, chemin) => {
+  event.preventDefault()
+  demanderOuverture(chemin)
+})
+
 async function demarrer(): Promise<void> {
+  app.setName('Maquio')
+  app.setAboutPanelOptions({
+    applicationName: 'Maquio',
+    applicationVersion: app.getVersion(),
+    credits: 'De la maquette au code natif.',
+    iconPath: cheminIcone(),
+  })
   await app.whenReady()
+  // Windows / Linux : fichier passe en argument (`maquio mon.maquio`).
+  for (const argument of process.argv.slice(1)) demanderOuverture(argument)
 
   magasinSecrets = createSecretStore({
     safeStorage,
@@ -345,7 +383,11 @@ async function demarrer(): Promise<void> {
 
   enregistrerLesGestionnaires()
   Menu.setApplicationMenu(construireLeMenu())
-  creerFenetrePrincipale()
+  const fenetre = creerFenetrePrincipale()
+  fenetre.webContents.on('did-finish-load', () => {
+    for (const chemin of cheminsEnAttente) fenetre.webContents.send('maquio:open-path', chemin)
+    cheminsEnAttente = []
+  })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

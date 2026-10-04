@@ -32,7 +32,7 @@ import {
   setContainerCommand,
 } from './edits'
 import { History } from './history'
-import type { CalqueDocument, DevicePreset, FrameNode, Node, TextNode } from '../model/types'
+import type { MaquioDocument, DevicePreset, FrameNode, Node, TextNode } from '../model/types'
 
 function rect(id: string, x: number, y: number, w = 10, h = 10): Node {
   return {
@@ -42,7 +42,7 @@ function rect(id: string, x: number, y: number, w = 10, h = 10): Node {
   }
 }
 
-function baseDoc(): { doc: CalqueDocument; pageId: string } {
+function baseDoc(): { doc: MaquioDocument; pageId: string } {
   const doc = createDocument('Test')
   return { doc, pageId: doc.pages[0]!.id }
 }
@@ -526,7 +526,7 @@ describe('setLinkCommand / clearLinkCommand (v2, addendum navigation §3.2, §5)
   // leur `name`) sur la meme page, plus un bouton ('bouton') enfant de
   // 'ecranA' -- de quoi tester un lien pose depuis un noeud imbrique vers un
   // AUTRE ecran de la page.
-  function docAvecDeuxEcrans(): { doc: CalqueDocument; pageId: string; ecranA: FrameNode; ecranB: FrameNode } {
+  function docAvecDeuxEcrans(): { doc: MaquioDocument; pageId: string; ecranA: FrameNode; ecranB: FrameNode } {
     const { doc, pageId } = baseDoc()
     const bouton = rect('bouton', 10, 10)
     const ecranA = createScreenNode('ecranA', device, { x: 0, y: 0, w: device.width, h: device.height }, [bouton])
@@ -606,7 +606,7 @@ describe('deleteNodeCommand sur un ecran : cascade de liens (v2, addendum naviga
   // imbriques dans 'source', un depuis un bouton imbrique dans 'autre' --
   // de quoi verifier que la cascade retrouve les liens ou qu'ils vivent,
   // pas seulement au premier niveau de la page.
-  function docAvecTroisLiens(): { doc: CalqueDocument; pageId: string } {
+  function docAvecTroisLiens(): { doc: MaquioDocument; pageId: string } {
     const { doc, pageId } = baseDoc()
     const btn1 = rect('btn1', 0, 0)
     const btn2 = rect('btn2', 60, 0)
@@ -681,7 +681,7 @@ describe('deleteNodeCommand sur un ecran : cascade de liens (v2, addendum naviga
 // document, pour que le canevas affiche exactement ce que les exportateurs
 // generent -- et que l'annulation les restaure en un seul geste.
 describe('relayoutCommand / withAutoLayout', () => {
-  function rowDoc(): { doc: CalqueDocument; pageId: string; rowId: string } {
+  function rowDoc(): { doc: MaquioDocument; pageId: string; rowId: string } {
     const { doc, pageId } = baseDoc()
     const row: FrameNode = {
       id: 'row', name: 'row', type: 'frame', frame: { x: 0, y: 0, w: 300, h: 100 },
@@ -726,7 +726,7 @@ describe('relayoutCommand / withAutoLayout', () => {
 
 
 describe('setContainerCommand (v3, conteneurs semantiques)', () => {
-  function frameDoc(): { doc: CalqueDocument; pageId: string } {
+  function frameDoc(): { doc: MaquioDocument; pageId: string } {
     const { doc, pageId } = baseDoc()
     const frame: FrameNode = {
       id: 'f', name: 'f', type: 'frame', frame: { x: 0, y: 0, w: 100, h: 100 },

@@ -1,13 +1,14 @@
 // Pont preload (Tache 14) : seul endroit ou le renderer et Electron se
-// touchent. L'objet expose est type par CalqueApi (toute cle manquante ou
+// touchent. L'objet expose est type par MaquioApi (toute cle manquante ou
 // en trop est une erreur de compilation), et une verification a
 // l'execution recoupe ces cles avec API_CHANNELS, la source de verite
 // unique des noms de canaux (decision 3 du brief).
-import { contextBridge, ipcRenderer } from 'electron'
-import { API_CHANNELS, type CalqueApi } from '../shared/api'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import { API_CHANNELS, type MaquioApi } from '../shared/api'
 
-const api: CalqueApi = {
+const api: MaquioApi = {
   openDocument: () => ipcRenderer.invoke('openDocument'),
+  openDocumentAt: (path) => ipcRenderer.invoke('openDocumentAt', path),
   saveDocument: (input) => ipcRenderer.invoke('saveDocument', input),
   importFigma: (input) => ipcRenderer.invoke('importFigma', input),
   exportProject: (input) => ipcRenderer.invoke('exportProject', input),
@@ -29,7 +30,7 @@ if (!memesCles) {
   throw new Error('Le preload expose des canaux differents de API_CHANNELS')
 }
 
-contextBridge.exposeInMainWorld('calque', api)
+contextBridge.exposeInMainWorld('maquio', api)
 
 // Second pont, distinct de `api` ci-dessus (Tache 17, decision 10 du
 // brief) : le menu natif "Fichier" (Ouvrir/Enregistrer/Enregistrer sous)
@@ -38,32 +39,40 @@ contextBridge.exposeInMainWorld('calque', api)
 // ipcMain.handle. Reste hors de `api`/API_CHANNELS a dessein : ce ne sont
 // pas des canaux invoke/handle, et les meler aurait fait echouer la
 // verification de coherence ci-dessus.
-contextBridge.exposeInMainWorld('calqueMenu', {
+contextBridge.exposeInMainWorld('maquioMenu', {
+  // Chemin reel d'un fichier depose sur la fenetre (le renderer n'a plus acces a `File.path`).
+  pathForFile: (file: File) => webUtils.getPathForFile(file),
+  // Ouverture demandee par le systeme (double-clic dans le Finder, `open -a`).
+  onOpenPathRequested: (callback: (path: string) => void) => {
+    const listener = (_event: unknown, path: string) => callback(path)
+    ipcRenderer.on('maquio:open-path', listener)
+    return () => ipcRenderer.removeListener('maquio:open-path', listener)
+  },
   // "Nouveau" (finition v1) : aucune logique metier cote main (contrairement
   // a Ouvrir/Enregistrer, qui touchent le disque) -- un document vierge se
   // construit entierement dans le renderer via createDocument() de
-  // @calque/core (deja importable la-bas). Ce canal reste donc un simple
+  // @maquio/core (deja importable la-bas). Ce canal reste donc un simple
   // signal, du meme type que les trois suivants, plutot que d'elargir
-  // CalqueApi/API_CHANNELS avec un canal invoke qui n'aurait rien a faire
+  // MaquioApi/API_CHANNELS avec un canal invoke qui n'aurait rien a faire
   // cote main.
   onNewRequested: (callback: () => void) => {
     const listener = () => callback()
-    ipcRenderer.on('calque:menu-new', listener)
-    return () => ipcRenderer.removeListener('calque:menu-new', listener)
+    ipcRenderer.on('maquio:menu-new', listener)
+    return () => ipcRenderer.removeListener('maquio:menu-new', listener)
   },
   onOpenRequested: (callback: () => void) => {
     const listener = () => callback()
-    ipcRenderer.on('calque:menu-open', listener)
-    return () => ipcRenderer.removeListener('calque:menu-open', listener)
+    ipcRenderer.on('maquio:menu-open', listener)
+    return () => ipcRenderer.removeListener('maquio:menu-open', listener)
   },
   onSaveRequested: (callback: () => void) => {
     const listener = () => callback()
-    ipcRenderer.on('calque:menu-save', listener)
-    return () => ipcRenderer.removeListener('calque:menu-save', listener)
+    ipcRenderer.on('maquio:menu-save', listener)
+    return () => ipcRenderer.removeListener('maquio:menu-save', listener)
   },
   onSaveAsRequested: (callback: () => void) => {
     const listener = () => callback()
-    ipcRenderer.on('calque:menu-save-as', listener)
-    return () => ipcRenderer.removeListener('calque:menu-save-as', listener)
+    ipcRenderer.on('maquio:menu-save-as', listener)
+    return () => ipcRenderer.removeListener('maquio:menu-save-as', listener)
   },
 })

@@ -1,4 +1,4 @@
-// Theme genere depuis les tokens Calque design system.
+// Theme genere depuis les tokens Maquio design system.
 const colors = {
   primary: '#3366e6ff',
   white: '#ffffffff',

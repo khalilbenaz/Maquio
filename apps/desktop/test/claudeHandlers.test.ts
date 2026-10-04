@@ -1,7 +1,7 @@
 // Decision 4 et 7 du brief : askClaude traduit les erreurs nommees en
 // francais (sans jamais laisser fuiter le prompt) et rend le document
 // deja patche (documentJson) en plus du resume (patchJson), calcules via
-// la commande composite atomique de @calque/ai -- jamais une Command
+// la commande composite atomique de @maquio/ai -- jamais une Command
 // elle-meme (qui ne traverserait pas l'IPC).
 //
 // Reparation du pont : deux blocs de tests ajoutes -- l'annulation reelle
@@ -11,9 +11,9 @@
 // a plat, x/y/width/height/fontSize hors de leurs objets imbriques -- voir
 // le rapport de diagnostic).
 import { describe, expect, it, vi } from 'vitest'
-import { AiService, FakeClaudeRunner } from '@calque/ai'
-import type { ClaudeRunner } from '@calque/ai'
-import { createDocument, findNode, parseDocument, serializeDocument } from '@calque/core'
+import { AiService, FakeClaudeRunner } from '@maquio/ai'
+import type { ClaudeRunner } from '@maquio/ai'
+import { createDocument, findNode, parseDocument, serializeDocument } from '@maquio/core'
 import { ClaudeRequestTracker, createClaudeCancelHandler, createClaudeHandler } from '../src/main/handlers/claudeHandlers'
 import { documentJsonDeFormeInvalide } from './helpers/documentJsonInvalide'
 

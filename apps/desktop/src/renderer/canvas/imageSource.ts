@@ -11,7 +11,7 @@
 //   enregistré, voir documentHandlers.ts) -> converti en URL `file://` ;
 // - un chemin RELATIF (document déjà enregistré : l'image a été copiée
 //   dans `<nom-du-document>.ressources/` à l'enregistrement) -> résolu
-//   par rapport à ce dossier, qui vit à côté du fichier .calque
+//   par rapport à ce dossier, qui vit à côté du fichier .maquio
 //   (`documentPath`) ; sans `documentPath` connu, ce cas ne peut pas être
 //   résolu (aucune URL).
 //
@@ -34,13 +34,13 @@ function toFileUrl(absolutePath: string): string {
 }
 
 // Répertoire des ressources d'un document ('<dossier>/<nom sans
-// extension>.ressources'), à partir du chemin du fichier .calque.
+// extension>.ressources'), à partir du chemin du fichier .maquio.
 function resourcesDirFor(documentPath: string): string {
   const normalise = documentPath.replace(/\\/g, '/')
   const dernierSlash = normalise.lastIndexOf('/')
   const dossier = dernierSlash === -1 ? '' : normalise.slice(0, dernierSlash)
   const nomFichier = dernierSlash === -1 ? normalise : normalise.slice(dernierSlash + 1)
-  const nomSansExtension = nomFichier.replace(/\.calque$/, '')
+  const nomSansExtension = nomFichier.replace(/\.(maquio|calque)$/i, '')
   return `${dossier}/${nomSansExtension}.ressources`
 }
 

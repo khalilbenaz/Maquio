@@ -1,7 +1,7 @@
 // Placement des ecrans sur le plan de travail (v2, addendum navigation §4).
 // Fonction pure, testee directement sans rendu, dans le meme esprit que
 // screenToPage/snapThreshold de useDragInteraction.ts.
-import type { FrameNode } from '@calque/core'
+import type { FrameNode } from '@maquio/core'
 
 // Gouttiere fixe entre deux ecrans (§4 : « un bouton "Nouvel écran" [...]
 // le place à droite du dernier, gouttière fixe »). Unite : points de page

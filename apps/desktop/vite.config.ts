@@ -5,7 +5,7 @@ import { buildContentSecurityPolicy } from './src/shared/csp'
 // Mode dev uniquement : la CSP stricte d'index.html bloquerait le preambule
 // inline de React Refresh et la websocket HMR de Vite.
 const cspDev = {
-  name: 'calque-csp-dev',
+  name: 'maquio-csp-dev',
   apply: 'serve' as const,
   transformIndexHtml: (html: string) =>
     html.replace(

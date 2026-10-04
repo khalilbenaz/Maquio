@@ -1,5 +1,5 @@
 // Historique de commandes annulables (Tache 5) : seul chemin de mutation
-// d'un CalqueDocument dans tout le projet (canvas, inspecteur et patchs de
+// d'un MaquioDocument dans tout le projet (canvas, inspecteur et patchs de
 // Claude Code passeront tous par execute()).
 //
 // Chaque entree de pile associe le libelle de la commande executee a la
@@ -10,20 +10,20 @@
 // d'appliquer inverse, et symetriquement pour redo(). Cela evite de coder
 // deux fois la logique d'annulation/retablissement.
 import type { Command } from './command'
-import type { CalqueDocument } from '../model/types'
+import type { MaquioDocument } from '../model/types'
 
 type StackEntry = { label: string; command: Command }
 
 export class History {
-  private current: CalqueDocument
+  private current: MaquioDocument
   private undoStack: StackEntry[] = []
   private redoStack: StackEntry[] = []
 
-  constructor(doc: CalqueDocument) {
+  constructor(doc: MaquioDocument) {
     this.current = doc
   }
 
-  get document(): CalqueDocument {
+  get document(): MaquioDocument {
     return this.current
   }
 

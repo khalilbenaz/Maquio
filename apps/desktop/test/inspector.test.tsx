@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createDocument, createScreenNode, findNode, tapNavigation } from '@calque/core'
-import type { CalqueDocument, DevicePreset, FrameNode, ImageNode, RectNode } from '@calque/core'
+import { createDocument, createScreenNode, findNode, tapNavigation } from '@maquio/core'
+import type { MaquioDocument, DevicePreset, FrameNode, ImageNode, RectNode } from '@maquio/core'
 import { InspectorPanel } from '../src/renderer/panels/InspectorPanel'
 import { useEditorStore } from '../src/renderer/state/editorStore'
 import { documentDeTest } from './helpers/documentDeTest'
@@ -343,7 +343,7 @@ describe('InspectorPanel', () => {
 describe('InspectorPanel - interactions (liens entre ecrans)', () => {
   const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
 
-  function documentAvecDeuxEcrans(): { doc: CalqueDocument; ecranA: FrameNode; ecranB: FrameNode } {
+  function documentAvecDeuxEcrans(): { doc: MaquioDocument; ecranA: FrameNode; ecranB: FrameNode } {
     const doc = createDocument('Document de test')
     const bouton: RectNode = {
       id: 'bouton',

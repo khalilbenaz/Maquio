@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { COMPONENT_KINDS, CONTAINER_KINDS, documentSchema, serializeDocument, parseDocument } from '@calque/core'
+import { COMPONENT_KINDS, CONTAINER_KINDS, documentSchema, serializeDocument, parseDocument } from '@maquio/core'
 import { documentExempleComplet, kindsPresents } from './fixtures/exemple-complet'
 
 describe('projet d exemple « tous les composants »', () => {
@@ -24,9 +24,9 @@ describe('projet d exemple « tous les composants »', () => {
 })
 
 describe('fichier d exemple livre', () => {
-  // exemples/tous-les-composants.calque est le document ci-dessus, serialise.
+  // exemples/tous-les-composants.maquio est le document ci-dessus, serialise.
   // Mise a jour : UPDATE_EXEMPLE=1 npx vitest run test/integration/exemple-complet.test.ts
-  const chemin = join(__dirname, '..', '..', 'exemples', 'tous-les-composants.calque')
+  const chemin = join(__dirname, '..', '..', 'exemples', 'tous-les-composants.maquio')
   const attendu = serializeDocument(documentExempleComplet())
 
   it('est a jour et s ouvre (migration comprise)', () => {

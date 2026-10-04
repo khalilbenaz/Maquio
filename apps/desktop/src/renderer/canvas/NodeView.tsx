@@ -8,7 +8,7 @@
 // plus, puisqu'ils sont visuellement et logiquement a l'interieur).
 import { useEffect, useRef } from 'react'
 import type { CSSProperties, HTMLAttributes } from 'react'
-import type { Color, ImageNode, Node as CalqueNode, Rect, Stroke, TextNode } from '@calque/core'
+import type { Color, ImageNode, Node as MaquioNode, Rect, Stroke, TextNode } from '@maquio/core'
 import { useEditorStore } from '../state/editorStore'
 import { resolvePreviewAbsoluteFrame, useNodeInteraction } from './useDragInteraction'
 import { resolveImageSrc } from './imageSource'
@@ -17,15 +17,15 @@ import { inlineTextCommand, inlineTextOf, isInlineEditable } from './inlineText'
 import { ContainerDecor, containerShadow } from './ContainerView'
 
 type Props = {
-  node: CalqueNode
-  nodes: CalqueNode[]
+  node: MaquioNode
+  nodes: MaquioNode[]
 }
 
 export function colorToCss(c: Color): string {
   return `rgba(${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}, ${c.a})`
 }
 
-function backgroundOf(node: CalqueNode): string | undefined {
+function backgroundOf(node: MaquioNode): string | undefined {
   if (node.type === 'frame' || node.type === 'rect' || node.type === 'ellipse') {
     const fill = node.fills.find((f) => f.type === 'solid')
     if (fill && fill.type === 'solid') return colorToCss(fill.color)
@@ -82,7 +82,7 @@ function ImageContent({ node }: { node: ImageNode }) {
 
 // Trait d'un noeud : bordure interieure (les noeuds du canevas sont des
 // elements freres a plat, une bordure ne decale donc aucun enfant).
-function strokeOf(node: CalqueNode): Stroke | undefined {
+function strokeOf(node: MaquioNode): Stroke | undefined {
   if ((node.type === 'frame' || node.type === 'rect' || node.type === 'ellipse') && node.strokes.length > 0) return node.strokes[0]
   return undefined
 }
@@ -102,7 +102,7 @@ export function textCss(node: TextNode): CSSProperties {
   }
 }
 
-function LineContent({ node }: { node: Extract<CalqueNode, { type: 'line' }> }) {
+function LineContent({ node }: { node: Extract<MaquioNode, { type: 'line' }> }) {
   return (
     <svg width="100%" height="100%" viewBox={`0 0 ${node.frame.w} ${node.frame.h}`} preserveAspectRatio="none" style={{ overflow: 'visible', pointerEvents: 'none' }}>
       <line x1={0} y1={0} x2={node.frame.w} y2={node.frame.h} stroke={colorToCss(node.stroke.color)} strokeWidth={node.stroke.width} />
@@ -112,7 +112,7 @@ function LineContent({ node }: { node: Extract<CalqueNode, { type: 'line' }> }) 
 
 // Editeur en ligne (double-clic) : Entree valide, Maj+Entree saute une
 // ligne, Echap annule, perdre le focus valide.
-function InlineEditor({ node }: { node: CalqueNode }) {
+function InlineEditor({ node }: { node: MaquioNode }) {
   const ref = useRef<HTMLTextAreaElement>(null)
   const done = useRef(false)
   useEffect(() => {
@@ -158,7 +158,7 @@ function InlineEditor({ node }: { node: CalqueNode }) {
         width: '100%',
         height: '100%',
         resize: 'none',
-        border: '1px solid var(--calque-accent, #e2714a)',
+        border: '1px solid var(--maquio-accent, #e2714a)',
         outline: 'none',
         background: 'rgba(255,255,255,0.92)',
         color: node.type === 'text' ? colorToCss(node.style.color) : '#111',
@@ -181,7 +181,7 @@ export function NodeVisual({
   extraStyle,
   ...rest
 }: {
-  node: CalqueNode
+  node: MaquioNode
   abs: Rect
   testId: string
   editing?: boolean

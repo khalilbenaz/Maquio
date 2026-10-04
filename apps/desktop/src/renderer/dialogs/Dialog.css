@@ -22,9 +22,9 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  background: var(--calque-chrome-bg);
-  color: var(--calque-text);
-  border: 1px solid var(--calque-border-strong);
+  background: var(--maquio-chrome-bg);
+  color: var(--maquio-text);
+  border: 1px solid var(--maquio-border-strong);
   border-radius: 14px;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.65);
   overflow: hidden;
@@ -40,16 +40,16 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  border-bottom: 1px solid var(--calque-border);
+  border-bottom: 1px solid var(--maquio-border);
   flex-shrink: 0;
 }
 
 .dialog-title {
   margin: 0;
-  font-family: var(--calque-font-display);
+  font-family: var(--maquio-font-display);
   font-size: 23px;
   font-weight: 400;
-  color: var(--calque-text);
+  color: var(--maquio-text);
 }
 
 .dialog-header-spacer {
@@ -63,16 +63,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--calque-text-muted);
+  color: var(--maquio-text-muted);
   background: transparent;
-  border: 1px solid var(--calque-border);
+  border: 1px solid var(--maquio-border);
   border-radius: 7px;
   cursor: pointer;
 }
 
 .dialog-close:hover {
-  color: var(--calque-text);
-  border-color: var(--calque-border-strong);
+  color: var(--maquio-text);
+  border-color: var(--maquio-border-strong);
 }
 
 .dialog-body {
@@ -94,19 +94,19 @@
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--calque-text);
+  color: var(--maquio-text);
 }
 
 .dialog-divider {
   height: 1px;
-  background: var(--calque-border);
+  background: var(--maquio-border);
   border: none;
   margin: 0;
 }
 
 .dialog-field-label {
   font-size: 12.5px;
-  color: var(--calque-text-muted);
+  color: var(--maquio-text-muted);
 }
 
 .dialog-input {
@@ -116,15 +116,15 @@
   padding: 0 11px;
   font: inherit;
   font-size: 13px;
-  color: var(--calque-text);
-  background: var(--calque-surface);
-  border: 1px solid var(--calque-border);
+  color: var(--maquio-text);
+  background: var(--maquio-surface);
+  border: 1px solid var(--maquio-border);
   border-radius: 8px;
   outline: none;
 }
 
 .dialog-input:focus {
-  border-color: var(--calque-accent);
+  border-color: var(--maquio-accent);
 }
 
 .dialog-input:disabled {
@@ -135,7 +135,7 @@
   margin: 0;
   font-size: 12px;
   line-height: 1.55;
-  color: var(--calque-text-faint);
+  color: var(--maquio-text-faint);
 }
 
 .dialog-actions {
@@ -157,23 +157,23 @@
 
 .dialog-button-primary {
   font-weight: 600;
-  color: var(--calque-chrome-bg);
-  background: var(--calque-accent);
+  color: var(--maquio-chrome-bg);
+  background: var(--maquio-accent);
   border: none;
 }
 
 .dialog-button-primary:hover:not(:disabled) {
-  background: var(--calque-accent-hover);
+  background: var(--maquio-accent-hover);
 }
 
 .dialog-button-secondary {
-  color: var(--calque-text);
+  color: var(--maquio-text);
   background: transparent;
-  border: 1px solid var(--calque-border);
+  border: 1px solid var(--maquio-border);
 }
 
 .dialog-button-secondary:hover:not(:disabled) {
-  border-color: var(--calque-border-strong);
+  border-color: var(--maquio-border-strong);
 }
 
 .dialog-button:disabled {
@@ -187,13 +187,13 @@
   gap: 6px;
   padding: 2px 9px;
   font-size: 11.5px;
-  color: var(--calque-success);
+  color: var(--maquio-success);
   background: rgba(111, 191, 139, 0.12);
   border-radius: 999px;
 }
 
 .dialog-status-badge-off {
-  color: var(--calque-text-faint);
+  color: var(--maquio-text-faint);
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -210,7 +210,7 @@
   background: rgba(229, 120, 107, 0.1);
   border: 1px solid rgba(229, 120, 107, 0.32);
   border-radius: 8px;
-  color: var(--calque-text-soft);
+  color: var(--maquio-text-soft);
   font-size: 12.5px;
   line-height: 1.5;
 }
@@ -219,11 +219,11 @@
   margin: 0;
   font-size: 12px;
   line-height: 1.5;
-  color: var(--calque-text-faint);
+  color: var(--maquio-text-faint);
 }
 
 .dialog-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
-  color: var(--calque-text-soft);
+  color: var(--maquio-text-soft);
 }

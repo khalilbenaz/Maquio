@@ -2,15 +2,15 @@
 // l'element soit depose sur le canevas ou ajoute par un clic dans la palette.
 // Une seule commande (donc un seul « annuler »), suivie de la selection du
 // nouveau noeud.
-import { absoluteFrame, createNodeCommand, findNode } from '@calque/core'
-import type { PaletteItem } from '@calque/core'
+import { absoluteFrame, createNodeCommand, findNode } from '@maquio/core'
+import type { PaletteItem } from '@maquio/core'
 import { useEditorStore } from '../state/editorStore'
 import { placePaletteItem } from './dropPlacement'
 import { pageNodesOf } from './useDragInteraction'
 
 // Type MIME porte par le glisser-deposer : permet au canevas de distinguer un
 // element de palette de tout autre depot (fichier, texte).
-export const PALETTE_MIME = 'application/x-calque-palette'
+export const PALETTE_MIME = 'application/x-maquio-palette'
 
 // Insere `item` au point de PAGE donne ; rend l'identifiant du noeud cree.
 export function insertPaletteItemAt(item: PaletteItem, point: { x: number; y: number }): string {

@@ -10,7 +10,7 @@ import { z } from 'zod'
 import { interactionSchema } from './interactions'
 import { COMPONENT_KINDS, COMPONENT_PROPS_SCHEMAS, containerSpecSchema } from '../components/props'
 import type {
-  CalqueDocument,
+  MaquioDocument,
   Color,
   DesignTokens,
   DevicePreset,
@@ -32,7 +32,7 @@ import type {
 
 // w/h bornes a 0..Infinity : une dimension nulle est un etat transitoire
 // legitime (debut de trace d'une forme au canvas), mais une dimension
-// negative n'a de sens pour aucun consommateur du modele (fichier .calque,
+// negative n'a de sens pour aucun consommateur du modele (fichier .maquio,
 // generateurs de code par plateforme, patchs de Claude Code) et doit etre
 // rejetee ici, a la seule frontiere que ces consommateurs traversent tous.
 const rectSchema: z.ZodType<Rect> = z
@@ -365,7 +365,7 @@ const designTokensSchema: z.ZodType<DesignTokens> = z
   })
   .strict()
 
-export const documentSchema: z.ZodType<CalqueDocument> = z
+export const documentSchema: z.ZodType<MaquioDocument> = z
   .object({
     version: z.number(),
     id: z.string(),

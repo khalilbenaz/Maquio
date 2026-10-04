@@ -1,11 +1,11 @@
 // Palette de composants mobiles : recherche, familles, glisser-deposer vers
 // le canevas (un clic ajoute aussi l'element a l'ecran actif -- accessible au
-// clavier et sans souris). Les entrees viennent du catalogue de @calque/core,
+// clavier et sans souris). Les entrees viennent du catalogue de @maquio/core,
 // source unique partagee avec l'inspecteur et les exportateurs.
 import { useState } from 'react'
 import type { DragEvent } from 'react'
-import { PALETTE_CATEGORIES, searchPalette } from '@calque/core'
-import type { PaletteItem } from '@calque/core'
+import { PALETTE_CATEGORIES, searchPalette } from '@maquio/core'
+import type { PaletteItem } from '@maquio/core'
 import { PALETTE_MIME, insertPaletteItemInActiveScreen } from '../canvas/paletteInsert'
 import './PalettePanel.css'
 

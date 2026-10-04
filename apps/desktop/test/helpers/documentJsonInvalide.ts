@@ -3,7 +3,7 @@
 // pas un tableau), pour verifier que le ZodError leve par
 // documentSchema.parse ne remonte jamais tel quel (dump JSON technique) a
 // l'interface, dans aucun des quatre canaux qui valident un document.
-import { createDocument, serializeDocument } from '@calque/core'
+import { createDocument, serializeDocument } from '@maquio/core'
 
 export function documentJsonDeFormeInvalide(): string {
   const brut = JSON.parse(serializeDocument(createDocument('Document invalide'))) as { pages: Record<string, unknown>[] }

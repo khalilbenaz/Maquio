@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { documentSchema } from '@calque/core'
+import { documentSchema } from '@maquio/core'
 import { describe, expect, it } from 'vitest'
 import { figmaToDocument } from '../src/translate'
 import type { FigmaFileResponse, FigmaNode } from '../src/figma-types'
-import type { FrameNode } from '@calque/core'
+import type { FrameNode } from '@maquio/core'
 
 const fixture = (n: string): FigmaFileResponse =>
   JSON.parse(readFileSync(join(__dirname, 'fixtures', n), 'utf8'))
@@ -30,7 +30,7 @@ const wrapAsFile = (node: FigmaNode): FigmaFileResponse => ({
 
 // Meme chose que wrapAsFile, mais pour PLUSIEURS noeuds de premier niveau du
 // canvas (v2, addendum navigation §3.1/§8 : une page Figma a plusieurs
-// frames racines doit donner plusieurs ecrans Calque).
+// frames racines doit donner plusieurs ecrans Maquio).
 const wrapAsFileMulti = (nodes: FigmaNode[]): FigmaFileResponse => ({
   document: {
     id: '0:0',
@@ -361,7 +361,7 @@ describe('avertissements explicites (point 10)', () => {
   })
 })
 
-// Point 11 du brief : nodesImported compte les noeuds Calque reellement
+// Point 11 du brief : nodesImported compte les noeuds Maquio reellement
 // produits, espaces reserves compris, hors pages et hors document.
 describe('comptage des noeuds importes (point 11)', () => {
   it('compte 1 pour un espace reserve isole', () => {
@@ -615,7 +615,7 @@ describe('assainissement des donnees Figma hostiles (Critical, round 1)', () => 
 // et utilises par translate.ts mais n'etaient exerces par aucune fixture ni
 // aucun test.
 describe('visible sur un noeud et sur un remplissage (Minor 1, round 1)', () => {
-  it('un noeud visible:false devient un noeud Calque avec visible:false', () => {
+  it('un noeud visible:false devient un noeud Maquio avec visible:false', () => {
     const { document } = figmaToDocument(
       wrapAsFile({
         id: 'v1',

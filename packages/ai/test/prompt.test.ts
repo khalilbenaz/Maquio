@@ -8,8 +8,8 @@ import {
   createNodeCommand,
   History,
   nodeSchema,
-} from '@calque/core'
-import type { Node } from '@calque/core'
+} from '@maquio/core'
+import type { Node } from '@maquio/core'
 import { buildPrompt } from '../src/prompt'
 import { NODE_EXAMPLES } from '../src/prompt-examples'
 

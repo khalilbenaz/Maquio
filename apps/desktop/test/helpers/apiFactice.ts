@@ -1,13 +1,16 @@
-// Double de CalqueApi pour les tests de composants (Tache 17, decision 9
+// Double de MaquioApi pour les tests de composants (Tache 17, decision 9
 // du brief) : chaque methode rend une valeur inerte (aucun reseau, aucun
 // disque, aucun sous-processus). Les tests qui ont besoin d'un
 // comportement precis surchargent la ou les methodes concernees avec un
 // spread (`{ ...apiFactice, askClaude: ... }`), comme le fait le cahier
 // des charges pour ClaudePanel.
-import type { CalqueApi } from '../../src/shared/api'
+import type { MaquioApi } from '../../src/shared/api'
 
-export const apiFactice: CalqueApi = {
+export const apiFactice: MaquioApi = {
   openDocument: async () => null,
+  openDocumentAt: async () => {
+    throw new Error('non disponible dans ce test')
+  },
   saveDocument: async () => null,
   importFigma: async () => null,
   exportProject: async () => null,

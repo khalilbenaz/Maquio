@@ -1,8 +1,8 @@
 // Edition de texte sur le canevas (double-clic) : quel champ d'un noeud est
 // editable, et comment la valeur validee devient une commande. Pur, teste
 // sans rendu.
-import { COMPONENT_DEFINITIONS, setTextCommand, updateNodeCommand } from '@calque/core'
-import type { Command, Node } from '@calque/core'
+import { COMPONENT_DEFINITIONS, setTextCommand, updateNodeCommand } from '@maquio/core'
+import type { Command, Node } from '@maquio/core'
 
 // Cle de la propriete texte principale d'un composant (le premier champ
 // `text` de sa definition : libelle d'un bouton, titre d'une barre...).

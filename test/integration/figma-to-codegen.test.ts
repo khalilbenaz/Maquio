@@ -26,8 +26,8 @@
 // directs sont un texte ET un espace reserve image (Critical 2 et son
 // corollaire painterResource).
 import { describe, expect, it } from 'vitest'
-import { figmaToDocument } from '@calque/figma'
-import { listExporters, type ExportedFile } from '@calque/codegen'
+import { figmaToDocument } from '@maquio/figma'
+import { listExporters, type ExportedFile } from '@maquio/codegen'
 import { FIGMA_FIXTURES as FIXTURES } from './fixtures'
 
 // ---- Verifications structurelles (Critical 1/2/3), par langage cible ----

@@ -4,18 +4,18 @@
 // invert est toujours calcule a partir du document D'AVANT application (voir
 // history.ts pour l'ordre exact d'appel entre invert et apply).
 //
-// Les commandes sont le SEUL chemin de mutation d'un CalqueDocument dans le
+// Les commandes sont le SEUL chemin de mutation d'un MaquioDocument dans le
 // projet : le canvas, l'inspecteur et les patchs de Claude Code passeront
 // tous par les fabriques de edits.ts et par History.
 
 import { nodeSchema } from '../model/schema'
-import type { CalqueDocument, Node, Page } from '../model/types'
+import type { MaquioDocument, Node, Page } from '../model/types'
 import { findNode, NodeNotFoundError, replaceNode } from '../tree/tree'
 
 export interface Command {
   readonly label: string
-  apply(doc: CalqueDocument): CalqueDocument
-  invert(doc: CalqueDocument): Command
+  apply(doc: MaquioDocument): MaquioDocument
+  invert(doc: MaquioDocument): Command
 }
 
 export class PageNotFoundError extends Error {
@@ -81,7 +81,7 @@ export class LinkToContainingScreenError extends Error {
 
 // Rend la page ciblee ou leve PageNotFoundError : centralise la verification
 // que le cahier des charges exige de toutes les fabriques (point 12).
-export function requirePage(doc: CalqueDocument, pageId: string): Page {
+export function requirePage(doc: MaquioDocument, pageId: string): Page {
   const page = doc.pages.find((p) => p.id === pageId)
   if (page === undefined) throw new PageNotFoundError(pageId)
   return page
@@ -92,10 +92,10 @@ export function requirePage(doc: CalqueDocument, pageId: string): Page {
 // ainsi que les branches non touchees de l'arbre (partage structurel de
 // tree.ts), restent identiques par reference.
 export function updatePageNodes(
-  doc: CalqueDocument,
+  doc: MaquioDocument,
   pageId: string,
   updater: (nodes: Node[]) => Node[],
-): CalqueDocument {
+): MaquioDocument {
   requirePage(doc, pageId)
   return {
     ...doc,
@@ -111,16 +111,16 @@ export function updatePageNodes(
 //
 // nodeSchema (donc rectSchema, Tache 2) rejette deja une largeur/hauteur
 // negative : c'est un invariant du MODELE, pas des commandes, car
-// parseDocument (fichier .calque malforme), createNodeCommand (recevant un
+// parseDocument (fichier .maquio malforme), createNodeCommand (recevant un
 // Node deja invalide) et un futur patch de Claude Code contournent tous la
 // couche commandes sans jamais contourner nodeSchema. Cette fonction n'a
 // donc pas de verification dediee a ajouter : elle herite de la contrainte.
 export function updateNodeIn(
-  doc: CalqueDocument,
+  doc: MaquioDocument,
   pageId: string,
   nodeId: string,
   fn: (node: Node) => Node,
-): CalqueDocument {
+): MaquioDocument {
   return updatePageNodes(doc, pageId, (nodes) => {
     const node = findNode(nodes, nodeId)
     if (node === null) throw new NodeNotFoundError(nodeId)

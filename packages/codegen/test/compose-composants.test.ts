@@ -1,7 +1,7 @@
 // Export Jetpack Compose des composants mobiles : widgets Material 3,
 // Scaffold, ModalNavigationDrawer et Navigation Compose.
 import { describe, expect, it } from 'vitest'
-import type { Node } from '@calque/core'
+import type { Node } from '@maquio/core'
 import { composeExporter } from '../src/compose/compose'
 import { docOf, linked, make, oneScreen, parent, screen, screenFile } from './helpers/composants'
 

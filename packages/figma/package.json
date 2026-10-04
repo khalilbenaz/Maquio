@@ -1,5 +1,5 @@
 {
-  "name": "@calque/figma",
+  "name": "@maquio/figma",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,6 +9,6 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@calque/core": "*"
+    "@maquio/core": "*"
   }
 }

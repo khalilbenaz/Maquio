@@ -55,7 +55,7 @@ jobs:
       - run: npm ci
       - run: npx vitest run test/integration/flutter-analyze.test.ts test/integration/flutter-dart-format.test.ts
       # Vrai `flutter build web` (exemple complet + projet avec images copiees et declarees).
-      - run: CALQUE_VERIF_FULL=1 npx vitest run test/integration/flutter-build.test.ts
+      - run: MAQUIO_VERIF_FULL=1 npx vitest run test/integration/flutter-build.test.ts
 
   # Parcours reel de l'application Electron (Playwright _electron), puis
   # compilation du code Swift genere.
@@ -88,7 +88,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: CALQUE_VERIF_FULL=1 npx vitest run test/integration/exports-compilables.test.ts -t "React Native"
+      - run: MAQUIO_VERIF_FULL=1 npx vitest run test/integration/exports-compilables.test.ts -t "React Native"
 
   # Jetpack Compose : Gradle `compileDebugKotlin` (Compose BOM, material3,
   # navigation) sur l'exemple complet ET le projet avec images (res/drawable).
@@ -108,4 +108,4 @@ jobs:
           java-version: 17
       - run: npm ci
       # Le SDK Android est preinstalle sur les runners ubuntu (ANDROID_HOME).
-      - run: CALQUE_VERIF_FULL=1 JAVA_HOME_17="$JAVA_HOME" npx vitest run test/integration/exports-compilables.test.ts -t "Compose"
+      - run: MAQUIO_VERIF_FULL=1 JAVA_HOME_17="$JAVA_HOME" npx vitest run test/integration/exports-compilables.test.ts -t "Compose"

@@ -3,8 +3,8 @@
 // « Scaffold » (barre d'application, barre de navigation basse, bouton
 // flottant, tiroir) et corps. Calcule une seule fois par document pour que
 // les quatre generateurs nomment et relient les ecrans de la meme facon.
-import { tapNavigation } from '@calque/core'
-import type { CalqueDocument, ComponentNode, FrameNode, Node, Page } from '@calque/core'
+import { tapNavigation } from '@maquio/core'
+import type { MaquioDocument, ComponentNode, FrameNode, Node, Page } from '@maquio/core'
 import { createPageNamer } from './naming'
 import { collectOverlays, resolveInteractions } from './interactions'
 import type { OverlayRef } from './interactions'
@@ -44,7 +44,7 @@ export function isScreen(node: Node): node is FrameNode {
 
 // Tous les ecrans de toutes les pages sont exportes ; un meme attributeur
 // de noms garantit l'absence de collision entre eux.
-export function planExport(doc: CalqueDocument, activeScreenId: string | undefined): ExportPlan {
+export function planExport(doc: MaquioDocument, activeScreenId: string | undefined): ExportPlan {
   const nameFor = createPageNamer()
   const units: ExportUnit[] = []
   const screens: ScreenRef[] = []

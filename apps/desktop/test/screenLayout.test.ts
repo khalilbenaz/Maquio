@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createScreenNode } from '@calque/core'
-import type { DevicePreset } from '@calque/core'
+import { createScreenNode } from '@maquio/core'
+import type { DevicePreset } from '@maquio/core'
 import { nextScreenPosition, SCREEN_GUTTER } from '../src/renderer/canvas/screenLayout'
 
 const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }

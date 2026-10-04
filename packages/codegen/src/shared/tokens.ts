@@ -5,7 +5,7 @@
 // correspondance : une derive entre generateurs produirait des exports
 // incoherents entre frameworks pour un meme document (round de correction
 // 1, point Minor promu par le coordinateur).
-import type { Color, DesignTokens } from '@calque/core'
+import type { Color, DesignTokens } from '@maquio/core'
 
 function colorsEqual(a: Color, b: Color): boolean {
   return a.r === b.r && a.g === b.g && a.b === b.b && a.a === b.a

@@ -5,9 +5,9 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 
 export async function lancer(env = {}) {
-  const out = process.env.OUT ?? mkdtempSync(path.join(tmpdir(), 'calque-e2e-'))
+  const out = process.env.OUT ?? mkdtempSync(path.join(tmpdir(), 'maquio-e2e-'))
   mkdirSync(out, { recursive: true })
-  const work = mkdtempSync(path.join(tmpdir(), 'calque-work-'))
+  const work = mkdtempSync(path.join(tmpdir(), 'maquio-work-'))
   const results = []
   const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? 'OK  ' : 'FAIL'} ${name} ${detail}`) }
   const app = await electron.launch({ args: [path.resolve('apps/desktop'), `--user-data-dir=${path.join(work, 'userdata')}`], env: { ...process.env, ...env } })

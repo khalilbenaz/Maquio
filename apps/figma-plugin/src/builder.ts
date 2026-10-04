@@ -21,7 +21,7 @@ type Ctx = {
   hashes: Hashes
   components: Map<string, ComponentNode>
   report: BuildReport
-  // Identifiant Calque -> noeud Figma (sert aux reactions de prototype).
+  // Identifiant Maquio -> noeud Figma (sert aux reactions de prototype).
   created: Map<string, SceneNode>
 }
 

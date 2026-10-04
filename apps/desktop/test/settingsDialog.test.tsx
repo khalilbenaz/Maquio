@@ -159,7 +159,7 @@ describe('SettingsDialog — Claude Code', () => {
     expect(await screen.findByText(/introuvable/i)).toBeTruthy()
   })
 
-  it('explique que Calque lance le binaire deja installe et n utilise aucune cle d API', () => {
+  it('explique que Maquio lance le binaire deja installe et n utilise aucune cle d API', () => {
     render(<SettingsDialog api={apiFactice} onClose={() => {}} />)
     expect(screen.getByText(/aucune clé d.api/i)).toBeTruthy()
   })

@@ -3,8 +3,8 @@
 // res/drawable). Les sources sont des noms relatifs a `<document>.ressources/`
 // (voir `ressourcesImages`), deux fichiers de meme nom venant de dossiers
 // differents (`logo.png` relatif et `/tmp/autre/logo.png` absolu).
-import { DEVICE_PRESETS, tapLink, PALETTE_ITEMS, createDocument, createScreenNode } from '@calque/core'
-import type { CalqueDocument, ImageNode, Node } from '@calque/core'
+import { DEVICE_PRESETS, tapLink, PALETTE_ITEMS, createDocument, createScreenNode } from '@maquio/core'
+import type { MaquioDocument, ImageNode, Node } from '@maquio/core'
 
 // PNG 1x1 valide.
 export const PNG_1X1 = Buffer.from(
@@ -16,7 +16,7 @@ function image(name: string, src: string, x: number, y: number, fit: ImageNode['
   return { id: crypto.randomUUID(), name, type: 'image', frame: { x, y, w: 120, h: 120 }, visible: true, locked: false, opacity: 1, rotation: 0, src, fit }
 }
 
-export function documentProjetImages(absoluteLogo: string): CalqueDocument {
+export function documentProjetImages(absoluteLogo: string): MaquioDocument {
   const d = createDocument('Projet images')
   const bouton = PALETTE_ITEMS.find((i) => i.id === 'button')!.build({ x: 20, y: 400, w: 200, h: 48 })
   const avatar = PALETTE_ITEMS.find((i) => i.id === 'avatar')!.build({ x: 20, y: 300, w: 56, h: 56 })

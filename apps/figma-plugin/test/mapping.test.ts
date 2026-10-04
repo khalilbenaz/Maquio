@@ -1,30 +1,35 @@
 import { describe, expect, it } from 'vitest'
-import { createComponentNode, createContainerNode, createDocument, createScreenNode, DEVICE_PRESETS, serializeDocument } from '@calque/core'
-import type { CalqueDocument, FrameNode, Interaction, Node } from '@calque/core'
+import { createComponentNode, createContainerNode, createDocument, createScreenNode, DEVICE_PRESETS, serializeDocument } from '@maquio/core'
+import type { MaquioDocument, FrameNode, Interaction, Node } from '@maquio/core'
 import { autoLayoutOf, BundleError, buildPlan, parseBundle, rotationTransform, transitionOf, weightStyleCandidates } from '../src/mapping'
 import type { Plan, PlanNode } from '../src/mapping'
 
 const base = { visible: true, locked: false, opacity: 1, rotation: 0 }
 const style = (o: Partial<{ fontFamily: string; fontWeight: number }> = {}) => ({ fontFamily: 'Inter', fontSize: 18, fontWeight: 600, lineHeight: 22, letterSpacing: 1, color: { r: 0.1, g: 0.2, b: 0.3, a: 1 }, align: 'center' as const, ...o })
 
-function doc(children: Node[] = []): CalqueDocument {
+function doc(children: Node[] = []): MaquioDocument {
   const d = createDocument('Mon projet')
   const e1 = { ...createScreenNode('Accueil', DEVICE_PRESETS.iphone15, { x: 0, y: 0, w: 393, h: 852 }, children), id: 'e1' }
   const e2 = { ...createScreenNode('Détail', DEVICE_PRESETS.iphone15, { x: 500, y: 0, w: 393, h: 852 }, []), id: 'e2' }
   return { ...d, pages: [{ ...d.pages[0]!, nodes: [e1, e2] }] }
 }
-const bundleOf = (document: CalqueDocument, images = {}) => ({ document, images, projectName: 'p', startScreenId: null })
+const bundleOf = (document: MaquioDocument, images = {}) => ({ document, images, projectName: 'p', startScreenId: null })
 const kids = (plan: Plan) => (plan.screens[0]!.children as PlanNode[])
 
 describe('parseBundle', () => {
-  it('lit un bundle calque-figma (document + images)', () => {
-    const b = parseBundle(JSON.stringify({ format: 'calque-figma', version: 1, projectName: 'P', startScreenId: 'e2', document: JSON.parse(serializeDocument(doc())), images: { 'a.png': { mime: 'image/png', data: 'AA==' } } }))
+  it('lit un bundle maquio-figma (document + images)', () => {
+    const b = parseBundle(JSON.stringify({ format: 'maquio-figma', version: 1, projectName: 'P', startScreenId: 'e2', document: JSON.parse(serializeDocument(doc())), images: { 'a.png': { mime: 'image/png', data: 'AA==' } } }))
     expect(b.projectName).toBe('P')
     expect(b.startScreenId).toBe('e2')
     expect(Object.keys(b.images)).toEqual(['a.png'])
     expect(b.document.pages[0]!.nodes).toHaveLength(2)
   })
-  it('lit aussi un document .calque brut', () => {
+  it('lit encore l ancien nom de format (calque-figma) et un document .calque brut', () => {
+    const b = parseBundle(JSON.stringify({ format: 'calque-figma', version: 1, projectName: 'Ancien', document: JSON.parse(serializeDocument(doc())), images: {} }))
+    expect(b.projectName).toBe('Ancien')
+    expect(parseBundle(serializeDocument(doc())).document.pages[0]!.nodes).toHaveLength(2)
+  })
+  it('lit aussi un document .maquio brut', () => {
     const b = parseBundle(serializeDocument(doc()))
     expect(b.projectName).toBe('Mon projet')
     expect(b.images).toEqual({})
@@ -32,8 +37,8 @@ describe('parseBundle', () => {
   it('refuse proprement : JSON illisible, format inconnu, version future, document invalide', () => {
     expect(() => parseBundle('pas du json')).toThrow(BundleError)
     expect(() => parseBundle('{"a":1}')).toThrow(/ni un export/)
-    expect(() => parseBundle(JSON.stringify({ format: 'calque-figma', version: 9, document: {} }))).toThrow(/plus récente/)
-    expect(() => parseBundle(JSON.stringify({ format: 'calque-figma', version: 1, document: { version: 3 } }))).toThrow(BundleError)
+    expect(() => parseBundle(JSON.stringify({ format: 'maquio-figma', version: 9, document: {} }))).toThrow(/plus récente/)
+    expect(() => parseBundle(JSON.stringify({ format: 'maquio-figma', version: 1, document: { version: 3 } }))).toThrow(BundleError)
     expect(() => parseBundle('[1,2]')).toThrow(BundleError)
   })
 })

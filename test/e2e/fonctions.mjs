@@ -17,7 +17,7 @@ const serveur = createServer((req, res) => {
   res.writeHead(404); res.end('{}')
 })
 await new Promise((r) => serveur.listen(0, '127.0.0.1', r))
-const t = await lancer({ CALQUE_FIGMA_API_BASE: `http://127.0.0.1:${serveur.address().port}` })
+const t = await lancer({ MAQUIO_FIGMA_API_BASE: `http://127.0.0.1:${serveur.address().port}` })
 const { win, work, check, shot, setNext, menu, ids, nodes, box, sceneBox, selected, drag, draw } = t
 const calques = () => win.evaluate(() => [...document.querySelectorAll('[role=treeitem]')].map((e) => ({ id: e.dataset.testid.replace('layer-', ''), name: e.querySelector('.layers-row-name')?.textContent })))
 const noms = async () => (await calques()).map((c) => c.name)
@@ -339,12 +339,12 @@ await shot('49-palette')
 const v1 = { version: 1, id: '11111111-1111-4111-8111-111111111111', name: 'Ancien', tokens: { colors: {}, typography: {}, spacing: {} },
   pages: [{ id: '22222222-2222-4222-8222-222222222222', name: 'Page 1', device: { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 },
     nodes: [{ id: '33333333-3333-4333-8333-333333333333', name: 'Carte', type: 'rect', frame: { x: 10, y: 10, w: 100, h: 60 }, visible: true, locked: false, opacity: 1, rotation: 0, fills: [{ type: 'solid', color: { r: 1, g: 0, b: 0, a: 1 } }], strokes: [], cornerRadius: 4 }] }] }
-const ancien = path.join(work, 'ancien-v1.calque'); writeFileSync(ancien, JSON.stringify(v1))
+const ancien = path.join(work, 'ancien-v1.maquio'); writeFileSync(ancien, JSON.stringify(v1))
 await setNext({ open: ancien }); await menu('Ouvrir...'); await pause(500)
 check('fichier : un ancien format (v1) s ouvre et est migre en ecran', (await ids()).length >= 1 && (await win.getByTestId('node-33333333-3333-4333-8333-333333333333').count()) === 1, (await noms()).join())
-const futur = path.join(work, 'futur.calque'); writeFileSync(futur, JSON.stringify({ ...v1, version: 99 }))
+const futur = path.join(work, 'futur.maquio'); writeFileSync(futur, JSON.stringify({ ...v1, version: 99 }))
 await setNext({ open: futur }); await menu('Ouvrir...'); await pause(400)
-const msgFutur = await win.locator('.calque-error-banner').innerText().catch(() => '')
+const msgFutur = await win.locator('.maquio-error-banner').innerText().catch(() => '')
 check('fichier : une version plus recente est refusee avec un message explicite', /version/i.test(msgFutur), msgFutur)
 check('fichier : l ancien document reste intact apres un refus', (await win.getByTestId('node-33333333-3333-4333-8333-333333333333').count()) === 1)
 
@@ -381,7 +381,7 @@ check('images : SwiftUI copie l image dans un .imageset', existsSync(path.join(r
 r = await exporter('Jetpack Compose', 'compose')
 check('images : Compose copie l image dans res/drawable (nom valide)', existsSync(path.join(r.dir, 'src/main/res/drawable/mon_logo.png')))
 // apres enregistrement : l'image est relative (<doc>.ressources/) et l'export la retrouve
-const doc2 = path.join(work, 'avec-image.calque')
+const doc2 = path.join(work, 'avec-image.maquio')
 await setNext({ save: doc2 }); await menu('Enregistrer'); await pause(500)
 check('images : l enregistrement copie l image dans <document>.ressources/', existsSync(path.join(work, 'avec-image.ressources', 'Mon Logo.png')))
 r = await exporter('Flutter', 'flutter2')
@@ -394,7 +394,7 @@ check('export SVG : un fichier par ecran, image embarquee (data URI), bien forme
 r = await exporter('Figma', 'figma-bundle')
 const figmaFile = readdirSync(r.dir).find((f) => f.endsWith('.figma.json'))
 const bundle = figmaFile ? JSON.parse(readFileSync(path.join(r.dir, figmaFile), 'utf8')) : null
-check('export Figma : un seul .figma.json avec le document et les images en base64', bundle?.format === 'calque-figma' && Object.keys(bundle.images).length === 1 && bundle.document.pages[0].nodes.length >= 1, figmaFile)
+check('export Figma : un seul .figma.json avec le document et les images en base64', bundle?.format === 'maquio-figma' && Object.keys(bundle.images).length === 1 && bundle.document.pages[0].nodes.length >= 1, figmaFile)
 
 // ---------- 11. Import Figma : fichier .json et API (serveur local) ----------
 await setNext({ box: 1 }); await menu('Nouveau'); await pause(250)

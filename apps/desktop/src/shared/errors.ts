@@ -77,7 +77,7 @@ function decrireZodError(err: ZodError): string {
 }
 
 // Traduit une erreur QUELCONQUE (non reconnue par l'appelant) en un message
-// francais actionnable, prefixe par son contexte (ex. "Fichier .calque
+// francais actionnable, prefixe par son contexte (ex. "Fichier .maquio
 // invalide", "Export impossible") -- jamais un dump JSON de ZodError, jamais
 // le SyntaxError brut de JSON.parse (en anglais, illisible pour qui n'est
 // pas developpeur).

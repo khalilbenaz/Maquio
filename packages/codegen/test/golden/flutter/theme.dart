@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Couleurs du design system, generees depuis les tokens Calque.
+/// Couleurs du design system, generees depuis les tokens Maquio.
 class AppColors {
   AppColors._();
 
@@ -9,7 +9,7 @@ class AppColors {
   static const Color black = Color(0xFF000000);
 }
 
-/// Espacements du design system, generes depuis les tokens Calque.
+/// Espacements du design system, generes depuis les tokens Maquio.
 class AppSpacing {
   AppSpacing._();
 
@@ -18,7 +18,7 @@ class AppSpacing {
   static const double lg = 24;
 }
 
-/// Styles de texte du design system, generes depuis les tokens Calque.
+/// Styles de texte du design system, generes depuis les tokens Maquio.
 class AppTextStyles {
   AppTextStyles._();
 

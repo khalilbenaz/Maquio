@@ -1,4 +1,4 @@
-// Generateur React Native (Tache 8) : traduit un CalqueDocument en un
+// Generateur React Native (Tache 8) : traduit un MaquioDocument en un
 // composant fonctionnel par page (sous src/screens/), styles regroupes en
 // fin de fichier dans un seul StyleSheet.create, plus src/theme.ts pour
 // les tokens. Correspondances (decision 1 du brief) :
@@ -22,7 +22,7 @@
 // Deterministe (comme Flutter) : aucun horodatage, aucun identifiant
 // aleatoire, seuls des tableaux et des objets a cles chaine sont parcourus.
 import type {
-  CalqueDocument,
+  MaquioDocument,
   Color,
   DesignTokens,
   EllipseNode,
@@ -35,8 +35,8 @@ import type {
   RectNode,
   Stroke,
   TextNode,
-} from '@calque/core'
-import { layoutPage } from '@calque/core'
+} from '@maquio/core'
+import { layoutPage } from '@maquio/core'
 import { formatNumber } from '../shared/format-number'
 import { createUniqueIdentifierNamer } from '../shared/identifier'
 import { planAssets } from '../shared/assets'
@@ -865,7 +865,7 @@ const RN_ASSETS: AssetTarget = {
   reference: (fileName) => `../../assets/images/${fileName}`,
 }
 
-function exportReactNative(source: CalqueDocument, opts: ExportOptions): ExportResult {
+function exportReactNative(source: MaquioDocument, opts: ExportOptions): ExportResult {
   const assetPlan = planAssets(source, RN_ASSETS)
   const doc = assetPlan.doc
   const warnings: string[] = [...assetPlan.warnings]

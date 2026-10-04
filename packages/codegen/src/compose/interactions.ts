@@ -1,6 +1,6 @@
 // Interactions Compose : transitions de destination (NavHost), easing,
 // declaration d'un champ de transition par ecran cible.
-import type { Easing, Transition } from '@calque/core'
+import type { Easing, Transition } from '@maquio/core'
 
 const EASINGS: Record<Easing, string> = { linear: 'LinearEasing', easeIn: 'EaseIn', easeOut: 'EaseOut', easeInOut: 'EaseInOut', spring: 'EaseOutBack' }
 

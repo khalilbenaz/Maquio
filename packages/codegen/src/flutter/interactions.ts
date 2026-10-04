@@ -4,7 +4,7 @@
 // n'appellent que ces fonctions courtes : `goDetailSlide(context)`.
 import type { OverlayRef } from '../shared/interactions'
 import type { ScreenRef } from '../shared/screens'
-import type { Easing, Transition } from '@calque/core'
+import type { Easing, Transition } from '@maquio/core'
 import { escapeDartString } from './dart-utils'
 
 export const TRANSITIONS_DART = `import 'package:flutter/material.dart';

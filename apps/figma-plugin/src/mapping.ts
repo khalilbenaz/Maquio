@@ -1,8 +1,8 @@
-// Traduction PURE d'un export Calque (bundle `.figma.json` ou document
-// `.calque`) en un « plan » de creation Figma. Aucun appel a l'API Figma ici :
+// Traduction PURE d'un export Maquio (bundle `.figma.json` ou document
+// `.maquio`) en un « plan » de creation Figma. Aucun appel a l'API Figma ici :
 // le plan est teste unitairement, builder.ts le rejoue ensuite dans Figma.
-import { componentSketch, componentVariant, containerSketch, hexOf, parseDocument } from '@calque/core'
-import type { CalqueDocument, Color, ComponentNode, FrameNode, Interaction, Node, SketchPrim, Transition, Trigger } from '@calque/core'
+import { componentSketch, componentVariant, containerSketch, hexOf, parseDocument } from '@maquio/core'
+import type { MaquioDocument, Color, ComponentNode, FrameNode, Interaction, Node, SketchPrim, Transition, Trigger } from '@maquio/core'
 
 export type RGBA = { r: number; g: number; b: number; a: number }
 export type Stroke = { color: RGBA; width: number }
@@ -105,7 +105,7 @@ export type Plan = {
 }
 
 export type Bundle = {
-  document: CalqueDocument
+  document: MaquioDocument
   images: Record<string, { mime: string; data: string }>
   projectName: string
   startScreenId: string | null
@@ -120,8 +120,8 @@ export class BundleError extends Error {
   }
 }
 
-// Accepte un bundle `.figma.json` (format « calque-figma ») ou un document
-// `.calque` brut (sans images). Toute autre forme est refusee avec un message
+// Accepte un bundle `.figma.json` (format « maquio-figma ») ou un document
+// `.maquio` brut (sans images). Toute autre forme est refusee avec un message
 // clair, sans rien creer dans Figma.
 export function parseBundle(text: string): Bundle {
   let raw: unknown
@@ -133,8 +133,9 @@ export function parseBundle(text: string): Bundle {
   if (typeof raw !== 'object' || raw === null) throw new BundleError('Format de fichier non reconnu.')
   const o = raw as Record<string, unknown>
   try {
-    if (o['format'] === 'calque-figma') {
-      if (typeof o['version'] !== 'number' || o['version'] > 1) throw new BundleError("Ce fichier vient d'une version plus récente de Calque : mettez à jour le plugin.")
+    // `calque-figma` : ancien nom du format (avant Maquio), toujours lu.
+    if (o['format'] === 'maquio-figma' || o['format'] === 'calque-figma') {
+      if (typeof o['version'] !== 'number' || o['version'] > 1) throw new BundleError("Ce fichier vient d'une version plus récente de Maquio : mettez à jour le plugin.")
       const document = parseDocument(JSON.stringify(o['document']))
       const images = (typeof o['images'] === 'object' && o['images'] !== null ? o['images'] : {}) as Bundle['images']
       return { document, images, projectName: typeof o['projectName'] === 'string' ? o['projectName'] : document.name, startScreenId: typeof o['startScreenId'] === 'string' ? o['startScreenId'] : null }
@@ -145,9 +146,9 @@ export function parseBundle(text: string): Bundle {
     }
   } catch (e) {
     if (e instanceof BundleError) throw e
-    throw new BundleError(`Document Calque invalide : ${e instanceof Error ? e.message.slice(0, 160) : 'erreur inconnue'}`)
+    throw new BundleError(`Document Maquio invalide : ${e instanceof Error ? e.message.slice(0, 160) : 'erreur inconnue'}`)
   }
-  throw new BundleError("Ce fichier n'est ni un export « Figma » de Calque (.figma.json) ni un document .calque.")
+  throw new BundleError("Ce fichier n'est ni un export « Figma » de Maquio (.figma.json) ni un document .maquio (ou .calque).")
 }
 
 // --- Couleurs, trait ---
@@ -172,7 +173,7 @@ function firstStroke(strokes: { color: Color; width: number }[]): Stroke | null 
 
 // --- Rotation ---
 
-// Calque : degres, sens horaire, autour du centre. Figma : matrice de
+// Maquio : degres, sens horaire, autour du centre. Figma : matrice de
 // transformation relative au parent (axes y vers le bas, comme CSS).
 export function rotationTransform(x: number, y: number, w: number, h: number, degrees: number): [[number, number, number], [number, number, number]] | undefined {
   if (degrees === 0) return undefined
@@ -348,7 +349,7 @@ function mapNode(node: Node, b: Builder): PlanNode {
 
 // Une fois toutes les tailles connues : un composant par (variante, taille) ;
 // la taille entre dans le nom de variante seulement quand elle differe.
-function finalizeComponents(doc: CalqueDocument, plan: PlanNode[], b: Builder) {
+function finalizeComponents(doc: MaquioDocument, plan: PlanNode[], b: Builder) {
   const nodesById = new Map<string, ComponentNode>()
   const collect = (ns: Node[]) => {
     for (const n of ns) {
@@ -382,7 +383,7 @@ function finalizeComponents(doc: CalqueDocument, plan: PlanNode[], b: Builder) {
 
 // --- Interactions -> reactions de prototype ---
 
-function overlayTargets(doc: CalqueDocument): Set<string> {
+function overlayTargets(doc: MaquioDocument): Set<string> {
   const out = new Set<string>()
   const visit = (nodes: Node[]) => {
     for (const n of nodes) {
@@ -402,7 +403,7 @@ const EASINGS: Record<string, PlanEasing> = {
   spring: { type: 'BOUNCY' },
 }
 
-// Transition Calque -> transition Figma. `direction` Figma est le cote d'ou
+// Transition Maquio -> transition Figma. `direction` Figma est le cote d'ou
 // ENTRE l'ecran : un glissement « vers la gauche » entre par la droite.
 export function transitionOf(t: Transition): PlanTransition | null {
   if (t.type === 'none') return null
@@ -449,7 +450,7 @@ export function actionOf(i: Interaction): PlanAction {
   }
 }
 
-function collectReactions(doc: CalqueDocument): ReactionPlan[] {
+function collectReactions(doc: MaquioDocument): ReactionPlan[] {
   const out: ReactionPlan[] = []
   const visit = (nodes: Node[]) => {
     for (const n of nodes) {
@@ -461,7 +462,7 @@ function collectReactions(doc: CalqueDocument): ReactionPlan[] {
   return out
 }
 
-function buildOverlayFrames(doc: CalqueDocument, b: Builder): OverlayFrame[] {
+function buildOverlayFrames(doc: MaquioDocument, b: Builder): OverlayFrame[] {
   const byId = new Map<string, { node: Node; kind: OverlayFrame['kind'] }>()
   const visit = (nodes: Node[]) => {
     for (const n of nodes) {

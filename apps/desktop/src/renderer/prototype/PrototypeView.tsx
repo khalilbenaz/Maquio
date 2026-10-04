@@ -4,8 +4,8 @@
 // les overlays (dialogue, feuille basse, snackbar) s'ouvrent et se ferment.
 // Echap quitte. Rien n'est modifie dans le document.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { absoluteFrame, isScreenNode } from '@calque/core'
-import type { Node, Rect } from '@calque/core'
+import { absoluteFrame, isScreenNode } from '@maquio/core'
+import type { Node, Rect } from '@maquio/core'
 import { useEditorStore } from '../state/editorStore'
 import { NodeVisual } from '../canvas/NodeView'
 import { pageNodesOf } from '../canvas/useDragInteraction'

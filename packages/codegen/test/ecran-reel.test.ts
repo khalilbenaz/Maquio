@@ -3,8 +3,8 @@
 // mise en page absolue. Les exports ne doivent perdre ni la position de ces
 // enfants, ni la taille de l'ecran, ni le nom accentue de l'ecran.
 import { describe, expect, it } from 'vitest'
-import { DEVICE_PRESETS, createDocument, createScreenNode } from '@calque/core'
-import type { CalqueDocument, RectNode } from '@calque/core'
+import { DEVICE_PRESETS, createDocument, createScreenNode } from '@maquio/core'
+import type { MaquioDocument, RectNode } from '@maquio/core'
 import { composeExporter } from '../src/compose/compose'
 import { flutterExporter } from '../src/flutter/flutter'
 import { reactNativeExporter } from '../src/react-native/react-native'
@@ -17,7 +17,7 @@ const rect = (id: string, x: number, y: number): RectNode => ({
   opacity: 1, rotation: 0, fills: [{ type: 'solid', color: { r: 1, g: 0, b: 0, a: 1 } }], strokes: [], cornerRadius: 0,
 })
 
-function docAvecEcrans(...noms: string[]): CalqueDocument {
+function docAvecEcrans(...noms: string[]): MaquioDocument {
   const doc = createDocument('Projet')
   const page = doc.pages[0]!
   const ecrans = noms.map((nom, i) =>
@@ -94,7 +94,7 @@ describe('noms de pages', () => {
   it('deux pages de meme nom produisent deux fichiers distincts (4 cibles)', () => {
     const base = docAvecEcrans('Accueil')
     const page = base.pages[0]!
-    const doc: CalqueDocument = {
+    const doc: MaquioDocument = {
       ...base,
       pages: [page, { ...page, id: 'page-2' }],
     }

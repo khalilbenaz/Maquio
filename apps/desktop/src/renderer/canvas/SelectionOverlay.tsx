@@ -12,8 +12,8 @@
 // centre du noeud source -- distincte du calque de connecteurs PERSISTES
 // (LinksLayer.tsx, plan de travail), jamais affiche pendant un glissement
 // quel qu'il soit (§4 de l'addendum).
-import { findNode, handleRects, unionRects } from '@calque/core'
-import type { HandleId, Rect } from '@calque/core'
+import { findNode, handleRects, unionRects } from '@maquio/core'
+import type { HandleId, Rect } from '@maquio/core'
 import type { RefObject } from 'react'
 import { useEditorStore } from '../state/editorStore'
 import { pageNodesOf, resolvePreviewAbsoluteFrame, useLinkInteraction, useResizeInteraction } from './useDragInteraction'
@@ -31,7 +31,7 @@ function Handle({ id, rect, nodeId, zoom }: { id: HandleId; rect: Rect; nodeId: 
       y={rect.y}
       width={rect.w}
       height={rect.h}
-      className="calque-handle"
+      className="maquio-handle"
       fill="#ffffff"
       stroke={ACCENT}
       strokeWidth={1.5 / zoom}
@@ -44,7 +44,7 @@ function Handle({ id, rect, nodeId, zoom }: { id: HandleId; rect: Rect; nodeId: 
 // Etiquette de dimensions (finition v1, maquette Main.dc.html) : affichee
 // UNIQUEMENT pendant un geste (creation, deplacement, redimensionnement),
 // centree au-dessus du cadre concerne, sur fond accent. Rendue en dehors
-// du <g> mis a l'echelle par le zoom (comme calque-canvas-label dans
+// du <g> mis a l'echelle par le zoom (comme maquio-canvas-label dans
 // Canvas.tsx) : un decalage vertical fixe en pixels ECRAN (pas en unites
 // de page) doit rester visuellement constant quel que soit le zoom.
 function DimensionLabel({ frame, zoom, pan }: { frame: Rect; zoom: number; pan: { x: number; y: number } }) {
@@ -56,7 +56,7 @@ function DimensionLabel({ frame, zoom, pan }: { frame: Rect; zoom: number; pan: 
 
   return (
     <div
-      className="calque-dimension-label"
+      className="maquio-dimension-label"
       style={{ position: 'absolute', left: screenX + screenW / 2, top: screenY - 22, transform: 'translateX(-50%)' }}
     >
       {largeur} × {hauteur}
@@ -91,7 +91,7 @@ function LinkHandle({
       cx={cx}
       cy={cy}
       r={LINK_HANDLE_RADIUS / zoom}
-      className="calque-link-handle"
+      className="maquio-link-handle"
       fill={ACCENT}
       stroke="#ffffff"
       strokeWidth={1.5 / zoom}
@@ -126,7 +126,7 @@ export function SelectionOverlay({ canvasRef }: { canvasRef: RefObject<HTMLEleme
   return (
     <>
       <svg
-        className="calque-selection-overlay"
+        className="maquio-selection-overlay"
         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}
       >
         <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
@@ -136,7 +136,7 @@ export function SelectionOverlay({ canvasRef }: { canvasRef: RefObject<HTMLEleme
               y={bounding.y}
               width={bounding.w}
               height={bounding.h}
-              className="calque-selection-frame"
+              className="maquio-selection-frame"
               fill="none"
               stroke={ACCENT}
               strokeWidth={1.5 / zoom}

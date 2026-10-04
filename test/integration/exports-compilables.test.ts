@@ -10,23 +10,23 @@
 //
 // SwiftUI tourne des qu'`swiftc` est disponible. React Native et Compose
 // installent des dependances volumineuses (npm, Gradle) : ils ne tournent
-// qu'avec CALQUE_VERIF_FULL=1 -- jamais dans un `npm test` ordinaire, qui doit
+// qu'avec MAQUIO_VERIF_FULL=1 -- jamais dans un `npm test` ordinaire, qui doit
 // rester rapide et hors-ligne. Voir test/verif/README.md.
 import { execFileSync, spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, platform } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { getExporter } from '@calque/codegen'
-import type { ExporterId } from '@calque/codegen'
+import { getExporter } from '@maquio/codegen'
+import type { ExporterId } from '@maquio/codegen'
 import { documentExempleComplet } from './fixtures/exemple-complet'
 import { PNG_1X1, RESSOURCES_RELATIVES, documentProjetImages } from './fixtures/projet-images'
-import type { CalqueDocument } from '@calque/core'
+import type { MaquioDocument } from '@maquio/core'
 import { documentInteractions } from '../../packages/codegen/test/fixtures/interactions'
 
-const FULL = process.env.CALQUE_VERIF_FULL === '1'
+const FULL = process.env.MAQUIO_VERIF_FULL === '1'
 const VERIF = join(__dirname, '..', 'verif')
-const CACHE = join(process.env.CALQUE_VERIF_CACHE ?? join(homedir(), '.cache'), 'calque-verif')
+const CACHE = join(process.env.MAQUIO_VERIF_CACHE ?? join(homedir(), '.cache'), 'maquio-verif')
 
 function have(command: string, args: string[]): boolean {
   try {
@@ -37,7 +37,7 @@ function have(command: string, args: string[]): boolean {
   }
 }
 
-function writeExport(id: ExporterId, root: string, doc: CalqueDocument = documentExempleComplet(), withAssets = false): string[] {
+function writeExport(id: ExporterId, root: string, doc: MaquioDocument = documentExempleComplet(), withAssets = false): string[] {
   const result = getExporter(id).export(doc, { projectName: 'demo', androidPackage: 'verif.app' })
   rmSync(root, { recursive: true, force: true })
   for (const file of result.files) {
@@ -86,7 +86,7 @@ function stateMacroAvailable(dir: string): boolean {
   return result.status === 0
 }
 
-const CASES: [string, string, () => CalqueDocument, boolean][] = [
+const CASES: [string, string, () => MaquioDocument, boolean][] = [
   ['exemple « tous les composants »', 'exemple', documentExempleComplet, false],
   ['projet multi-ecrans avec images', 'images', projetImages, true],
   ['interactions (transitions, overlays, delai, URL)', 'interactions', documentInteractions, false],

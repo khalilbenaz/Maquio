@@ -1,4 +1,4 @@
-// Prototype Figma : les interactions Calque deviennent des reactions
+// Prototype Figma : les interactions Maquio deviennent des reactions
 // (declencheur, action, transition) posees sur les noeuds sources, plus un
 // point de depart de flux sur l'ecran de depart.
 import type { Plan, PlanAction, PlanEasing, PlanTransition, ReactionPlan } from './mapping'
