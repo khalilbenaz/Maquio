@@ -11,7 +11,7 @@ const out = process.env.OUT ?? mkdtempSync(path.join(tmpdir(), 'maquio-e2e-'))
 const results = []
 const check = (name, ok, detail = '') => { results.push(ok); console.log(`${ok ? 'OK  ' : 'FAIL'} ${name} ${detail}`) }
 const lancer = async () => {
-  const app = await electron.launch({ args: [path.resolve('apps/desktop'), `--user-data-dir=${profil}`], colorScheme: null })
+  const app = await electron.launch({ env: { ...process.env, MAQUIO_E2E_HIDDEN: '1', MAQUIO_CLAUDE_DISCOVERY: 'off' }, args: [path.resolve('apps/desktop'), `--user-data-dir=${profil}`], colorScheme: null })
   const win = await app.firstWindow()
   await win.waitForTimeout(900)
   return { app, win }
@@ -26,7 +26,7 @@ const fond = (app) => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWi
 const rgb = (hex) => { const h = hex.replace('#', ''); return `rgb(${parseInt(h.slice(0, 2), 16)}, ${parseInt(h.slice(2, 4), 16)}, ${parseInt(h.slice(4, 6), 16)})` }
 
 let { app, win } = await lancer()
-await win.getByRole('button', { name: 'Nouvel écran' }).click(); await win.waitForTimeout(250)
+await win.getByRole('button', { name: 'Nouvel écran', exact: true }).click(); await win.waitForTimeout(250)
 await win.getByRole('button', { name: 'Rectangle', exact: true }).click()
 const sc = await win.getByTestId('canvas-scene').boundingBox()
 await win.mouse.move(sc.x + 300, sc.y + 250); await win.mouse.down(); await win.mouse.move(sc.x + 420, sc.y + 330, { steps: 4 }); await win.mouse.up()
@@ -54,13 +54,13 @@ check('clair : accent de texte fonce (contraste) et accent de remplissage corail
 await win.screenshot({ path: path.join(out, '91-theme-clair.png') })
 
 // reglages : selection reflete le choix, changement depuis le dialogue
-await win.getByRole('button', { name: 'Réglages' }).click()
+await win.getByRole('button', { name: 'Réglages', exact: true }).click()
 check('reglages : « Apparence » reflete le theme choisi dans le menu', (await win.getByLabel("Thème de l'éditeur").inputValue()) === 'light')
 await win.getByLabel("Thème de l'éditeur").selectOption('dark'); await win.waitForTimeout(300)
 check('reglages : choisir « Sombre » l applique aussitot', (await css(win, 'body', 'backgroundColor')) === rgb('#16131f'))
 await win.getByLabel("Thème de l'éditeur").selectOption('light'); await win.waitForTimeout(300)
 await win.screenshot({ path: path.join(out, '92-theme-clair-reglages.png') })
-await win.getByRole('button', { name: 'Fermer les réglages' }).click()
+await win.getByRole('button', { name: 'Fermer les réglages', exact: true }).click()
 await app.close()
 
 // persistance
