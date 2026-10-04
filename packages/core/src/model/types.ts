@@ -1,6 +1,7 @@
 // Types du modele de document Calque (Tache 2).
 // Ce sont les formes canoniques : les schemas Zod de schema.ts en sont le miroir exact.
 import type { ComponentKind, ComponentPropsMap, ContainerSpec } from '../components/props'
+import type { Interaction } from './interactions'
 
 export type Rect = { x: number; y: number; w: number; h: number }
 
@@ -42,7 +43,10 @@ export type NodeBase = {
   // validite (cible existante, de la meme page, differente de l'ecran qui
   // contient ce noeud) sont imposees par le schema (documentSchema) ET par
   // les commandes (setLinkCommand), pas seulement par l'interface.
-  link?: { target: string }
+  // Interactions de prototype (v4) : remplace l'ancien `link`, migre en
+  // `tap -> navigate`. Au plus une par declencheur ; voir interactions.ts et
+  // les regles de validite dans schema.ts (checkInteractions).
+  interactions?: Interaction[]
 }
 
 export type FrameNode = NodeBase & {

@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "id": "exemple-tous-les-composants",
   "name": "Tous les composants",
   "pages": [
@@ -314,9 +314,22 @@
                     "disabled": false,
                     "icon": "arrowForward"
                   },
-                  "link": {
-                    "target": "ex-51"
-                  }
+                  "interactions": [
+                    {
+                      "trigger": {
+                        "type": "tap"
+                      },
+                      "action": {
+                        "type": "navigate",
+                        "target": "ex-51"
+                      },
+                      "transition": {
+                        "type": "push",
+                        "durationMs": 300,
+                        "easing": "easeInOut"
+                      }
+                    }
+                  ]
                 },
                 {
                   "id": "ex-12",
@@ -588,9 +601,22 @@
                     "leadingIcon": "person",
                     "trailingIcon": "chevronRight"
                   },
-                  "link": {
-                    "target": "ex-51"
-                  }
+                  "interactions": [
+                    {
+                      "trigger": {
+                        "type": "tap"
+                      },
+                      "action": {
+                        "type": "navigate",
+                        "target": "ex-51"
+                      },
+                      "transition": {
+                        "type": "push",
+                        "durationMs": 300,
+                        "easing": "easeInOut"
+                      }
+                    }
+                  ]
                 },
                 {
                   "id": "ex-23",
@@ -683,9 +709,22 @@
                 "label": "",
                 "size": "regular"
               },
-              "link": {
-                "target": "ex-33"
-              }
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "tap"
+                  },
+                  "action": {
+                    "type": "navigate",
+                    "target": "ex-33"
+                  },
+                  "transition": {
+                    "type": "push",
+                    "durationMs": 300,
+                    "easing": "easeInOut"
+                  }
+                }
+              ]
             },
             {
               "id": "ex-27",
@@ -785,9 +824,22 @@
                     "leadingIcon": "edit",
                     "trailingIcon": "chevronRight"
                   },
-                  "link": {
-                    "target": "ex-33"
-                  }
+                  "interactions": [
+                    {
+                      "trigger": {
+                        "type": "tap"
+                      },
+                      "action": {
+                        "type": "navigate",
+                        "target": "ex-33"
+                      },
+                      "transition": {
+                        "type": "push",
+                        "durationMs": 300,
+                        "easing": "easeInOut"
+                      }
+                    }
+                  ]
                 },
                 {
                   "id": "ex-30",
@@ -810,9 +862,22 @@
                     "leadingIcon": "info",
                     "trailingIcon": "chevronRight"
                   },
-                  "link": {
-                    "target": "ex-51"
-                  }
+                  "interactions": [
+                    {
+                      "trigger": {
+                        "type": "tap"
+                      },
+                      "action": {
+                        "type": "navigate",
+                        "target": "ex-51"
+                      },
+                      "transition": {
+                        "type": "push",
+                        "durationMs": 300,
+                        "easing": "easeInOut"
+                      }
+                    }
+                  ]
                 },
                 {
                   "id": "ex-31",
@@ -1263,9 +1328,22 @@
                     "variant": "primary",
                     "disabled": false
                   },
-                  "link": {
-                    "target": "ex-51"
-                  }
+                  "interactions": [
+                    {
+                      "trigger": {
+                        "type": "tap"
+                      },
+                      "action": {
+                        "type": "navigate",
+                        "target": "ex-51"
+                      },
+                      "transition": {
+                        "type": "push",
+                        "durationMs": 300,
+                        "easing": "easeInOut"
+                      }
+                    }
+                  ]
                 }
               ],
               "container": {
@@ -2112,9 +2190,22 @@
                     "subtitle": "",
                     "leadingIcon": "home"
                   },
-                  "link": {
-                    "target": "ex-1"
-                  }
+                  "interactions": [
+                    {
+                      "trigger": {
+                        "type": "tap"
+                      },
+                      "action": {
+                        "type": "navigate",
+                        "target": "ex-1"
+                      },
+                      "transition": {
+                        "type": "push",
+                        "durationMs": 300,
+                        "easing": "easeInOut"
+                      }
+                    }
+                  ]
                 },
                 {
                   "id": "ex-74",

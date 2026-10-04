@@ -12,4 +12,9 @@
 // aucune de ces formes, il s'ouvre donc sans transformation de contenu
 // (seul le numero de version est releve) ; un document v3 est refuse par
 // une application qui ne connait que v2, comme tout document futur.
-export const DOCUMENT_VERSION = 3 as const
+//
+// v4 (interactions de prototype) : `NodeBase.link` est remplace par
+// `interactions` (declencheur, action, transition). Un document v1/v2/v3 se
+// migre a l'ouverture : chaque `link` devient `tap -> navigate` avec la
+// transition par defaut (voir migrateLinks dans document.ts).
+export const DOCUMENT_VERSION = 4 as const

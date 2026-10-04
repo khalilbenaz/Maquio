@@ -196,9 +196,9 @@ check('palette : la barre basse se colle en bas, pleine largeur',
 await win.getByRole('button', { name: 'Nouvel écran' }).click()
 await win.waitForTimeout(200)
 await win.getByTestId(`node-${boutonId}`).click({ position: { x: 5, y: 5 } })
-await win.getByLabel('Au clic →', { exact: true }).selectOption({ index: 1 })
+await win.getByRole('button', { name: 'Ajouter une interaction' }).click()
 await win.waitForTimeout(150)
-check('lien de navigation pose sur le bouton', (await win.getByLabel('Au clic →', { exact: true }).inputValue()) !== '')
+check('lien de navigation pose sur le bouton', (await win.getByLabel('Écran cible', { exact: true }).inputValue()) !== '')
 await win.getByRole('tab', { name: 'Calques' }).click()
 await shot('15-composants')
 

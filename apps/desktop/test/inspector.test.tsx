@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createDocument, createScreenNode, findNode } from '@calque/core'
+import { createDocument, createScreenNode, findNode, tapNavigation } from '@calque/core'
 import type { CalqueDocument, DevicePreset, FrameNode, ImageNode, RectNode } from '@calque/core'
 import { InspectorPanel } from '../src/renderer/panels/InspectorPanel'
 import { useEditorStore } from '../src/renderer/state/editorStore'
@@ -340,7 +340,7 @@ describe('InspectorPanel', () => {
 
 // v2 (addendum navigation §5, chemin 1 : « un nœud sélectionné expose « Au
 // clic → » avec la liste des écrans de la page »).
-describe('InspectorPanel - "Au clic →" (v2, addendum navigation)', () => {
+describe('InspectorPanel - interactions (liens entre ecrans)', () => {
   const device: DevicePreset = { id: 'iphone15', label: 'iPhone 15', width: 393, height: 852, pixelRatio: 3 }
 
   function documentAvecDeuxEcrans(): { doc: CalqueDocument; ecranA: FrameNode; ecranB: FrameNode } {
@@ -369,33 +369,100 @@ describe('InspectorPanel - "Au clic →" (v2, addendum navigation)', () => {
     useEditorStore.getState().select(['bouton'])
     render(<InspectorPanel api={apiFactice} />)
 
-    const champ = screen.getByLabelText('Au clic →') as HTMLSelectElement
+    // Aucune interaction au depart ; on en ajoute une.
+    expect(screen.getByText('Aucune interaction.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter une interaction' }))
+    const champ = screen.getByLabelText('Écran cible') as HTMLSelectElement
     const options = Array.from(champ.options)
     const labels = options.map((o) => o.textContent)
     expect(labels).toContain('ecranB')
     expect(labels).not.toContain('ecranA')
-    // La valeur reelle de l'option (celle transmise a setLinkCommand) est
-    // l'identifiant de l'ecran, distinct de son libelle affiche.
     expect(options.find((o) => o.textContent === 'ecranB')?.value).toBe(ecranB.id)
-    // Aucun lien pose encore : le champ n'a pas de selection (option
-    // "(aucun)").
-    expect(champ.value).toBe('')
   })
 
-  it('choisir un ecran emet setLinkCommand, choisir "(aucun)" retire le lien', () => {
+  it('l ecran cible se choisit dans la liste ; supprimer l interaction retire le lien (annulable)', () => {
     const { doc, ecranB } = documentAvecDeuxEcrans()
     useEditorStore.getState().load(doc)
     useEditorStore.getState().select(['bouton'])
     render(<InspectorPanel api={apiFactice} />)
 
-    const champ = screen.getByLabelText('Au clic →')
-    fireEvent.change(champ, { target: { value: ecranB.id } })
-
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter une interaction' }))
+    const champ = screen.getByLabelText('Écran cible') as HTMLSelectElement
+    expect(champ.value).toBe(ecranB.id)
     let state = useEditorStore.getState()
-    expect(findNode(state.document.pages[0]!.nodes, 'bouton')?.link).toEqual({ target: ecranB.id })
+    expect(tapNavigation(findNode(state.document.pages[0]!.nodes, 'bouton')?.interactions)?.target).toBe(ecranB.id)
 
-    fireEvent.change(champ, { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: "Supprimer l'interaction 1" }))
     state = useEditorStore.getState()
-    expect(findNode(state.document.pages[0]!.nodes, 'bouton')?.link).toBeUndefined()
+    expect(findNode(state.document.pages[0]!.nodes, 'bouton')?.interactions).toBeUndefined()
+    state.undo()
+    expect(tapNavigation(findNode(useEditorStore.getState().document.pages[0]!.nodes, 'bouton')?.interactions)?.target).toBe(ecranB.id)
+  })
+})
+
+describe('InspectorPanel - edition des interactions', () => {
+  const device: DevicePreset = { id: 'd', label: 'd', width: 393, height: 852, pixelRatio: 3 }
+  function setup() {
+    const doc = createDocument('t')
+    const bouton: RectNode = { id: 'bouton', name: 'bouton', type: 'rect', frame: { x: 10, y: 10, w: 50, h: 50 }, visible: true, locked: false, opacity: 1, rotation: 0, fills: [], strokes: [], cornerRadius: 0 }
+    const a = createScreenNode('A', device, { x: 0, y: 0, w: 393, h: 852 }, [bouton])
+    const b = createScreenNode('B', device, { x: 500, y: 0, w: 393, h: 852 })
+    useEditorStore.getState().load({ ...doc, pages: [{ ...doc.pages[0]!, device, nodes: [a, b] }] })
+    useEditorStore.getState().select(['bouton'])
+    render(<InspectorPanel api={apiFactice} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter une interaction' }))
+    return { a, b }
+  }
+  const noeud = () => findNode(useEditorStore.getState().document.pages[0]!.nodes, 'bouton')!
+
+  it('transition, direction, duree et courbe : chaque changement est une commande annulable', () => {
+    setup()
+    fireEvent.change(screen.getByLabelText('Transition'), { target: { value: 'slide' } })
+    fireEvent.change(screen.getByLabelText('Direction'), { target: { value: 'up' } })
+    fireEvent.change(screen.getByLabelText('Courbe'), { target: { value: 'spring' } })
+    const dur = screen.getByLabelText('Durée (ms)')
+    fireEvent.change(dur, { target: { value: '450' } })
+    fireEvent.blur(dur)
+    expect(noeud().interactions![0]!.transition).toEqual({ type: 'slide', direction: 'up', durationMs: 450, easing: 'spring' })
+    useEditorStore.getState().undo()
+    expect((noeud().interactions![0]!.transition as { durationMs: number }).durationMs).toBe(300)
+  })
+  it('declencheur et action : appui long, retour, ouvrir une URL', () => {
+    setup()
+    fireEvent.change(screen.getByLabelText('Déclencheur'), { target: { value: 'longPress' } })
+    expect(noeud().interactions![0]!.trigger).toEqual({ type: 'longPress' })
+    fireEvent.change(screen.getByLabelText('Action'), { target: { value: 'openUrl' } })
+    const url = screen.getByLabelText('URL')
+    fireEvent.change(url, { target: { value: 'https://maquio.test' } })
+    fireEvent.blur(url)
+    expect(noeud().interactions![0]!.action).toEqual({ type: 'openUrl', url: 'https://maquio.test' })
+    fireEvent.change(screen.getByLabelText('Action'), { target: { value: 'back' } })
+    expect(noeud().interactions![0]!.action).toEqual({ type: 'back' })
+  })
+  it('une URL dangereuse est refusee avec un message, le document ne change pas', () => {
+    setup()
+    fireEvent.change(screen.getByLabelText('Action'), { target: { value: 'openUrl' } })
+    const url = screen.getByLabelText('URL')
+    fireEvent.change(url, { target: { value: 'javascript:alert(1)' } })
+    fireEvent.blur(url)
+    expect(screen.getByRole('alert').textContent).toMatch(/URL/)
+    expect((noeud().interactions![0]!.action as { url: string }).url).toBe('https://exemple.com')
+  })
+  it('un seul declencheur de chaque sorte : le bouton Ajouter s epuise ; « apres un delai » est reserve aux ecrans', () => {
+    setup()
+    expect(Array.from((screen.getByLabelText('Déclencheur') as HTMLSelectElement).options).map((o) => o.value)).not.toContain('afterDelay')
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter une interaction' }))
+    expect(noeud().interactions).toHaveLength(2)
+    expect((screen.getByRole('button', { name: 'Ajouter une interaction' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+  it('un ecran porte « apres un delai » avec son delai', () => {
+    const { a } = setup()
+    act(() => useEditorStore.getState().select([a.id]))
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter une interaction' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter une interaction' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter une interaction' }))
+    const e = findNode(useEditorStore.getState().document.pages[0]!.nodes, a.id)!
+    expect(e.interactions!.map((i) => i.trigger.type).sort()).toEqual(['afterDelay', 'longPress', 'tap'])
+    expect((screen.getAllByLabelText('Délai (ms)')[0] as HTMLInputElement).value).toBe('2000')
   })
 })

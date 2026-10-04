@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
-import { COMPONENT_DEFINITIONS, createDocument, createScreenNode, setLinkCommand } from '@calque/core'
+import { COMPONENT_DEFINITIONS, createDocument, createScreenNode, setLinkCommand, tapNavigation } from '@calque/core'
 import type { CalqueDocument, DevicePreset, FrameNode, RectNode } from '@calque/core'
 import { Canvas } from '../src/renderer/canvas/Canvas'
 import { computeFitTransform } from '../src/renderer/canvas/viewport'
@@ -662,8 +662,8 @@ describe('Canvas - plusieurs ecrans (v2, addendum navigation §4)', () => {
 
     const state = useEditorStore.getState()
     expect(state.history.undoLabels).toHaveLength(1)
-    const ecranA = state.document.pages[0]!.nodes[0] as { children: { id: string; link?: { target: string } }[] }
-    expect(ecranA.children[0]!.link).toEqual({ target: ecranB.id })
+    const ecranA = state.document.pages[0]!.nodes[0] as FrameNode
+    expect(tapNavigation(ecranA.children[0]!.interactions)?.target).toBe(ecranB.id)
   })
 
   it('relacher la poignee de lien hors de tout ecran n execute aucune commande', () => {
@@ -821,7 +821,7 @@ describe('Canvas - correctif parentage (tracer et glisser entre ecrans)', () => 
     const state = useEditorStore.getState()
     const ecranBApres = state.document.pages[0]!.nodes[1] as FrameNode
     expect(ecranBApres.children).toHaveLength(1)
-    expect(ecranBApres.children[0]!.link).toEqual({ target: ecranC.id })
+    expect(tapNavigation(ecranBApres.children[0]!.interactions)?.target).toBe(ecranC.id)
   })
 
   it('un ecran glisse sur un autre ecran n est jamais reparente', () => {

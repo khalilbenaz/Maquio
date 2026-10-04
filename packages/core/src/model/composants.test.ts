@@ -2,6 +2,7 @@
 // mobiles) : schema, validation des props par kind, liens des barres de
 // navigation, et ouverture des anciens documents.
 import { describe, expect, it } from 'vitest'
+import { tapLink } from './interactions'
 import {
   COMPONENT_KINDS,
   PALETTE_ITEMS,
@@ -64,7 +65,7 @@ describe('nodeSchema : component', () => {
 
   it('accepte un lien de navigation sur un composant (reutilise NodeBase.link)', () => {
     const target = screenWith([])
-    const button = { ...createComponentNode('button', RECT), link: { target: target.id } }
+    const button = { ...createComponentNode('button', RECT), interactions: [tapLink(target.id)] }
     const source = createScreenNode('Source', DEVICE_PRESETS.iphone15, { x: 500, y: 0, w: 393, h: 852 }, [button])
     expect(documentSchema.safeParse(docWith(target, source)).success).toBe(true)
   })
@@ -119,12 +120,12 @@ describe('migration v1/v2 -> v3', () => {
     return JSON.stringify({ ...doc, version })
   }
 
-  it('ouvre un document v2 (ecrans et liens) tel quel, releve en v3', () => {
+  it('ouvre un document v2 (ecrans et liens) : le lien devient tap -> navigate, version 4', () => {
     const target = screenWith([])
-    const rect: Node = {
+    const rect = {
       id: 'r',
       name: 'r',
-      type: 'rect',
+      type: 'rect' as const,
       frame: RECT,
       visible: true,
       locked: false,
@@ -134,21 +135,23 @@ describe('migration v1/v2 -> v3', () => {
       strokes: [],
       cornerRadius: 0,
       link: { target: target.id },
-    }
+    } as unknown as Node
     const source = createScreenNode('Source', DEVICE_PRESETS.iphone15, { x: 500, y: 0, w: 393, h: 852 }, [rect])
     const v2 = docWith(target, source)
     const migre = parseDocument(jsonAtVersion(2, v2))
-    expect(migre.version).toBe(3)
-    expect(migre.pages).toEqual(v2.pages)
+    expect(migre.version).toBe(4)
+    const migrated = (migre.pages[0]!.nodes[1] as FrameNode).children[0]!
+    expect('link' in migrated).toBe(false)
+    expect(migrated.interactions).toEqual([tapLink(target.id)])
     expect(migre.tokens).toEqual(v2.tokens)
   })
 
-  it('ouvre un document v1 : ecran enveloppe puis version 3', () => {
+  it('ouvre un document v1 : ecran enveloppe puis version 4', () => {
     const doc = createDocument('v1')
     const page = doc.pages[0]!
     const v1: CalqueDocument = { ...doc, pages: [{ ...page, nodes: [{ id: 'r', name: 'r', type: 'rect', frame: RECT, visible: true, locked: false, opacity: 1, rotation: 0, fills: [], strokes: [], cornerRadius: 0 }] }] }
     const migre = parseDocument(jsonAtVersion(1, v1))
-    expect(migre.version).toBe(3)
+    expect(migre.version).toBe(4)
     const top = migre.pages[0]!.nodes[0] as FrameNode
     expect(top.type).toBe('frame')
     expect(top.device).toBeDefined()
@@ -165,7 +168,7 @@ describe('migration v1/v2 -> v3', () => {
     expect(relu).toEqual(doc)
   })
 
-  it('refuse toujours un document plus recent que v3', () => {
-    expect(() => parseDocument(JSON.stringify({ ...createDocument('X'), version: 4 }))).toThrow(/récente/)
+  it('refuse toujours un document plus recent que v4', () => {
+    expect(() => parseDocument(JSON.stringify({ ...createDocument('X'), version: 5 }))).toThrow(/récente/)
   })
 })

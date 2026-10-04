@@ -20,7 +20,7 @@ function renumber(nodes: Node[], map: Map<string, string>, counter: { n: number 
 function retarget(nodes: Node[], map: Map<string, string>): Node[] {
   return nodes.map((node) => {
     let next: Node = node
-    if (next.link) next = { ...next, link: { target: map.get(next.link.target) ?? next.link.target } }
+    if (next.interactions) next = { ...next, interactions: next.interactions.map((i) => (i.action.type === 'navigate' ? { ...i, action: { ...i.action, target: map.get(i.action.target) ?? i.action.target } } : i)) }
     if (next.type === 'component' && (next.kind === 'bottomNav' || next.kind === 'tabs')) {
       const items = (next.props.items as { target?: string }[]).map((item) =>
         item.target === undefined ? item : { ...item, target: map.get(item.target) ?? item.target },

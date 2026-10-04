@@ -19,7 +19,7 @@ describe('projet d exemple « tous les composants »', () => {
 
   it('compte trois ecrans relies par des liens', () => {
     expect(doc.pages[0]!.nodes).toHaveLength(3)
-    expect(JSON.stringify(doc)).toContain('"link"')
+    expect(JSON.stringify(doc)).toContain('"interactions"')
   })
 })
 
@@ -33,7 +33,7 @@ describe('fichier d exemple livre', () => {
     if (process.env.UPDATE_EXEMPLE === '1') writeFileSync(chemin, attendu)
     const lu = readFileSync(chemin, 'utf8')
     expect(lu).toBe(attendu)
-    expect(parseDocument(lu).version).toBe(3)
+    expect(parseDocument(lu).version).toBe(4)
   })
 
   it('est deterministe', () => {

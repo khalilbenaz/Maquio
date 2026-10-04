@@ -2,6 +2,7 @@
 import { documentSchema } from './schema'
 import { DOCUMENT_VERSION } from './version'
 import { createScreenNode } from './screen'
+import { DEFAULT_TRANSITION } from './interactions'
 import type { CalqueDocument, DesignTokens, DevicePreset, Page } from './types'
 
 // Erreur levee quand la version du document lu n'est pas la version courante.
@@ -101,6 +102,32 @@ function migrateV2ToV3(doc: CalqueDocument): CalqueDocument {
   return { ...doc, version: DOCUMENT_VERSION }
 }
 
+// v4 : convertit, sur le JSON BRUT (avant validation, le schema v4 ne connait
+// plus `link`), chaque `link: { target }` en `interactions: [tap -> navigate]`
+// avec la transition par defaut. Aucune donnee n'est perdue ; un noeud qui
+// porte deja des interactions les garde et le lien ne s'y ajoute que si le
+// declencheur « tap » est libre.
+function migrateLinksInRaw(raw: unknown): void {
+  const visit = (node: unknown) => {
+    if (typeof node !== 'object' || node === null) return
+    const n = node as Record<string, unknown>
+    const link = n['link']
+    if (link !== undefined) {
+      delete n['link']
+      const target = typeof link === 'object' && link !== null ? (link as { target?: unknown }).target : undefined
+      if (typeof target === 'string') {
+        const existing = Array.isArray(n['interactions']) ? (n['interactions'] as { trigger?: { type?: string } }[]) : []
+        if (!existing.some((i) => i.trigger?.type === 'tap')) {
+          n['interactions'] = [{ trigger: { type: 'tap' }, action: { type: 'navigate', target }, transition: { ...DEFAULT_TRANSITION } }, ...existing]
+        }
+      }
+    }
+    if (Array.isArray(n['children'])) n['children'].forEach(visit)
+  }
+  const pages = (raw as { pages?: unknown })?.pages
+  if (Array.isArray(pages)) for (const page of pages) if (page && Array.isArray(page.nodes)) page.nodes.forEach(visit)
+}
+
 export function parseDocument(json: string): CalqueDocument {
   const raw: unknown = JSON.parse(json)
   const version = readRawVersion(raw)
@@ -126,11 +153,12 @@ export function parseDocument(json: string): CalqueDocument {
   // migration proprement dite (enveloppement dans un ecran) n'a donc besoin
   // d'aucune manipulation de JSON brut non type : elle s'applique APRES
   // validation, sur un CalqueDocument deja bien forme.
+  if (version !== undefined && version < 4) migrateLinksInRaw(raw)
   const parsed = documentSchema.parse(raw)
   // Chaine de migrations : v1 -> v2 (ecrans) puis v2 -> v3 (composants).
   // v3 est purement additif (voir model/version.ts) : relever le numero
   // suffit. Un document deja en v3 est rendu tel quel.
   if (version === 1) return migrateV2ToV3(migrateV1ToV2(parsed))
-  if (version === 2) return migrateV2ToV3(parsed)
+  if (version === 2 || version === 3) return migrateV2ToV3(parsed)
   return parsed
 }

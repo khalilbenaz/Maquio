@@ -1,7 +1,7 @@
 // Fabriques de documents de test pour les exportateurs de composants : un
 // composant ou conteneur du catalogue place dans un ecran, un document a
 // plusieurs ecrans relies.
-import { DEVICE_PRESETS, PALETTE_ITEMS, createDocument, createScreenNode } from '@calque/core'
+import { DEVICE_PRESETS, tapLink, PALETTE_ITEMS, createDocument, createScreenNode } from '@calque/core'
 import type { CalqueDocument, ComponentNode, FrameNode, Node, Rect } from '@calque/core'
 
 export function make(id: string, frame: Partial<Rect> = {}, props: Record<string, unknown> = {}, name?: string): Node {
@@ -13,7 +13,7 @@ export function make(id: string, frame: Partial<Rect> = {}, props: Record<string
 }
 
 export function linked(node: Node, target: string): Node {
-  return { ...node, link: { target } }
+  return { ...node, interactions: [tapLink(target)] }
 }
 
 export function parent(frame: FrameNode, children: Node[]): FrameNode {
