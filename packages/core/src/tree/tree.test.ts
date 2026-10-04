@@ -290,3 +290,14 @@ describe('cloneNodeWithNewIds (v2, addendum navigation)', () => {
     expect(clone.children[0]!.interactions).toEqual([tapLink('autre-ecran')])
   })
 })
+
+describe('inheritedOpacity', () => {
+  it('multiplie les opacites des ancetres, sans compter le noeud lui-meme', async () => {
+    const { inheritedOpacity } = await import('./tree')
+    const leaf = { id: 'c', name: 'c', type: 'rect', frame: { x: 0, y: 0, w: 1, h: 1 }, visible: true, locked: false, opacity: 0.5, rotation: 0, fills: [], strokes: [], cornerRadius: 0 } as never
+    const mid = { id: 'b', name: 'b', type: 'frame', frame: { x: 0, y: 0, w: 1, h: 1 }, visible: true, locked: false, opacity: 0.5, rotation: 0, layout: { mode: 'absolute', gap: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 }, alignMain: 'start', alignCross: 'start' }, fills: [], strokes: [], cornerRadius: 0, clipsContent: false, children: [leaf] } as never
+    const root = { ...(mid as object), id: 'a', opacity: 0.4, children: [mid] } as never
+    expect(inheritedOpacity([root], 'c')).toBeCloseTo(0.2)
+    expect(inheritedOpacity([root], 'a')).toBe(1)
+  })
+})
