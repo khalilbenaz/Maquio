@@ -1,6 +1,7 @@
 {
   "name": "@maquio/figma-plugin",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "description": "Plugin Figma « Import Maquio » : recree un projet Maquio (ecrans, textes, formes, images, auto-layout, composants et prototype) dans Figma.",
   "type": "module",

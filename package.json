@@ -41,5 +41,7 @@
   "homepage": "https://github.com/khalilbenaz/Maquio#readme",
   "bugs": {
     "url": "https://github.com/khalilbenaz/Maquio/issues"
-  }
+  },
+  "version": "1.0.0",
+  "license": "MIT"
 }
