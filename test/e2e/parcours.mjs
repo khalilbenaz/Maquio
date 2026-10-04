@@ -11,7 +11,7 @@ const work = mkdtempSync(path.join(tmpdir(), 'maquio-work-'))
 const results = []
 const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? 'OK  ' : 'FAIL'} ${name} ${detail}`) }
 
-const app = await electron.launch({ args: [path.resolve('apps/desktop'), `--user-data-dir=${path.join(work, 'userdata')}`] })
+const app = await electron.launch({ env: { ...process.env, MAQUIO_E2E_HIDDEN: '1', MAQUIO_CLAUDE_DISCOVERY: 'off' }, args: [path.resolve('apps/desktop'), `--user-data-dir=${path.join(work, 'userdata')}`] })
 const win = await app.firstWindow()
 const errors = []
 win.on('pageerror', (e) => errors.push(e.message))
@@ -46,7 +46,7 @@ const draw = async (tool, x1, y1, x2, y2) => {
 }
 
 // 1. ecran
-await win.getByRole('button', { name: 'Nouvel écran' }).click()
+await win.getByRole('button', { name: 'Nouvel écran', exact: true }).click()
 await win.waitForTimeout(200)
 const ids0 = await state()
 check('creer un ecran', ids0.length === 1)
@@ -70,7 +70,7 @@ check('image tracee', ids.length === 6, `(${ids.length})`)
 await shot('11-image')
 
 // 3. deplacer / redimensionner / selectionner
-await win.getByRole('button', { name: 'Sélection' }).click()
+await win.getByRole('button', { name: 'Sélection', exact: true }).click()
 const rectId = ids[1]
 let b = await nodeBox(rectId)
 await win.mouse.move(b.x + b.width / 2, b.y + b.height / 2); await win.mouse.down()
@@ -121,10 +121,10 @@ await shot('13-props')
 
 // 5. annuler / retablir
 const before = await nodeBox(rectId)
-await win.getByRole('button', { name: 'Annuler' }).click()
+await win.getByRole('button', { name: 'Annuler', exact: true }).click()
 const bgU = await win.getByTestId(`node-${rectId}`).evaluate((e) => getComputedStyle(e).backgroundColor)
 check('annuler (bouton)', !/255, 0, 0/.test(bgU), bgU)
-await win.getByRole('button', { name: 'Rétablir' }).click()
+await win.getByRole('button', { name: 'Rétablir', exact: true }).click()
 const bgR = await win.getByTestId(`node-${rectId}`).evaluate((e) => getComputedStyle(e).backgroundColor)
 check('retablir (bouton)', /255, 0, 0/.test(bgR), bgR)
 await win.keyboard.press('Meta+z')
@@ -172,12 +172,12 @@ await win.getByLabel('Variante', { exact: true }).selectOption('secondary')
 await win.waitForTimeout(150)
 const bordure = await win.getByTestId(`node-${boutonId}`).locator('[data-component] > div').evaluate((e) => getComputedStyle(e).borderTopWidth)
 check('inspecteur : variante secondaire (contour)', bordure === '1px', bordure)
-await win.getByRole('button', { name: 'Annuler' }).click()
-await win.getByRole('button', { name: 'Annuler' }).click()
+await win.getByRole('button', { name: 'Annuler', exact: true }).click()
+await win.getByRole('button', { name: 'Annuler', exact: true }).click()
 check('annuler remet le bouton a son etat initial',
   (await win.getByTestId(`node-${boutonId}`).innerText()).includes('Bouton') && (await win.getByTestId(`node-${boutonId}`).locator('[data-component] > div').evaluate((e) => getComputedStyle(e).borderTopWidth)) === '0px')
-await win.getByRole('button', { name: 'Rétablir' }).click()
-await win.getByRole('button', { name: 'Rétablir' }).click()
+await win.getByRole('button', { name: 'Rétablir', exact: true }).click()
+await win.getByRole('button', { name: 'Rétablir', exact: true }).click()
 // d'autres familles : saisie, navigation (collees a leur place), carte
 const switchId = await deposer('switch', 0.5, 0.45)
 const barreId = await deposer('appBar', 0.5, 0.8)
@@ -193,10 +193,10 @@ check('palette : la barre d application se colle en haut, pleine largeur',
 check('palette : la barre basse se colle en bas, pleine largeur',
   Math.abs(navBox.y + navBox.height - (ecranBox.y + ecranBox.height)) < 3 && Math.abs(navBox.width - ecranBox.width) < 3)
 // lien « au clic, aller a l'ecran X » sur le bouton
-await win.getByRole('button', { name: 'Nouvel écran' }).click()
+await win.getByRole('button', { name: 'Nouvel écran', exact: true }).click()
 await win.waitForTimeout(200)
 await win.getByTestId(`node-${boutonId}`).click({ position: { x: 5, y: 5 } })
-await win.getByRole('button', { name: 'Ajouter une interaction' }).click()
+await win.getByRole('button', { name: 'Ajouter une interaction', exact: true }).click()
 await win.waitForTimeout(150)
 check('lien de navigation pose sur le bouton', (await win.getByLabel('Écran cible', { exact: true }).inputValue()) !== '')
 await win.getByRole('tab', { name: 'Calques' }).click()
@@ -232,13 +232,13 @@ for (const [label, dirName] of [['Flutter', 'flutter'], ['React Native', 'rn'], 
   mkdirSync(dir, { recursive: true })
   await win.getByRole('button', { name: 'Exporter', exact: true }).click()
   await win.getByRole('menuitem', { name: new RegExp(label) }).click()
-  await win.getByRole('button', { name: "Lancer l'export" }).click()
+  await win.getByRole('button', { name: "Lancer l'export", exact: true }).click()
   await win.waitForTimeout(800)
   const txt = await win.locator('.dialog-panel').innerText()
   const files = existsSync(dir) ? readdirSync(dir, { recursive: true }).filter((f) => !f.includes('.dart_tool')) : []
   check(`export ${label}`, files.length > 0, `${files.length} fichiers ; ${txt.replace(/\n/g, ' | ').slice(0, 160)}`)
   await shot(`20-export-${dirName}`)
-  await win.getByRole('button', { name: "Fermer l'export" }).click()
+  await win.getByRole('button', { name: "Fermer l'export", exact: true }).click()
 }
 // 7a. les composants sont exportes vers le widget natif, avec Scaffold et routes (tous les ecrans)
 const lire = (rel) => readFileSync(path.join(work, rel), 'utf8')

@@ -11,7 +11,7 @@ const { win, work, check } = t
 const pause = (ms = 200) => win.waitForTimeout(ms)
 const btn = (name) => win.getByRole('button', { name, exact: true })
 
-const script = (nom, corps) => { const p = path.join(work, nom); writeFileSync(p, `#!/bin/sh\n${corps}\n`); chmodSync(p, 0o755); return p }
+const script = (nom, corps) => { const p = path.join(work, nom); writeFileSync(p, `#!/bin/sh\n[ "$1" = "--version" ] && { echo "9.9.9 (faux)"; exit 0; }\n${corps}\n`); chmodSync(p, 0o755); return p }
 const patch = { summary: 'Ajoute un texte', ops: [{ op: 'insertNode', parentId: null, node: { id: '99999999-9999-4999-8999-999999999999', name: 'Titre', type: 'text', frame: { x: 10, y: 10, w: 200, h: 30 }, visible: true, locked: false, opacity: 1, rotation: 0, characters: 'Bonjour', style: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeight: 20, letterSpacing: 0, color: { r: 0, g: 0, b: 0, a: 1 }, align: 'left' } } }] }
 const reponse = (obj) => JSON.stringify({ type: 'result', result: '```json\n' + JSON.stringify(obj) + '\n```' })
 const pidFile = path.join(work, 'faux-pid')
@@ -25,10 +25,13 @@ const faux = {
 
 async function regler(chemin) {
   await btn('Réglages').click()
-  await win.getByLabel('Chemin personnalisé vers le binaire claude').fill(chemin)
-  await win.getByRole('button', { name: 'Enregistrer le chemin de Claude Code' }).click(); await pause(500)
+  const champ = win.getByLabel('Chemin personnalisé vers le binaire claude')
+  await champ.fill('')
+  await champ.fill(chemin)
+  await win.getByRole('button', { name: 'Enregistrer le chemin de Claude Code', exact: true }).click(); await pause(500)
   const texte = await win.locator('.dialog-panel').innerText()
-  await win.getByRole('button', { name: 'Fermer les réglages' }).click(); await pause(200)
+  if (process.env.DEBUG_REGLER) console.log('REGLER', chemin.split('/').pop(), texte.replace(/\n/g,' | ').slice(-300))
+  await win.getByRole('button', { name: 'Fermer les réglages', exact: true }).click(); await pause(200)
   return texte
 }
 async function demander(instruction) {
@@ -40,7 +43,7 @@ const nNoeuds = () => win.evaluate(() => document.querySelectorAll('[data-testid
 
 // 0. binaire absent : message actionnable, saisie desactivee
 check('claude absent : le panneau indique « non connecté »', await win.getByText('non connecté').isVisible())
-check('claude absent : message actionnable + bouton vers les reglages', /introuvable/i.test(await win.locator('.claude-panel-alert').first().innerText()) && await win.getByRole('button', { name: 'Ouvrir les Réglages' }).isVisible())
+check('claude absent : message actionnable + bouton vers les reglages', /introuvable/i.test(await win.locator('.claude-panel-alert').first().innerText()) && await win.getByRole('button', { name: 'Ouvrir les Réglages', exact: true }).isVisible())
 check('claude absent : « Demander à Claude » est desactive', await btn('Demander à Claude').isDisabled())
 const refus = await regler(path.join(work, 'n-existe-pas'))
 check('reglages : un chemin inexistant est refuse avec sa raison', /introuvable|n'existe|inexistant|pas/i.test(refus), refus.replace(/\n/g, ' | ').slice(0, 160))
@@ -86,7 +89,7 @@ check('claude : le sous-processus est reellement tue apres le delai', !vivant, `
 await demander('x')
 await win.getByText('En attente de la réponse').waitFor()
 await pause(500)
-await win.locator('.claude-panel-loading').getByRole('button', { name: 'Annuler' }).click()
+await win.locator('.claude-panel-loading').getByRole('button', { name: 'Annuler', exact: true }).click()
 await issue().waitFor({ timeout: 10000 })
 const m6 = await issue().innerText()
 const pid2 = Number(readFileSync(pidFile, 'utf8'))
@@ -96,7 +99,7 @@ check('claude : annuler en cours interrompt la demande (message) et tue le proce
 check('claude : le panneau est de nouveau utilisable apres l annulation', await btn('Demander à Claude').isEnabled())
 // 7. pastille repliee
 await regler(faux.ok)
-await demander('x'); await win.getByRole('button', { name: 'Replier le panneau Claude' }).click()
+await demander('x'); await win.getByRole('button', { name: 'Replier le panneau Claude', exact: true }).click()
 await win.getByTestId('claude-badge').waitFor({ timeout: 20000 }) // pastille sur la bascule Claude de la barre d outils
 await pause(600)
 check('claude : panneau replie, la pastille de resultat s affiche a la fin', (await win.getByTestId('claude-badge').getAttribute('data-phase')) === 'done')
