@@ -1,14 +1,70 @@
+<p align="center"><img src="assets/brand/maquio-icon.svg" alt="Icône Maquio" width="96"></p>
 <p align="center"><img src="assets/brand/maquio-logotype.png" alt="maquio — De la maquette au code natif." width="420"></p>
+
+<p align="center">
+  <a href="https://github.com/khalilbenaz/Maquio/actions/workflows/ci.yml"><img src="https://github.com/khalilbenaz/Maquio/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/khalilbenaz/Maquio/releases/latest"><img src="https://img.shields.io/github/v/release/khalilbenaz/Maquio?display_name=tag&sort=semver" alt="Dernière release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-FF5A36" alt="Licence MIT"></a>
+</p>
+
+<p align="center">
+  <a href="https://khalilbenaz.github.io/Maquio/"><b>Site</b></a> ·
+  <a href="https://github.com/khalilbenaz/Maquio/releases/latest"><b>Télécharger</b></a> ·
+  <a href="#installation">Installation</a> ·
+  <a href="CHANGELOG.md">Changelog</a>
+</p>
 
 # Maquio
 
-Maquio est une application de bureau pour concevoir des interfaces mobiles
-au drag & drop, sur un canvas type Figma. Elle importe une maquette Figma
-existante comme point de départ, laisse Claude Code créer ou modifier
-l'interface en langage naturel, puis exporte l'écran obtenu en code natif
-(Flutter, React Native, SwiftUI, Jetpack Compose). Le document produit est
-un fichier `.maquio` — du JSON lisible, versionné, fait pour vivre dans un
-dépôt à côté du code qu'il décrit.
+**De la maquette au code natif.** Maquio est une application de bureau
+(macOS, Windows, Linux) pour concevoir des interfaces mobiles au drag & drop,
+sur un canevas type Figma. Elle importe une maquette Figma existante comme
+point de départ, laisse Claude Code créer ou modifier l'interface en langage
+naturel, permet de jouer le prototype, puis exporte TOUS les écrans avec leur
+navigation en code natif (Flutter, React Native, SwiftUI, Jetpack Compose).
+Le document produit est un fichier `.maquio` : du JSON lisible, versionné,
+fait pour vivre dans un dépôt à côté du code qu'il décrit.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="site/img/hero-dark.webp">
+    <img src="site/img/hero-light.png" alt="L'éditeur Maquio avec le prototype bancaire fictif nacre sur le canevas" width="900">
+  </picture>
+</p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="site/img/proto-light.png" alt="Mode prototype : l'écran de bienvenue joué en plein écran"><br><sub>Mode prototype ▶ (1:1, transitions)</sub></td>
+    <td width="50%"><img src="site/img/export-light.png" alt="Menu Exporter : Flutter, React Native, SwiftUI, Jetpack Compose, SVG, Figma"><br><sub>Export vers quatre cibles</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="site/img/composants-light.png" alt="Palette de composants mobiles et écrans de l'exemple tous-les-composants"><br><sub>Composants mobiles natifs</sub></td>
+    <td width="50%"><img src="site/img/hero-dark.webp" alt="L'éditeur en thème sombre"><br><sub>Thème sombre (ou clair, ou système)</sub></td>
+  </tr>
+</table>
+
+## Installation
+
+Téléchargez le paquet de votre système sur la
+[page des releases](https://github.com/khalilbenaz/Maquio/releases/latest)
+(sommes SHA-256 dans `SHA256SUMS.txt`). Les paquets ne sont pas encore signés.
+
+| Système | Fichier | Premier lancement |
+|---|---|---|
+| macOS | `Maquio-<version>-mac-universal.dmg` ou `.zip` (Apple Silicon et Intel) | Gatekeeper refuse l'app non signée : **clic droit → Ouvrir**, puis confirmer. Sinon : Réglages Système → Confidentialité et sécurité → « Ouvrir quand même ». |
+| Windows | `Maquio-<version>-win-x64.exe` ou `win-arm64.exe` | SmartScreen : **Informations complémentaires → Exécuter quand même**. |
+| Linux | `Maquio-<version>-linux-x86_64.AppImage` ou `linux-amd64.deb` | `chmod +x Maquio-*.AppImage && ./Maquio-*.AppImage`, ou `sudo apt install ./Maquio-*.deb`. |
+
+### Assistance Claude (facultatif)
+
+L'assistance exige le CLI [`claude`](https://claude.com/claude-code) installé sur
+la machine ; Maquio ne demande ni ne stocke aucune clé d'API. Il le **détecte
+automatiquement**, même lancé depuis le Finder ou le menu Démarrer (où le `PATH`
+du shell n'est pas hérité) : chemin des Réglages, variable `MAQUIO_CLAUDE_PATH`,
+shell de connexion, puis emplacements usuels (`~/.local/bin`, Homebrew,
+npm-global, fnm, nvm, volta, asdf...). Chaque candidat doit répondre à
+`claude --version`. S'il reste introuvable, le panneau Claude propose
+**Réessayer la détection**, et les Réglages un sélecteur de fichier.
 
 ## Ce que ça fait
 
@@ -44,11 +100,15 @@ dépôt à côté du code qu'il décrit.
 - **Exporter TOUS les écrans** avec leur navigation vers quatre cibles
   mobiles : Flutter et React Native en générateurs complets, SwiftUI et
   Jetpack Compose en aperçu (voir [Export](#export) pour le détail de chaque
-  cible).
+  cible), ainsi qu'en SVG (un fichier par écran) et vers Figma (plugin
+  « Import Maquio », voir [SVG et Figma](#svg-et-figma)).
+- **Exemples fournis** : `exemples/banque.maquio` (prototype bancaire fictif
+  « nacre », 16 écrans) et `exemples/tous-les-composants.maquio` ; voir
+  [Exemples](#exemples).
 
 ## Démarrage rapide
 
-Prérequis :
+Pour *développer* Maquio (pour l'utiliser, voir [Installation](#installation)). Prérequis :
 
 - Node.js 24 ou plus récent (`engines.node` dans `package.json`) ;
 - npm (workspaces) ;
@@ -62,11 +122,10 @@ npm test
 npm run dev
 ```
 
-`npm test` lance toute la suite (près de 900 tests au moment de l'écriture, sans
+`npm test` lance toute la suite (plus de 1 100 tests au moment de l'écriture, sans
 écran, sans réseau et sans le binaire `claude` — voir plus bas pour le
 test bout-en-bout opt-in qui, lui, appelle le vrai binaire). `npm run dev` ouvre une
-fenêtre Electron en mode développement — non lancé ici, à essayer en
-local.
+fenêtre Electron en mode développement.
 
 ## Réglages
 
@@ -99,12 +158,13 @@ Claude Code : trouvé (avec le chemin réellement résolu) ou introuvable, un
 champ pour un chemin personnalisé vers le binaire `claude`, et un bouton
 **Vérifier** qui relance la détection sans rien enregistrer.
 
-Le chemin personnalisé est souvent nécessaire sur macOS quand
-l'application est lancée depuis le Finder : une app packagée n'hérite pas
-du `PATH` du shell de l'utilisateur, et un `claude` installé via un
-gestionnaire de version (nvm, asdf...) ou dans un dossier hors des
-emplacements standards reste invisible à la détection automatique tant
-que son chemin n'est pas renseigné explicitement.
+Une application lancée depuis le Finder n'hérite pas du `PATH` du shell : la
+détection ne s'y limite donc pas (voir [Assistance Claude](#assistance-claude-facultatif)).
+Ordre de résolution : chemin saisi ici, variable d'environnement
+`MAQUIO_CLAUDE_PATH`, `PATH` du shell de connexion (le chemin du binaire, jamais
+un alias), emplacements usuels ; chaque candidat est validé par
+`claude --version`. Le bouton **Parcourir…** choisit le binaire dans un
+sélecteur de fichier (validé avant d'être enregistré).
 
 **Maquio lance le binaire `claude` déjà installé sur la machine et
 n'utilise, ne stocke ni ne transmet aucune clé d'API.** Si `claude` est
@@ -318,6 +378,7 @@ npm test           # suite complete (Vitest) : sans ecran, sans reseau, sans bin
 npm run typecheck  # tsc --noEmit sur packages/ puis sur apps/desktop/ (deux configurations distinctes)
 npm run build      # construit le renderer et le processus main/preload d'apps/desktop (Vite)
 npm run dist       # construit puis empaquette l'application desktop (electron-builder, dossier non compresse)
+npm run dist:release --workspace=apps/desktop   # paquets de la plateforme courante (dmg/exe/AppImage...), CSC_IDENTITY_AUTO_DISCOVERY=false pour ne pas signer
 npm run dev        # lance l'application desktop en mode developpement (ouvre une fenetre Electron)
 ```
 
@@ -344,6 +405,11 @@ niveaux :
   les quatre cibles, compiler le Swift généré, vérifier qu'un document
   hostile est refusé. Les dialogues natifs sont simulés côté processus
   principal. Les captures vont dans `OUT=<dossier>`.
+
+Le site (`site/`, publié sur GitHub Pages par `.github/workflows/pages.yml`) se vérifie avec
+`node test/e2e/site.mjs` ; ses captures se régénèrent avec `test/e2e/captures-site.mjs` puis
+`scripts/site-images.sh`. Les paquets sont construits par `.github/workflows/release.yml`
+(tag `v*`, ou lancement manuel qui ne publie rien).
 
 La CI (`.github/workflows/ci.yml`) rejoue typecheck, tests, build, audit des
 dépendances livrées, `flutter analyze` et ce parcours réel.
@@ -374,8 +440,8 @@ patch, pas le comportement du délai lui-même (déjà couvert par
 
 ## Ce que la v1 ne fait pas
 
-YAGNI explicite (voir la spec de conception,
-`docs/superpowers/specs/2026-09-20-calque-design.md`, §2). Sont hors
+YAGNI explicite (voir la spec de conception dans
+`docs/superpowers/specs/`, §2). Sont hors
 périmètre de la v1 :
 
 - l'édition collaborative temps réel (multi-curseurs, présence) ;
@@ -386,7 +452,7 @@ périmètre de la v1 :
 - l'édition vectorielle (nœuds de Bézier, opérations booléennes) ;
 - le prototypage avancé (variables, logique conditionnelle, composants animés) ;
 - le réimport code → design (aller-retour) ;
-- la publication, la signature et la distribution de l'app elle-même.
+- la signature et la notarisation des paquets (le workflow de release les active dès que les secrets `APPLE_*` / `WIN_CSC_*` existent).
 
 Chacun de ces points est un projet à part entière et aurait sa propre
 spec.
@@ -427,10 +493,6 @@ repli plutôt que de produire du Dart invalide — corrigé depuis la
 précédente version de ce document, vérifié avec le vrai SDK Dart via
 `flutter analyze`.
 
-## Licence
-
-Distribué sous licence [MIT](LICENSE) © 2026 Khalil Benazzouz.
-
 ## Limites connues des exports
 
 - Compose : les 24 pictogrammes sans équivalent dans `material-icons-core` (échange, carte,
@@ -442,3 +504,7 @@ Distribué sous licence [MIT](LICENSE) © 2026 Khalil Benazzouz.
 - Pas de composant réutilisable (instance) : la barre d'onglets est un composant natif
   (`bottomNav`) recopié sur chaque écran.
 - Pas de composant graphique : une courbe est composée de segments (rectangles tournés).
+
+## Licence
+
+Distribué sous licence [MIT](LICENSE) © 2026 Khalil Benazzouz.
