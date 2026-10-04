@@ -4,7 +4,11 @@
   "license": "MIT",
   "private": true,
   "description": "Maquio - de la maquette au code natif (editeur d'interfaces mobiles)",
-  "author": "Maquio",
+  "author": {
+    "name": "Khalil Benazzouz",
+    "email": "noreply@github.com",
+    "url": "https://github.com/khalilbenaz"
+  },
   "type": "module",
   "main": "dist/main/main.js",
   "scripts": {
@@ -13,7 +17,8 @@
     "build:electron": "vite build --config vite.electron.main.config.ts && vite build --config vite.electron.preload.config.ts",
     "build": "npm run build:renderer && npm run build:electron",
     "start": "electron .",
-    "dist": "npm run build && electron-builder --dir"
+    "dist": "npm run build && electron-builder --dir",
+    "dist:release": "npm run build && electron-builder"
   },
   "build": {
     "appId": "app.maquio.desktop",
@@ -28,28 +33,105 @@
     },
     "mac": {
       "icon": "build/icon.icns",
-      "category": "public.app-category.developer-tools"
+      "category": "public.app-category.developer-tools",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
     },
     "win": {
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
     },
     "linux": {
       "icon": "build/icon.png",
-      "category": "Development"
+      "category": "Development",
+      "synopsis": "Éditeur d’interfaces mobiles vers le code natif",
+      "maintainer": "Khalil Benazzouz <noreply@github.com>",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "desktop": {
+        "entry": {
+          "Name": "Maquio",
+          "Comment": "De la maquette au code natif",
+          "Categories": "Development;Graphics;",
+          "Keywords": "maquette;mobile;flutter;swiftui;compose;react-native;",
+          "StartupWMClass": "Maquio"
+        }
+      }
     },
     "fileAssociations": [
       {
         "ext": "maquio",
         "name": "Document Maquio",
+        "description": "Document Maquio",
+        "mimeType": "application/x-maquio",
         "role": "Editor",
         "icon": "build/icon.icns"
       },
       {
         "ext": "calque",
         "name": "Document Calque (ancien format)",
+        "description": "Document Calque (ancien format)",
+        "mimeType": "application/x-calque",
         "role": "Editor"
       }
-    ]
+    ],
+    "artifactName": "Maquio-${version}-${os}-${arch}.${ext}",
+    "copyright": "Copyright © 2026 Khalil Benazzouz",
+    "dmg": {
+      "title": "Maquio ${version}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "buildUniversalInstaller": false
+    },
+    "deb": {
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0"
+      ]
+    }
   },
   "dependencies": {
     "@fontsource/bricolage-grotesque": "^5.3.0",
@@ -73,5 +155,6 @@
     "electron-builder": "^26.17.0",
     "jsdom": "^29.1.1",
     "vite": "^8.3.2"
-  }
+  },
+  "homepage": "https://khalilbenaz.github.io/Maquio/"
 }
