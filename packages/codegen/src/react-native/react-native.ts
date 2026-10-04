@@ -735,7 +735,10 @@ function renderOverlay(use: OverlayUse, ctx: RenderContext, depth: number): stri
       `${at(3)}<View style={styles.${actionsKey}}>`,
     ]
     if (p.cancelLabel !== '') lines.push(`${at(4)}<Pressable onPress={() => ${close}}><Text style={styles.${actionKey}}>{${jsString(p.cancelLabel)}}</Text></Pressable>`)
-    lines.push(`${at(4)}<Pressable onPress={() => ${close}}><Text style={styles.${actionKey}}>{${jsString(p.confirmLabel)}}</Text></Pressable>`, `${at(3)}</View>`, `${at(2)}</View>`, `${at(1)}</View>`, `${pad}</Modal>`)
+    // « Valider » joue l'interaction du dialogue apres l'avoir ferme.
+    const onTap = interactionFor(node, ctx.plan, 'tap')
+    const confirm = onTap === null ? close : `{ ${close}; ${rnAction(onTap, ctx)}; }`
+    lines.push(`${at(4)}<Pressable onPress={() => ${confirm}}><Text style={styles.${actionKey}}>{${jsString(p.confirmLabel)}}</Text></Pressable>`, `${at(3)}</View>`, `${at(2)}</View>`, `${at(1)}</View>`, `${pad}</Modal>`)
     return lines
   }
 

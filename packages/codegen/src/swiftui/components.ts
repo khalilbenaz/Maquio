@@ -365,7 +365,11 @@ function renderBare(node: ComponentNode, env: SwEnv, depth: number): string[] {
       env.ctx.states.push(`@State private var ${state} = true`)
       const lines = [`.alert(${swiftString(p.title)}, isPresented: $${state}) {`]
       if (p.cancelLabel !== '') lines.push(`    Button(${swiftString(p.cancelLabel)}, role: .cancel) {}`)
-      lines.push(`    Button(${swiftString(p.confirmLabel)}) {}`, `} message: {`, `    Text(${swiftString(p.message)})`, `}`)
+      // « Valider » joue l'interaction du dialogue (l'alerte se ferme d'elle-meme).
+      const onTap = env.ctx.act(node).tap
+      if (onTap === null) lines.push(`    Button(${swiftString(p.confirmLabel)}) {}`)
+      else lines.push(`    Button(${swiftString(p.confirmLabel)}) {`, `        ${onTap}`, `    }`)
+      lines.push(`} message: {`, `    Text(${swiftString(p.message)})`, `}`)
       env.ctx.presentations.push(lines)
       return []
     }

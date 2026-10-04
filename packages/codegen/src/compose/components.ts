@@ -415,6 +415,7 @@ export function renderComposeComponent(node: ComponentNode, env: CEnv, depth: nu
       const p = node.props
       imp(env, 'androidx.compose.material3.AlertDialog', 'androidx.compose.material3.TextButton', 'androidx.compose.runtime.getValue', 'androidx.compose.runtime.mutableStateOf', 'androidx.compose.runtime.remember', 'androidx.compose.runtime.setValue')
       const i = env.ctx.nextIndex()
+      const onTap = env.ctx.act(node).tap
       const p1 = pad(depth + 1)
       const lines = [
         `${pad(depth)}var showDialog${i} by remember { mutableStateOf(true) }`,
@@ -423,7 +424,8 @@ export function renderComposeComponent(node: ComponentNode, env: CEnv, depth: nu
         `${pad(depth + 2)}onDismissRequest = { showDialog${i} = false },`,
         `${pad(depth + 2)}title = { ${text(env, p.title)} },`,
         `${pad(depth + 2)}text = { ${text(env, p.message)} },`,
-        `${pad(depth + 2)}confirmButton = { TextButton(onClick = { showDialog${i} = false }) { ${text(env, p.confirmLabel)} } },`,
+        // « Valider » ferme le dialogue puis joue l'interaction du noeud.
+        `${pad(depth + 2)}confirmButton = { TextButton(onClick = { showDialog${i} = false${onTap === null ? '' : `; ${onTap}`} }) { ${text(env, p.confirmLabel)} } },`,
       ]
       if (p.cancelLabel !== '') lines.push(`${pad(depth + 2)}dismissButton = { TextButton(onClick = { showDialog${i} = false }) { ${text(env, p.cancelLabel)} } },`)
       lines.push(`${p1})`, `${pad(depth)}}`)
