@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/brand/maquio-logotype.png" alt="maquio — De la maquette au code natif." width="420"></p>
+
 # Maquio
 
 Maquio est une application de bureau pour concevoir des interfaces mobiles
@@ -29,6 +31,16 @@ dépôt à côté du code qu'il décrit.
   dialogues, feuilles basses, snackbars, Row / Column / Stack...), avec
   recherche, glisser-déposer et propriétés éditables et annulables. Voir
   [Composants mobiles](#composants-mobiles).
+- **Prototyper** : chaque élément peut porter des interactions (appui, appui
+  long, délai) qui naviguent, reviennent en arrière, ouvrent ou ferment un
+  dialogue, une feuille basse ou un snackbar, ou ouvrent une URL, avec une
+  transition (aucune, glissement, poussée, fondu, modale ; durée et courbe).
+  Les liens sont tracés en flèches sur le canvas, et le bouton ▶ « Prototype »
+  (Cmd/Ctrl+Entrée, Échap pour quitter) joue le parcours en plein écran.
+- **Travailler à l'aise** : tous les panneaux (calques, inspecteur, Claude) se
+  replient (Cmd/Ctrl+Alt+1, Cmd/Ctrl+Alt+2, Cmd/Ctrl+J), se redimensionnent,
+  le mode focus (Cmd/Ctrl+.) ne laisse que le canvas ; thème clair, sombre ou
+  système (menu Affichage ou Réglages) ; tout est mémorisé.
 - **Exporter TOUS les écrans** avec leur navigation vers quatre cibles
   mobiles : Flutter et React Native en générateurs complets, SwiftUI et
   Jetpack Compose en aperçu (voir [Export](#export) pour le détail de chaque
@@ -210,6 +222,41 @@ compris. Au moment de l'écriture, cette vérification tourne sans aucune
 remontée. Le test s'ignore (`it.skip`) si `flutter` est absent du `PATH`
 plutôt que de faire dépendre toute la suite d'un SDK installé.
 
+### SVG et Figma
+
+- **SVG** : un fichier par écran (images en data URI), avec un croquis
+  vectoriel de chaque composant.
+- **Figma** : l'export produit un bundle `.figma.json` ; le plugin
+  `apps/figma-plugin` (« Import Maquio ») le transforme en frames Figma,
+  composants, styles et **réactions de prototype** (navigation, retour,
+  overlays, URL, transitions). Installation : `npm run build:plugin`, puis dans
+  Figma « Plugins > Development > Import plugin from manifest... » sur
+  `apps/figma-plugin/manifest.json`. Limite de l'API de plugin : la position et
+  le voile d'un overlay ne sont pas réglables (avertissement émis). Le plugin
+  est couvert par des tests unitaires avec un faux `figma` ; il n'a pas été
+  exécuté dans l'application Figma elle-même.
+
+### Interactions exportées
+
+Les transitions et overlays sont émis nativement dans les quatre cibles
+(`lib/actions.dart` et `lib/transitions.dart` pour Flutter ; paramètres de route
+pour React Native ; pile de navigation maison pour SwiftUI quand une transition
+n'est pas native ; `NavHost` pour Compose). Limites : `native-stack` ignore la
+courbe, Compose n'accepte qu'une transition par destination, les durées des
+dialogues et feuilles SwiftUI sont celles du système. Un dialogue qui porte une
+interaction (« Valider » vers un écran de succès) la joue après s'être fermé.
+
+## Exemples
+
+- `exemples/tous-les-composants.maquio` : tous les composants et conteneurs.
+- `exemples/banque.maquio` : prototype d'application bancaire (21 écrans de
+  390 x 844, données fictives, une couleur de marque, Roboto) : splash,
+  onboarding, connexion, PIN, accueil, comptes, virement en 4 étapes avec
+  confirmation OTP, bénéficiaires, factures, recharge, cartes (blocage, plafond,
+  PIN), notifications, profil, états. Généré par les commandes du document
+  (`test/integration/fixtures/banque.ts`), jouable en mode prototype et compilé
+  vers les quatre cibles. Régénération : `UPDATE_EXEMPLE=1 npx vitest run test/integration/banque.test.ts`.
+
 ## Architecture
 
 Le dépôt est un monorepo à quatre paquets de cœur plus une application, en
@@ -252,8 +299,8 @@ Un document Maquio est un fichier `.maquio` : du JSON versionné
 (`{ version, id, name, pages, tokens }`), sérialisé avec une
 indentation lisible plutôt que minifié. Chaque page porte un appareil
 cible (iPhone 15, Pixel 8, iPad mini) et un arbre de nœuds (`Frame`,
-`Text`, `Rect`, `Ellipse`, `Image`, `Line`, `Component`). Version 3 :
-les documents v1 et v2 s'ouvrent et sont migrés (additif). Un document d'une version
+`Text`, `Rect`, `Ellipse`, `Image`, `Line`, `Component`). Version 4 :
+les documents v1 à v3 s'ouvrent et sont migrés (les anciens `link` deviennent des interactions tap vers un écran). Les fichiers `.calque` (ancien nom) sont lus, et l'application propose de les convertir en `.maquio` (ouverture, glisser-déposer, ouverture système). Un document d'une version
 plus récente que celle supportée n'est jamais lu partiellement — il est
 refusé avec une erreur explicite plutôt que corrompu silencieusement.
 Pensé pour être relu en revue de code à côté de l'interface qu'il décrit.
@@ -331,7 +378,7 @@ périmètre de la v1 :
 - les composants et variantes réutilisables au sens Figma (`COMPONENT`,
   `INSTANCE`, `variants`) — l'import les aplatit en frames ;
 - l'édition vectorielle (nœuds de Bézier, opérations booléennes) ;
-- le prototypage interactif (transitions entre écrans, animations) ;
+- le prototypage avancé (variables, logique conditionnelle, composants animés) ;
 - le réimport code → design (aller-retour) ;
 - la publication, la signature et la distribution de l'app elle-même.
 
