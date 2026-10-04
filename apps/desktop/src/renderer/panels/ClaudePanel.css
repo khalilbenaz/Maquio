@@ -26,7 +26,7 @@
   flex-shrink: 0;
   height: 34px;
   box-sizing: border-box;
-  padding: 0 14px;
+  padding: 0 0 0 14px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -190,31 +190,6 @@
   word-break: break-word;
 }
 
-/* Replie : une fine barre au bas de la colonne ; le contenu reste monte (hidden). */
-.claude-panel-collapsed {
-  flex: 0 0 auto;
-  overflow: hidden;
-}
-.claude-panel-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-.claude-panel-fold {
-  background: transparent;
-  border: 0;
-  color: var(--maquio-text-faint);
-  cursor: pointer;
-  font-size: 12px;
-}
 .claude-badge {
   width: 9px;
   height: 9px;
@@ -237,14 +212,4 @@
   }
 }
 
-.claude-panel-body[hidden] {
-  display: none !important;
-}
 
-.claude-panel .claude-panel-fold {
-  background: transparent;
-  color: var(--maquio-text-faint);
-  padding: 2px 6px;
-  width: auto;
-  margin: 0;
-}

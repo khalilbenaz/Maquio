@@ -54,6 +54,9 @@ import { ExportDialog } from '../dialogs/ExportDialog'
 import { pageNodesOf } from '../canvas/useDragInteraction'
 import { nextScreenPosition } from '../canvas/screenLayout'
 import { clampZoom } from '../canvas/viewport'
+import { useUiPrefs } from '../state/uiPrefsStore'
+import { useClaudeStatusStore } from '../state/claudeStatusStore'
+import { ICON_CLAUDE, ICON_INSPECTOR, ICON_LEFT, SHORTCUT_CLAUDE, SHORTCUT_INSPECTOR, SHORTCUT_LEFT } from './PanelRail'
 import './Toolbar.css'
 
 type IconProps = { children: ReactNode }
@@ -212,6 +215,47 @@ function ExporterMenu({
       ))}
     </div>,
     document.body,
+  )
+}
+
+// Affichage des panneaux : trois bascules (gauche, inspecteur, Claude), etat actif
+// visible. C'est LE moyen de rouvrir un panneau replie, avec son raccourci ; un
+// panneau replie ne laisse aucune trace sur le bord de la fenetre.
+function PanelToggles() {
+  const left = useUiPrefs((s) => s.leftCollapsed)
+  const inspector = useUiPrefs((s) => s.inspectorCollapsed)
+  const claude = useUiPrefs((s) => s.claudeCollapsed)
+  const toggle = useUiPrefs((s) => s.togglePanel)
+  const phase = useClaudeStatusStore((s) => s.phase)
+  const setPhase = useClaudeStatusStore((s) => s.setPhase)
+  const items = [
+    { id: 'left' as const, label: 'panneau de gauche', shortcut: SHORTCUT_LEFT, icon: ICON_LEFT, open: !left },
+    { id: 'inspector' as const, label: "l'inspecteur", shortcut: SHORTCUT_INSPECTOR, icon: ICON_INSPECTOR, open: !inspector },
+    { id: 'claude' as const, label: 'le panneau Claude', shortcut: SHORTCUT_CLAUDE, icon: ICON_CLAUDE, open: !claude },
+  ]
+  return (
+    <div className="toolbar-group toolbar-group-panels" role="group" aria-label="Affichage des panneaux">
+      {items.map((it) => (
+        <button
+          key={it.id}
+          type="button"
+          data-testid={`toggle-${it.id}`}
+          className={it.open ? 'toolbar-button toolbar-button-active' : 'toolbar-button'}
+          aria-pressed={it.open}
+          aria-label={`${it.open ? 'Masquer' : 'Afficher'} ${it.label}`}
+          title={`${it.open ? 'Masquer' : 'Afficher'} ${it.label} (${it.shortcut})`}
+          onClick={() => {
+            toggle(it.id)
+            if (it.id === 'claude' && claude && (phase === 'done' || phase === 'error')) setPhase('idle')
+          }}
+        >
+          {it.icon}
+          {it.id === 'claude' && claude && phase !== 'idle' ? (
+            <span data-testid="claude-badge" data-phase={phase} role="status" aria-label={phase === 'loading' ? 'Claude travaille' : phase === 'done' ? 'Claude a terminé' : 'Claude a échoué'} className={`claude-badge claude-badge-${phase} toolbar-badge`} />
+          ) : null}
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -449,6 +493,8 @@ export function Toolbar({ api, onOpenSettings }: { api: MaquioApi; onOpenSetting
           ) : null}
         </div>
       </div>
+
+      <PanelToggles />
 
       <div className="toolbar-group" role="group" aria-label="Réglages de l'application">
         {/* Defaut n1 : meme format que "Importer Figma"/"Exporter" ci-dessus
