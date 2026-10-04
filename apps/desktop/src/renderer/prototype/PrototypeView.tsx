@@ -4,7 +4,7 @@
 // les overlays (dialogue, feuille basse, snackbar) s'ouvrent et se ferment.
 // Echap quitte. Rien n'est modifie dans le document.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { absoluteFrame, isScreenNode } from '@maquio/core'
+import { absoluteFrame, inheritedOpacity, isScreenNode } from '@maquio/core'
 import type { Node, Rect } from '@maquio/core'
 import { useEditorStore } from '../state/editorStore'
 import { NodeVisual } from '../canvas/NodeView'
@@ -47,11 +47,11 @@ function ScreenLayer({ pageNodes, screen, hidden, open, layerRef, testId }: { pa
     <div ref={layerRef} className="proto-layer" data-testid={testId} style={{ width: screen.frame.w, height: screen.frame.h }}>
       <NodeVisual node={screen} abs={{ x: 0, y: 0, w: screen.frame.w, h: screen.frame.h }} testId={`proto-node-${screen.id}`} extraStyle={{ overflow: 'hidden' }} />
       {body.map((n) => (
-        <NodeVisual key={n.id} node={n} abs={local(n.id)} testId={`proto-node-${n.id}`} extraStyle={{ cursor: n.interactions?.length ? 'pointer' : undefined }} data-interactive={n.interactions?.length ? 'true' : undefined} />
+        <NodeVisual key={n.id} node={n} abs={local(n.id)} testId={`proto-node-${n.id}`} inherited={inheritedOpacity(pageNodes, n.id)} extraStyle={{ cursor: n.interactions?.length ? 'pointer' : undefined }} data-interactive={n.interactions?.length ? 'true' : undefined} />
       ))}
       {openNodes.some((o) => o.type !== 'component' || o.kind !== 'snackbar') ? <div className="proto-scrim" data-testid="proto-scrim" /> : null}
       {top.map((n) => (
-        <NodeVisual key={`ov-${n.id}`} node={n} abs={local(n.id)} testId={`proto-node-${n.id}`} data-overlay={openNodes.includes(n) ? 'true' : undefined} />
+        <NodeVisual key={`ov-${n.id}`} node={n} abs={local(n.id)} testId={`proto-node-${n.id}`} inherited={inheritedOpacity(pageNodes, n.id)} data-overlay={openNodes.includes(n) ? 'true' : undefined} />
       ))}
     </div>
   )

@@ -8,6 +8,7 @@
 // plus, puisqu'ils sont visuellement et logiquement a l'interieur).
 import { useEffect, useRef } from 'react'
 import type { CSSProperties, HTMLAttributes } from 'react'
+import { inheritedOpacity } from '@maquio/core'
 import type { Color, ImageNode, Node as MaquioNode, Rect, Stroke, TextNode } from '@maquio/core'
 import { useEditorStore } from '../state/editorStore'
 import { resolvePreviewAbsoluteFrame, useNodeInteraction } from './useDragInteraction'
@@ -179,6 +180,7 @@ export function NodeVisual({
   testId,
   editing = false,
   extraStyle,
+  inherited = 1,
   ...rest
 }: {
   node: MaquioNode
@@ -186,6 +188,8 @@ export function NodeVisual({
   testId: string
   editing?: boolean
   extraStyle?: CSSProperties
+  // Opacite cumulee des ancetres (le canevas rend les noeuds a plat).
+  inherited?: number
 } & Omit<HTMLAttributes<HTMLDivElement>, 'style' | 'children'>) {
   const stroke = strokeOf(node)
   return (
@@ -200,7 +204,7 @@ export function NodeVisual({
         width: abs.w,
         height: abs.h,
         transform: node.rotation !== 0 ? `rotate(${node.rotation}deg)` : undefined,
-        opacity: node.opacity,
+        opacity: node.opacity * inherited,
         background: backgroundOf(node),
         borderRadius: node.type === 'ellipse' ? '50%' : node.type === 'rect' || node.type === 'frame' ? node.cornerRadius : undefined,
         border: stroke !== undefined && stroke.width > 0 ? `${stroke.width}px solid ${colorToCss(stroke.color)}` : undefined,
@@ -232,6 +236,7 @@ export function NodeView({ node, nodes }: Props) {
       node={node}
       abs={abs}
       testId={`node-${node.id}`}
+      inherited={inheritedOpacity(nodes, node.id)}
       editing={editing}
       onPointerDown={node.locked ? undefined : onPointerDown}
       onDoubleClick={

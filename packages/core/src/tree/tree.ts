@@ -110,6 +110,18 @@ export function pathToNode(nodes: Node[], id: string): string[] {
   return []
 }
 
+// Opacite heritee d'un noeud : produit des opacites de ses ancetres (une frame
+// a 40 % estompe tout son contenu, comme `Opacity` en Flutter ou `opacity` en CSS).
+export function inheritedOpacity(nodes: Node[], id: string): number {
+  const path = pathToNode(nodes, id)
+  let product = 1
+  for (const ancestorId of path.slice(0, -1)) {
+    const a = findNode(nodes, ancestorId)
+    if (a !== null) product *= a.opacity
+  }
+  return product
+}
+
 export function findParent(nodes: Node[], id: string): FrameNode | null {
   const path = pathToNode(nodes, id)
   if (path.length <= 1) return null
