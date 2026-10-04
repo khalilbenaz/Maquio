@@ -13,10 +13,17 @@ import { installNavigationGuards } from './security'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+// Icone de l'application (copiee depuis public/ dans dist/renderer par Vite).
+export function cheminIcone(): string {
+  return path.join(__dirname, '../renderer/icon.png')
+}
+
 export function creerFenetrePrincipale(): BrowserWindow {
   const fenetre = new BrowserWindow({
     width: 1280,
     height: 800,
+    // Windows / Linux : icone de fenetre (macOS : icone du Dock, voir main.ts).
+    icon: cheminIcone(),
     webPreferences: {
       preload: path.join(__dirname, '../preload/preload.cjs'),
       contextIsolation: true,
