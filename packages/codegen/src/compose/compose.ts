@@ -36,7 +36,7 @@ import type {
   TextNode,
 } from '@calque/core'
 import { layoutPage } from '@calque/core'
-import { navigateExpr, renderComposeComponent, renderTopAppBar } from './components'
+import { renderComposeComponent, renderTopAppBar } from './components'
 import type { CEnv } from './components'
 import { formatNumber } from '../shared/format-number'
 import { pad } from '../shared/indent'

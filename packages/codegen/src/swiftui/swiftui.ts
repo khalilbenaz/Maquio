@@ -53,7 +53,7 @@ import type { Exporter, ExportedFile, ExportOptions, ExportResult } from '../typ
 import { planAssets } from '../shared/assets'
 import type { AssetTarget } from '../shared/assets'
 import { colorTokenComment, swiftColorExpr, swiftFontWeightExpr, swiftString } from './swift-utils'
-import { goExpr, renderSwiftComponent, routeCase } from './components'
+import { renderSwiftComponent, routeCase } from './components'
 import type { SwiftEnvCtx } from './components'
 
 const EXPORTER_ID = 'swiftui'
