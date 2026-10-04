@@ -1,0 +1,16 @@
+{
+  "name": "@calque/figma-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plugin Figma « Import Calque » : recree un projet Calque (ecrans, textes, formes, images, auto-layout, composants et prototype) dans Figma.",
+  "type": "module",
+  "scripts": {
+    "build": "vite build && node scripts/copy-ui.mjs"
+  },
+  "dependencies": {
+    "@calque/core": "*"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.100.0"
+  }
+}

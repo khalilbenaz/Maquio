@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>Import Calque</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 12px/1.45 Inter, system-ui, sans-serif; margin: 0; padding: 16px; color: var(--figma-color-text, #222); background: var(--figma-color-bg, #fff); }
+  h1 { font-size: 14px; margin: 0 0 4px; }
+  p { margin: 4px 0 12px; color: var(--figma-color-text-secondary, #666); }
+  .drop { border: 1.5px dashed var(--figma-color-border, #bbb); border-radius: 8px; padding: 22px 12px; text-align: center; cursor: pointer; }
+  .drop.over { border-color: #e2714a; background: rgba(226,113,74,.08); }
+  button { margin-top: 12px; width: 100%; padding: 8px; border: 0; border-radius: 6px; background: #e2714a; color: #fff; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: .4; cursor: default; }
+  #file { display: none; }
+  #log { margin-top: 12px; white-space: pre-wrap; }
+  .err { color: #d1342f; }
+  ul { padding-left: 16px; margin: 6px 0; }
+</style>
+</head>
+<body>
+  <h1>Import Calque</h1>
+  <p>Choisissez un export <b>.figma.json</b> (menu Exporter de Calque, cible « Figma ») ou un document <b>.calque</b>.</p>
+  <label class="drop" id="drop" for="file"><span id="name">Déposez le fichier ici ou cliquez pour le choisir</span></label>
+  <input id="file" type="file" accept=".json,.calque,application/json" />
+  <button id="go" disabled>Importer dans cette page</button>
+  <div id="log" role="status"></div>
+<script>
+  let text = null
+  const $ = (id) => document.getElementById(id)
+  function load(file) {
+    if (!file) return
+    const r = new FileReader()
+    r.onload = () => { text = String(r.result); $('name').textContent = file.name + ' (' + Math.round(file.size / 1024) + ' Ko)'; $('go').disabled = false; $('log').textContent = '' }
+    r.readAsText(file)
+  }
+  $('file').addEventListener('change', (e) => load(e.target.files[0]))
+  $('drop').addEventListener('dragover', (e) => { e.preventDefault(); $('drop').classList.add('over') })
+  $('drop').addEventListener('dragleave', () => $('drop').classList.remove('over'))
+  $('drop').addEventListener('drop', (e) => { e.preventDefault(); $('drop').classList.remove('over'); load(e.dataTransfer.files[0]) })
+  $('go').addEventListener('click', () => { $('go').disabled = true; parent.postMessage({ pluginMessage: { type: 'import', text } }, '*') })
+  window.onmessage = (e) => {
+    const m = e.data.pluginMessage
+    if (!m) return
+    const log = $('log')
+    if (m.type === 'progress') log.textContent = m.text
+    if (m.type === 'error') { log.innerHTML = ''; const p = document.createElement('p'); p.className = 'err'; p.textContent = m.message; log.appendChild(p); $('go').disabled = false }
+    if (m.type === 'done') {
+      const r = m.report
+      log.innerHTML = ''
+      const h = document.createElement('div')
+      h.textContent = r.screens + ' écran(s), ' + r.nodes + ' calque(s), ' + r.components + ' composant(s) (' + r.componentSets + ' ensemble(s) de variantes), ' + r.images + ' image(s)' + (r.reactions ? ', ' + r.reactions + ' interaction(s) de prototype' : '') + '.'
+      log.appendChild(h)
+      const items = r.fontFallbacks.map((f) => 'Police remplacée : ' + f).concat(r.warnings)
+      if (items.length) { const ul = document.createElement('ul'); items.forEach((t) => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li) }); log.appendChild(ul) }
+      $('go').disabled = false
+    }
+  }
+</script>
+</body>
+</html>
