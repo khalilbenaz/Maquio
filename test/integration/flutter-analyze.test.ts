@@ -39,6 +39,7 @@ import { createDocument, createScreenNode, DEVICE_PRESETS } from '@maquio/core'
 import type { MaquioDocument, FrameNode, TextNode } from '@maquio/core'
 import { FIGMA_FIXTURES } from './fixtures'
 import { documentExempleComplet } from './fixtures/exemple-complet'
+import { documentBanque } from './fixtures/banque'
 import { documentInteractions } from '../../packages/codegen/test/fixtures/interactions'
 
 // Correctif parentage (v2, addendum navigation) : cas ajoute a CE harnais,
@@ -207,11 +208,13 @@ describe('garde-fou flutter analyze (preuve de compilation reelle)', () => {
     // emis compile et ne leve aucune remontee, `flutter_lints` compris.
     const exempleComplet = flutterExporter.export(documentExempleComplet(), { projectName: 'demo' })
     const interactions = flutterExporter.export(documentInteractions(), { projectName: 'demo' })
+    const banque = flutterExporter.export(documentBanque(), { projectName: 'demo' })
     for (const [namespace, result] of [
       ['multi-screen-content-ecran1', exportEcran1],
       ['multi-screen-content-ecran2', exportEcran2],
       ['exemple-complet', exempleComplet],
       ['interactions', interactions],
+      ['banque', banque],
     ] as const) {
       for (const file of result.files.filter((f) => f.path.startsWith('lib/'))) {
         const relative = file.path.replace(/^lib\//, '')
