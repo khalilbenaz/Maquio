@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Maquio — De la maquette au code natif</title>
+  <meta name="description" content="Maquio est un éditeur d'interfaces mobiles pour macOS, Windows et Linux : composants natifs, prototype jouable, export compilé vers Flutter, React Native, SwiftUI et Jetpack Compose.">
+  <meta name="theme-color" content="#16131f">
+  <meta property="og:title" content="Maquio — De la maquette au code natif">
+  <meta property="og:description" content="Éditeur d'interfaces mobiles : composants natifs, prototype, export Flutter, React Native, SwiftUI et Compose.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://khalilbenaz.github.io/Maquio/">
+  <meta property="og:image" content="https://khalilbenaz.github.io/Maquio/img/hero-light.png">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/bricolage-grotesque-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#contenu">Aller au contenu</a>
+  <header class="wrap top">
+    <a class="brand" href="./" aria-label="Maquio, accueil">
+      <img src="icon.svg" width="40" height="40" alt="">
+      <span class="wordmark">maquio</span>
+    </a>
+    <nav aria-label="Navigation principale">
+      <a href="#fonctions">Fonctions</a>
+      <a href="#galerie">Galerie</a>
+      <a href="#installation">Installation</a>
+      <a href="https://github.com/khalilbenaz/Maquio">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="contenu">
+    <section class="hero wrap" style="padding-top:28px">
+      <h1>De la maquette <span class="accent">au code natif.</span></h1>
+      <p class="lead">Maquio est un éditeur d'interfaces mobiles pour macOS, Windows et Linux. Dessinez avec de vrais composants, jouez le prototype, puis exportez du code compilé pour Flutter, React Native, SwiftUI et Jetpack Compose.</p>
+      <div class="cta">
+        <a class="btn" id="dl-main" href="https://github.com/khalilbenaz/Maquio/releases/latest">Télécharger Maquio</a>
+        <a class="btn ghost" href="https://github.com/khalilbenaz/Maquio">Voir le dépôt</a>
+      </div>
+      <p class="dl-note" id="dl-note">Gratuit et libre (licence MIT). Version 1.0.</p>
+      <ul class="dl-list" id="dl-list" aria-label="Téléchargements par système"></ul>
+      <div class="shot">
+        <picture>
+              <source type="image/avif" srcset="img/hero-dark.avif" media="(prefers-color-scheme: dark)">
+              <source type="image/webp" srcset="img/hero-dark.webp" media="(prefers-color-scheme: dark)">
+              <source type="image/avif" srcset="img/hero-light.avif">
+              <source type="image/webp" srcset="img/hero-light.webp">
+              <img src="img/hero-light.png" width="1600" height="964" alt="L'éditeur Maquio : le canevas affiche les seize écrans du prototype bancaire fictif nacre, avec les calques à gauche et l'inspecteur à droite." fetchpriority="high">
+            </picture>
+      </div>
+    </section>
+
+    <section id="fonctions" class="wrap">
+      <h2>Tout ce qu'il faut, de l'idée au code</h2>
+      <p class="section-lead">Un seul document <code>.maquio</code>, du JSON lisible qui vit dans votre dépôt à côté du code qu'il décrit.</p>
+
+      <article class="feature">
+        <div class="copy">
+          <h3>Des composants mobiles natifs</h3>
+          <p>Boutons, champs, interrupteurs, listes, barres d'application et de navigation, tiroirs, dialogues, feuilles basses : 30 composants et 7 conteneurs, avec recherche et glisser-déposer. Chacun est exporté vers le widget natif de la cible, pas vers un rectangle avec du texte.</p>
+        </div>
+        <div class="shot">
+          <picture>
+              <source type="image/avif" srcset="img/composants-dark.avif" media="(prefers-color-scheme: dark)">
+              <source type="image/webp" srcset="img/composants-dark.webp" media="(prefers-color-scheme: dark)">
+              <source type="image/avif" srcset="img/composants-light.avif">
+              <source type="image/webp" srcset="img/composants-light.webp">
+              <img src="img/composants-light.png" width="1600" height="964" alt="La palette de composants mobiles à gauche, et trois écrans de l'exemple « tous les composants » sur le canevas : formulaire, liste et détails." loading="lazy" decoding="async">
+            </picture>
+        </div>
+      </article>
+
+      <article class="feature flip">
+        <div class="copy">
+          <h3>Interactions, transitions et mode prototype</h3>
+          <p>Chaque élément peut naviguer, revenir en arrière, ouvrir un dialogue, une feuille basse ou un snackbar, avec une transition (glissement, poussée, fondu, modale). Les liens se tracent en flèches sur le canevas, puis ▶ <strong>Prototype</strong> joue le parcours en plein écran.</p>
+        </div>
+        <div class="shot">
+          <picture>
+              <source type="image/avif" srcset="img/liens-dark.avif" media="(prefers-color-scheme: dark)">
+              <source type="image/webp" srcset="img/liens-dark.webp" media="(prefers-color-scheme: dark)">
+              <source type="image/avif" srcset="img/liens-light.avif">
+              <source type="image/webp" srcset="img/liens-light.webp">
+              <img src="img/liens-light.png" width="1600" height="964" alt="Les liens entre écrans du prototype bancaire tracés en flèches sur le canevas." loading="lazy" decoding="async">
+            </picture>
+        </div>
+      </article>
+      <div class="shot" style="margin-top:28px">
+        <picture>
+              <source type="image/avif" srcset="img/proto-dark.avif" media="(prefers-color-scheme: dark)">
+              <source type="image/webp" srcset="img/proto-dark.webp" media="(prefers-color-scheme: dark)">
+              <source type="image/avif" srcset="img/proto-light.avif">
+              <source type="image/webp" srcset="img/proto-light.webp">
+              <img src="img/proto-light.png" width="1600" height="964" alt="Le mode prototype joue l'écran de bienvenue de nacre en plein écran, à l'échelle 1:1." loading="lazy" decoding="async">
+            </picture>
+      </div>
+
+      <article class="feature">
+        <div class="copy">
+          <h3>Un export compilé vers quatre cibles</h3>
+          <p>Tous les écrans sont exportés avec leur navigation, leur thème et leurs composants. Le code généré est vérifié pour de vrai : <code>flutter analyze</code>, <code>swiftc</code>, <code>tsc --strict</code> et Gradle.</p><ul class="targets" aria-label="Cibles d'export"><li>Flutter</li><li>React Native</li><li>SwiftUI</li><li>Jetpack Compose</li></ul>
+        </div>
+        <div class="shot">
+          <picture>
+              <source type="image/avif" srcset="img/export-dark.avif" media="(prefers-color-scheme: dark)">
+              <source type="image/webp" srcset="img/export-dark.webp" media="(prefers-color-scheme: dark)">
+              <source type="image/avif" srcset="img/export-light.avif">
+              <source type="image/webp" srcset="img/export-light.webp">
+              <img src="img/export-light.png" width="1600" height="964" alt="Le menu Exporter propose Flutter, React Native, SwiftUI, Jetpack Compose, SVG et Figma." loading="lazy" decoding="async">
+            </picture>
+        </div>
+      </article>
+
+      <article class="feature flip">
+        <div class="copy">
+          <h3>Assistance Claude</h3>
+          <p>Décrivez un changement en français : Claude Code répond par un patch validé par schéma, appliqué comme un geste de souris, donc annulable en un seul <kbd>Ctrl</kbd>+<kbd>Z</kbd>. Maquio lance le binaire <code>claude</code> déjà installé, sans clé d'API.</p>
+        </div>
+        <div class="shot">
+          <picture>
+              <source type="image/avif" srcset="img/claude-dark.avif" media="(prefers-color-scheme: dark)">
+              <source type="image/webp" srcset="img/claude-dark.webp" media="(prefers-color-scheme: dark)">
+              <source type="image/avif" srcset="img/claude-light.avif">
+              <source type="image/webp" srcset="img/claude-light.webp">
+              <img src="img/claude-light.png" width="1600" height="964" alt="Le panneau Claude Code, connecté, avec une instruction en français saisie dans le champ." loading="lazy" decoding="async">
+            </picture>
+        </div>
+      </article>
+
+      <article class="feature">
+        <div class="copy">
+          <h3>Import et export Figma</h3>
+          <p>Importez une maquette depuis l'API Figma ou un fichier JSON : ce qui n'a pas d'équivalent devient un espace réservé signalé, jamais perdu en silence. Dans l'autre sens, le plugin « Import Maquio » recrée frames, composants et réactions de prototype dans Figma.</p>
+        </div>
+        <div class="shot">
+          <picture>
+              <source type="image/avif" srcset="img/figma-dark.avif" media="(prefers-color-scheme: dark)">
+              <source type="image/webp" srcset="img/figma-dark.webp" media="(prefers-color-scheme: dark)">
+              <source type="image/avif" srcset="img/figma-light.avif">
+              <source type="image/webp" srcset="img/figma-light.webp">
+              <img src="img/figma-light.png" width="1600" height="964" alt="La fenêtre « Importer depuis Figma », avec le champ clé ou lien et les boutons API et fichier JSON." loading="lazy" decoding="async">
+            </picture>
+        </div>
+      </article>
+      <article class="feature flip">
+        <div class="copy">
+          <h3>Thème clair ou sombre, panneaux repliables</h3>
+          <p>L'éditeur suit votre système ou le thème de votre choix. Calques, inspecteur et panneau Claude se replient d'un raccourci (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd>, <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>2</kbd>, <kbd>Ctrl</kbd>+<kbd>J</kbd>) et le mode focus ne laisse que le canevas.</p>
+        </div>
+        <div class="duo">
+          <figure>
+            <img src="img/hero-dark.webp" width="1600" height="964" loading="lazy" decoding="async" alt="L'éditeur en thème sombre.">
+            <figcaption>Thème sombre</figcaption>
+          </figure>
+          <figure>
+            <img src="img/hero-light.webp" width="1600" height="964" loading="lazy" decoding="async" alt="L'éditeur en thème clair.">
+            <figcaption>Thème clair</figcaption>
+          </figure>
+        </div>
+      </article>
+      <div class="shot" style="margin-top:28px">
+        <picture>
+              <source type="image/avif" srcset="img/panneaux-dark.avif" media="(prefers-color-scheme: dark)">
+              <source type="image/webp" srcset="img/panneaux-dark.webp" media="(prefers-color-scheme: dark)">
+              <source type="image/avif" srcset="img/panneaux-light.avif">
+              <source type="image/webp" srcset="img/panneaux-light.webp">
+              <img src="img/panneaux-light.png" width="1600" height="964" alt="Les panneaux de gauche et Claude repliés : le canevas occupe presque toute la fenêtre." loading="lazy" decoding="async">
+            </picture>
+      </div>
+    </section>
+
+    <section id="galerie" class="wrap">
+      <h2>Galerie : maquette et rendu</h2>
+      <p class="section-lead">Le prototype bancaire fictif « nacre » (16 écrans) reproduit d'après une maquette de référence. Pour chaque écran, la maquette est à gauche et le rendu de Maquio à droite.</p>
+      <div class="gallery">
+        <div class="shot">
+          <picture>
+            <source type="image/avif" srcset="img/planche-1.avif">
+            <source type="image/webp" srcset="img/planche-1.webp">
+            <img src="img/planche-1.png" width="1800" height="649" loading="lazy" decoding="async" alt="Planche 1 : bienvenue, accueil et confirmation par code, chaque écran en deux versions, maquette puis rendu Maquio.">
+          </picture>
+        </div>
+        <div class="shot">
+          <picture>
+            <source type="image/avif" srcset="img/planche-2.avif">
+            <source type="image/webp" srcset="img/planche-2.webp">
+            <img src="img/planche-2.png" width="1800" height="649" loading="lazy" decoding="async" alt="Planche 2 : change de devises, cartes et profil, chaque écran en deux versions, maquette puis rendu Maquio.">
+          </picture>
+        </div>
+      </div>
+    </section>
+
+    <section id="installation" class="wrap">
+      <h2>Installation</h2>
+      <p class="section-lead">Téléchargez le paquet de votre système depuis les <a href="https://github.com/khalilbenaz/Maquio/releases/latest">releases</a>. Les versions ne sont pas encore signées : voici comment les ouvrir.</p>
+      <div class="os">
+        <div class="card" id="os-mac">
+          <h3>macOS</h3>
+          <p>Fichier <code>.dmg</code> ou <code>.zip</code> universel (Apple Silicon et Intel).</p>
+          <ol>
+            <li>Ouvrez le <code>.dmg</code> et glissez Maquio dans Applications.</li>
+            <li>Au premier lancement, Gatekeeper refuse l'app non signée : faites un <strong>clic droit → Ouvrir</strong>, puis confirmez <strong>Ouvrir</strong>.</li>
+            <li>Si le message persiste : Réglages Système → Confidentialité et sécurité → « Ouvrir quand même ».</li>
+          </ol>
+        </div>
+        <div class="card" id="os-win">
+          <h3>Windows</h3>
+          <p>Installeur <code>.exe</code> (x64 ou arm64).</p>
+          <ol>
+            <li>Lancez l'installeur.</li>
+            <li>SmartScreen peut afficher « Windows a protégé votre ordinateur » : cliquez sur <strong>Informations complémentaires</strong>, puis <strong>Exécuter quand même</strong>.</li>
+            <li>Suivez l'assistant d'installation.</li>
+          </ol>
+        </div>
+        <div class="card" id="os-linux">
+          <h3>Linux</h3>
+          <p>Fichier <code>.AppImage</code> ou paquet <code>.deb</code> (x64).</p>
+          <pre><code>chmod +x Maquio-*.AppImage
+./Maquio-*.AppImage</code></pre>
+          <p>Pour le <code>.deb</code> : <code>sudo apt install ./Maquio-*.deb</code>.</p>
+        </div>
+      </div>
+      <p class="section-lead">Les sommes de contrôle SHA-256 sont publiées avec chaque release (<code>SHA256SUMS.txt</code>). Pour l'assistance Claude, installez le CLI <code>claude</code> : Maquio le détecte automatiquement.</p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>© 2026 Khalil Benazzouz · Licence <a href="https://github.com/khalilbenaz/Maquio/blob/main/LICENSE">MIT</a></span>
+      <ul>
+        <li><a href="https://github.com/khalilbenaz/Maquio">Dépôt GitHub</a></li>
+        <li><a href="https://github.com/khalilbenaz/Maquio/releases">Releases</a></li>
+        <li><a href="https://github.com/khalilbenaz/Maquio/blob/main/CHANGELOG.md">Changelog</a></li>
+        <li><a href="https://github.com/khalilbenaz/Maquio/issues">Signaler un problème</a></li>
+      </ul>
+    </div>
+  </footer>
+  <script src="script.js" defer></script>
+</body>
+</html>
