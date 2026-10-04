@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Nacre · Vérifier et confirmer</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #F4F5F7; color: #0B0C10; font-family: Geist, system-ui, sans-serif">
+  <div style="box-sizing: border-box; padding: 56px 20px 0; display: flex; flex-direction: column; gap: 16px; opacity: 0.4">
+    <h1 style="margin: 0; font-size: 26px; font-weight: 800">Vérifier le virement</h1>
+    <section style="border-radius: 22px; background: #FFFFFF; padding: 4px 16px">
+      <sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
+        <div style="height: 52px; display: flex; align-items: center; justify-content: space-between; font-size: 15px; border-bottom: {{r.border}}"><span style="color: #6B6F7B">{{r.k}}</span><span style="font-weight: 600">{{r.v}}</span></div>
+      </sc-for>
+    </section>
+  </div>
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(11,12,16,0.36)"></div>
+  <section role="dialog" aria-label="Confirmer avec le code reçu par SMS" style="position: absolute; left: 0; right: 0; bottom: 0; box-sizing: border-box; padding: 14px 24px 36px; border-radius: 28px 28px 0 0; background: #FFFFFF; display: flex; flex-direction: column; align-items: center; gap: 16px">
+    <span style="width: 40px; height: 5px; border-radius: 3px; background: #D6D8DE"></span>
+    <span style="width: 56px; height: 56px; border-radius: 28px; background: #E8EAFE; display: flex; align-items: center; justify-content: center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#4338FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4"></path></svg></span>
+    <h2 style="margin: 0; font-size: 22px; font-weight: 700">Confirmez votre virement</h2>
+    <p style="margin: 0; font-size: 14px; color: #6B6F7B; text-align: center">Code envoyé au 06 ·· ·· ·· 42. Valable 5 minutes.</p>
+    <div style="display: flex; gap: 10px">
+      <sc-for list="{{otp}}" as="o" hint-placeholder-count="6"><span style="{{o.style}}">{{o.d}}</span></sc-for>
+    </div>
+    <span style="font-size: 14px; color: #6B6F7B">Renvoyer le code dans 0:42</span>
+    <a href="Succes.dc.html" style="width: 100%; height: 56px; border-radius: 28px; background: #4338FF; color: #FFFFFF; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; text-decoration: none">Envoyer 45,00 €</a>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const d = [['À', 'Léa Martin'], ['IBAN', 'FR76 ···· 0912'], ['Montant', '45,00 €'], ['Frais', 'Gratuit'], ['Arrivée', 'En quelques secondes'], ['Motif', 'Restaurant samedi']];
+    const otp = ['4', '8', '1', '', '', ''].map((v, i) => ({ d: v, style: 'width: 44px; height: 54px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; ' + (i === 3 ? 'background: #FFFFFF; box-shadow: inset 0 0 0 2px #4338FF' : 'background: #F4F5F7') }));
+    return { rows: d.map(([k, v], i) => ({ k, v, border: i < d.length - 1 ? '1px solid #F0F1F4' : '0' })), otp };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Nacre · Profil et sécurité</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #F4F5F7; color: #0B0C10; font-family: Geist, system-ui, sans-serif">
+  <div style="box-sizing: border-box; padding: 56px 20px 0; display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 6px 0">
+      <span style="width: 76px; height: 76px; border-radius: 38px; background: #0B0C10; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700">CM</span>
+      <span style="font-size: 20px; font-weight: 700">Camille Moreau</span>
+      <span style="height: 28px; padding: 0 12px; border-radius: 14px; background: #E8EAFE; color: #4338FF; font-size: 12px; font-weight: 700; display: flex; align-items: center">Formule Standard</span>
+    </div>
+    <sc-for list="{{groups}}" as="g" hint-placeholder-count="2">
+      <section style="border-radius: 22px; background: #FFFFFF; padding: 4px 16px">
+        <sc-for list="{{g.rows}}" as="r" hint-placeholder-count="4">
+          <a href="{{r.href}}" style="height: 54px; display: flex; align-items: center; gap: 12px; text-decoration: none; color: {{r.ink}}; border-bottom: {{r.border}}">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{r.ink}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{r.d}}"></path></svg>
+            <span style="flex-grow: 1; font-size: 15px; font-weight: 600">{{r.label}}</span><span style="font-size: 14px; color: #6B6F7B">{{r.value}}</span></a>
+        </sc-for>
+      </section>
+    </sc-for>
+  </div>
+  <div style="position: absolute; left: 0; bottom: 0"><dc-import name="TabBar" active="profile" hint-size="390px,96px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const mk = (rows) => rows.map(([label, value, d, href, danger], i) => ({ label, value, d, href, ink: danger ? '#D93644' : '#0B0C10', border: i < rows.length - 1 ? '1px solid #F0F1F4' : '0' }));
+    const groups = [
+      { rows: mk([['Informations personnelles', '', 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0', 'Profil.dc.html'], ['Relevés et documents', '', 'M14 3H6v18h12V7zM14 3v4h4', 'Profil.dc.html'], ['Langue', 'Français', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18', 'Profil.dc.html'], ['Apparence', 'Automatique', 'M12 3a9 9 0 1 0 0 18V3z', 'Profil.dc.html']]) },
+      { rows: mk([['Reconnaissance faciale', 'Activée', 'M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3', 'Profil.dc.html'], ['Changer le code d’accès', '', 'M6 10V8a6 6 0 0 1 12 0v2M5 10h14v11H5z', 'Connexion.dc.html'], ['Appareils connectés', '2', 'M7 3h10v18H7zM11 18h2', 'Notifications.dc.html'], ['Se déconnecter', '', 'M15 3h4v18h-4M10 17l-5-5 5-5M5 12h11', 'Bienvenue.dc.html', true]]) },
+    ];
+    return { groups };
+  }
+}
+</script>
+</body>
+</html>

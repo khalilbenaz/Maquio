@@ -127,7 +127,8 @@ export function resolveGesture(nodes: Node[], screen: Node, point: { x: number; 
         const items = n.props.items as { target?: string }[]
         const idx = Math.min(items.length - 1, Math.max(0, Math.floor(((point.x - f.x) / f.w) * items.length)))
         const target = items[idx]?.target
-        if (target !== undefined) return { action: { type: 'navigate', target }, transition: { type: 'fade', durationMs: 150, easing: 'linear' }, sourceId: n.id }
+        if (target !== undefined) // Changer d'onglet ne s'anime pas (comportement natif d'une barre d'onglets).
+        return { action: { type: 'navigate', target }, transition: { type: 'none' }, sourceId: n.id }
       }
       if (n.kind === 'appBar' && n.props.leading === 'back' && point.x - f.x < 56) return { action: { type: 'back' }, transition: NONE, sourceId: n.id }
     }

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Nacre · Notifications</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; padding: 56px 20px 32px; background: #F4F5F7; color: #0B0C10; font-family: Geist, system-ui, sans-serif; display: flex; flex-direction: column; gap: 14px">
+  <header style="display: flex; align-items: center; justify-content: space-between">
+    <a href="Main.dc.html" aria-label="Retour" style="width: 40px; height: 40px; border-radius: 20px; background: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0B0C10" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></a>
+    <h1 style="margin: 0; font-size: 18px; font-weight: 700">Notifications</h1>
+    <button type="button" style="border: 0; background: transparent; font-family: Geist, sans-serif; font-size: 14px; font-weight: 600; color: #4338FF">Tout lire</button>
+  </header>
+  <sc-for list="{{items}}" as="n" hint-placeholder-count="5">
+    <div style="{{n.style}}">
+      <span style="width: 40px; height: 40px; border-radius: 20px; background: {{n.bg}}; display: flex; align-items: center; justify-content: center; flex: 0 0 auto"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{n.fg}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.d}}"></path></svg></span>
+      <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 3px"><span style="font-size: 15px; font-weight: 700">{{n.title}}</span><span style="font-size: 14px; color: #4A4E5A; line-height: 1.4">{{n.body}}</span><span style="font-size: 12px; color: #6B6F7B">{{n.when}}</span></span>
+      <sc-if value="{{n.unread}}" hint-placeholder-val="{{ false }}"><span style="width: 8px; height: 8px; border-radius: 4px; background: #4338FF; margin-top: 6px"></span></sc-if>
+    </div>
+  </sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const n = [
+      ['Salaire reçu', '+2 850,00 € de Atelier Nord sur votre compte principal.', 'Hier, 07:02', true, '#E3F5EC', '#0B8A5C', 'M12 19V5M6 11l6-6 6 6'],
+      ['Paiement refusé', 'Retraits à l’étranger désactivés pour votre carte ···· 7310.', 'Lun., 18:40', true, '#FDE8EA', '#D93644', 'M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z'],
+      ['Objectif presque atteint', 'Coffre Voyage Lisbonne : 66 % de votre objectif.', 'Dim., 10:15', false, '#E8EAFE', '#4338FF', 'M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.6 6.7 19.4l1.2-6L3.4 9.3l6-.7z'],
+      ['Nouvel appareil connecté', 'Connexion depuis un iPhone à Paris. Ce n’est pas vous ? Bloquez l’accès.', '28 sept.', false, '#FFF1E6', '#B4501F', 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z'],
+      ['Relevé disponible', 'Votre relevé de septembre est prêt à être téléchargé.', '1er oct.', false, '#F1F1F4', '#4A4E5A', 'M14 3H6v18h12V7zM14 3v4h4M9 13h6M9 17h4'],
+    ];
+    return { items: n.map(([title, body, when, unread, bg, fg, d]) => ({ title, body, when, unread, bg, fg, d, style: 'border-radius: 20px; padding: 14px; display: flex; align-items: flex-start; gap: 12px; background: ' + (unread ? '#FFFFFF' : '#F9FAFB') })) };
+  }
+}
+</script>
+</body>
+</html>

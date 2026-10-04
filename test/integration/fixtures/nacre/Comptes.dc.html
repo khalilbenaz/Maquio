@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Nacre · Comptes et devises</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #F4F5F7; color: #0B0C10; font-family: Geist, system-ui, sans-serif">
+  <div style="box-sizing: border-box; padding: 56px 20px 0; display: flex; flex-direction: column; gap: 20px">
+    <header style="display: flex; align-items: center; justify-content: space-between">
+      <a href="Main.dc.html" aria-label="Retour" style="width: 40px; height: 40px; border-radius: 20px; background: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0B0C10" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></a>
+      <h1 style="margin: 0; font-size: 18px; font-weight: 700">Comptes</h1>
+      <span style="width: 40px"></span>
+    </header>
+    <div style="text-align: center; display: flex; flex-direction: column; gap: 4px; padding: 8px 0"><span style="font-size: 14px; color: #6B6F7B; font-weight: 600">Patrimoine total</span><span style="font-size: 36px; font-weight: 800; letter-spacing: -0.02em">7 112,90 €</span></div>
+    <section aria-label="Devises" style="border-radius: 24px; background: #FFFFFF; padding: 6px 16px">
+      <sc-for list="{{accounts}}" as="a" hint-placeholder-count="4">
+        <a href="Main.dc.html" style="height: 70px; display: flex; align-items: center; gap: 14px; text-decoration: none; color: #0B0C10; border-bottom: {{a.border}}">
+          <span style="width: 44px; height: 44px; border-radius: 22px; background: {{a.bg}}; color: {{a.fg}}; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px">{{a.code}}</span>
+          <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 16px; font-weight: 600">{{a.name}}</span><span style="font-size: 13px; color: #6B6F7B">{{a.iban}}</span></span>
+          <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px"><span style="font-size: 16px; font-weight: 700">{{a.amount}}</span><span style="font-size: 12px; color: #6B6F7B">{{a.eur}}</span></span>
+        </a>
+      </sc-for>
+    </section>
+    <a href="Comptes.dc.html" style="height: 54px; border-radius: 27px; background: #E8EAFE; color: #4338FF; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4338FF" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Ouvrir un compte en devise</a>
+    <section aria-label="Coordonnées" style="border-radius: 24px; background: #FFFFFF; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+      <span style="font-size: 13px; color: #6B6F7B; font-weight: 600">IBAN du compte principal</span>
+      <div style="display: flex; align-items: center; justify-content: space-between"><span style="font-size: 16px; font-weight: 600; letter-spacing: 0.04em">FR76 XXXX XXXX XXXX 4821</span>
+        <button type="button" aria-label="Copier l’IBAN" style="width: 36px; height: 36px; border: 0; border-radius: 18px; background: #F4F5F7; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0B0C10" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 9h11v11H9zM5 15H4V4h11v1"></path></svg></button></div>
+    </section>
+  </div>
+  <div style="position: absolute; left: 0; bottom: 0"><dc-import name="TabBar" active="home" hint-size="390px,96px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const rows = [['EUR', 'Euro · principal', 'FR76 ···· 4821', '4 218,54 €', '', '#E8EAFE', '#4338FF'], ['USD', 'Dollar américain', 'Compte en devise', '1 920,00 $', '≈ 1 776,30 €', '#E3F5EC', '#0B8A5C'], ['GBP', 'Livre sterling', 'Compte en devise', '480,25 £', '≈ 562,06 €', '#FFF1E6', '#B4501F'], ['MAD', 'Dirham marocain', 'Compte en devise', '6 100,00 DH', '≈ 556,00 €', '#F1F1F4', '#4A4E5A']];
+    const accounts = rows.map(([code, name, iban, amount, eur, bg, fg], i) => ({ code, name, iban, amount, eur, bg, fg, border: i < rows.length - 1 ? '1px solid #F0F1F4' : '0' }));
+    return { accounts };
+  }
+}
+</script>
+</body>
+</html>

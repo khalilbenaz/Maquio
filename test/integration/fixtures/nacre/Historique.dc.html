@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Nacre · Historique</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #F4F5F7; color: #0B0C10; font-family: Geist, system-ui, sans-serif">
+  <div style="box-sizing: border-box; padding: 56px 20px 0; display: flex; flex-direction: column; gap: 14px">
+    <div style="display: flex; gap: 10px; align-items: center">
+      <a href="Main.dc.html" aria-label="Retour" style="width: 40px; height: 40px; border-radius: 20px; background: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0B0C10" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></a>
+      <label for="q" style="position: absolute; left: -9999px">Rechercher une opération</label>
+      <input id="q" value="café" style="flex-grow: 1; height: 44px; box-sizing: border-box; border: 0; border-radius: 22px; background: #FFFFFF; padding: 0 16px; font-family: Geist, sans-serif; font-size: 15px; color: #0B0C10; outline: none; box-shadow: 0 0 0 2px #4338FF">
+    </div>
+    <div role="group" aria-label="Filtres" style="display: flex; gap: 8px">
+      <sc-for list="{{chips}}" as="c" hint-placeholder-count="4"><button type="button" style="{{c.style}}">{{c.label}}</button></sc-for>
+    </div>
+    <sc-for list="{{groups}}" as="g" hint-placeholder-count="2">
+      <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: #6B6F7B; padding: 6px 4px 0"><span>{{g.day}}</span><span>{{g.total}}</span></div>
+      <section style="border-radius: 22px; background: #FFFFFF; padding: 4px 16px">
+        <sc-for list="{{g.tx}}" as="t" hint-placeholder-count="3">
+          <a href="Transaction.dc.html" style="height: 62px; display: flex; align-items: center; gap: 12px; text-decoration: none; color: #0B0C10; border-bottom: {{t.border}}">
+            <span style="width: 40px; height: 40px; border-radius: 20px; background: {{t.bg}}; color: {{t.fg}}; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px">{{t.ini}}</span>
+            <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">{{t.name}}</span><span style="font-size: 13px; color: #6B6F7B">{{t.meta}}</span></span>
+            <span style="font-size: 15px; font-weight: 600">{{t.amount}}</span>
+          </a>
+        </sc-for>
+      </section>
+    </sc-for>
+  </div>
+  <div style="position: absolute; left: 0; bottom: 0"><dc-import name="TabBar" active="home" hint-size="390px,96px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const chips = ['Tout', 'Dépenses', 'Revenus', 'Octobre'].map((label, i) => ({ label, style: 'height: 34px; padding: 0 14px; border: 0; border-radius: 17px; font-family: Geist, sans-serif; font-size: 13px; font-weight: 600; ' + (i === 0 ? 'background: #0B0C10; color: #FFFFFF' : 'background: #FFFFFF; color: #0B0C10') }));
+    const mk = (rows) => rows.map(([name, meta, amount], i) => ({ name, meta, amount, ini: 'CL', bg: '#FFF1E6', fg: '#B4501F', border: i < rows.length - 1 ? '1px solid #F0F1F4' : '0' }));
+    const groups = [
+      { day: 'Aujourd’hui', total: '−4,20 €', tx: mk([['Café Lumière', '08:42 · Restauration', '−4,20 €']]) },
+      { day: 'Mardi 30 septembre', total: '−12,60 €', tx: mk([['Café Lumière', '08:37 · Restauration', '−4,20 €'], ['Café Lumière', '13:05 · Restauration', '−8,40 €']]) },
+      { day: 'Vendredi 26 septembre', total: '−3,90 €', tx: mk([['Café Lumière', '08:51 · Restauration', '−3,90 €']]) },
+    ];
+    return { chips, groups };
+  }
+}
+</script>
+</body>
+</html>
