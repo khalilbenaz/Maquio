@@ -19,6 +19,7 @@ import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { getExporter } from '@maquio/codegen'
 import type { ExporterId } from '@maquio/codegen'
+import { documentBanque } from './fixtures/banque'
 import { documentExempleComplet } from './fixtures/exemple-complet'
 import { PNG_1X1, RESSOURCES_RELATIVES, documentProjetImages } from './fixtures/projet-images'
 import type { MaquioDocument } from '@maquio/core'
@@ -90,6 +91,7 @@ const CASES: [string, string, () => MaquioDocument, boolean][] = [
   ['exemple « tous les composants »', 'exemple', documentExempleComplet, false],
   ['projet multi-ecrans avec images', 'images', projetImages, true],
   ['interactions (transitions, overlays, delai, URL)', 'interactions', documentInteractions, false],
+  ['prototype bancaire (21 ecrans)', 'banque', documentBanque, false],
 ]
 
 describe.each(CASES)('les exports compilent (%s)', (_label, key, makeDoc, withAssets) => {
