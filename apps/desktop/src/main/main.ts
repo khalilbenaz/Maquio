@@ -9,9 +9,11 @@
 // vraies dependances (node:fs/promises, dialog, safeStorage, fetch,
 // child_process), toutes elles-memes enveloppees dans de petits
 // adaptateurs sous src/main/adapters/*.ts.
-import { access, constants, copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { access, constants, copyFile, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
+import os from 'node:os'
 import path from 'node:path'
-import { app, BrowserWindow, ipcMain, Menu, nativeTheme, safeStorage } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, safeStorage } from 'electron'
 import { AiService, ProcessClaudeRunner } from '@maquio/ai'
 import { FigmaClient } from '@maquio/figma'
 import { listExporters } from '@maquio/codegen'
@@ -28,6 +30,7 @@ import { createSecretStore } from './adapters/secretStore'
 import { createClaudeSettingsStore } from './adapters/claudeSettingsStore'
 import { createClaudeWhich, validateClaudeBinaryPath } from './adapters/claudeDetection'
 import type { ClaudePathFs } from './adapters/claudeDetection'
+import { createClaudeDiscovery } from './adapters/claudeDiscovery'
 import { createNeutralClaudeWorkingDirectory } from './adapters/claudeWorkingDirectory'
 import {
   chooseDirectory,
@@ -81,6 +84,15 @@ async function estExecutable(p: string): Promise<boolean> {
 
 const claudePathFs: ClaudePathFs = { stat, isExecutable: estExecutable }
 
+// Valide un chemin choisi par l'utilisateur : fichier executable ET reponse a
+// `--version` (un binaire qui ne repond pas n'est jamais adopte).
+async function validerBinaireClaude(p: string) {
+  const base = await validateClaudeBinaryPath(p, claudePathFs)
+  if (!base.ok) return base
+  const sortie = await lancerProgramme(p, ['--version'], 5000)
+  return sortie === null ? ({ ok: false, reason: `${p} ne répond pas à « --version » : ce n'est pas Claude Code` } as const) : base
+}
+
 // Reglages Claude Code (chemin personnalise, JSON ordinaire -- PAS un
 // secret, voir claudeSettingsStore.ts). Comme magasinSecrets : le chemin du
 // fichier depend du dossier de donnees utilisateur, connu seulement une
@@ -99,10 +111,49 @@ let magasinReglagesClaude: ReturnType<typeof createClaudeSettingsStore> | undefi
 // reglages ci-dessous) appelle ce MEME `which` : l'etat affiche dans les
 // reglages est donc exactement celui qui determine ce que `claude -p ...`
 // lancera reellement.
+// Programme lance sans shell, avec delai : rend son stdout, ou null (echec,
+// delai depasse). Un .cmd/.bat Windows exige un shell.
+function lancerProgramme(cmd: string, args: string[], timeoutMs: number): Promise<string | null> {
+  return new Promise((resolve) => {
+    const enfant = execFile(
+      cmd,
+      args,
+      { timeout: timeoutMs, encoding: 'utf8', windowsHide: true, shell: /\.(cmd|bat)$/i.test(cmd), env: process.env },
+      (erreur, stdout) => resolve(erreur ? null : stdout),
+    )
+    enfant.stdin?.end()
+  })
+}
+
+// Decouverte au-dela du PATH du processus (voir adapters/claudeDiscovery.ts).
+// MAQUIO_CLAUDE_DISCOVERY=off la desactive (tests de bout en bout qui
+// veulent un « Claude introuvable » deterministe, meme sur une machine ou
+// claude est installe).
+const decouverteClaude = createClaudeDiscovery({
+  platform: process.platform,
+  env: process.env,
+  homedir: os.homedir(),
+  run: lancerProgramme,
+  readdir: async (dir) => readdir(dir).catch(() => []),
+  isExecutableFile: async (f) => (await stat(f).then((s) => s.isFile()).catch(() => false)) && (await estExecutable(f)),
+  searchProcessPath: (b) => chercherDansLePath(b),
+})
+const decouverteActive = process.env['MAQUIO_CLAUDE_DISCOVERY'] !== 'off'
+
+// Rang 3 et 4, plus le PATH du processus. Memorise ; un chemin memorise qui
+// n'est plus executable declenche une nouvelle decouverte.
+async function trouverClaude(binaire: string): Promise<string | null> {
+  if (!decouverteActive) return chercherDansLePath(binaire)
+  const memorise = await decouverteClaude.resolve()
+  if (memorise !== null && (await estExecutable(memorise))) return memorise
+  return memorise === null ? null : decouverteClaude.refresh()
+}
+
 const whichClaude = createClaudeWhich({
   getCustomPath: async () => (magasinReglagesClaude ? magasinReglagesClaude.getCustomPath() : null),
-  fallback: chercherDansLePath,
-  validate: (p) => validateClaudeBinaryPath(p, claudePathFs),
+  getEnvPath: () => process.env['MAQUIO_CLAUDE_PATH'],
+  fallback: trouverClaude,
+  validate: validerBinaireClaude,
 })
 
 async function resolveClaudeStatus(): Promise<{ available: boolean; path: string | null }> {
@@ -277,6 +328,20 @@ function enregistrerLesGestionnaires(): void {
     return { ...figma, ...claude }
   })
 
+  // « Réessayer la détection » : oublie la découverte mémorisée et la relance.
+  handle('redetectClaude', async () => {
+    if (decouverteActive) await decouverteClaude.refresh()
+    const statut = await resolveClaudeStatus()
+    return { claudeAvailable: statut.available, claudePath: statut.path }
+  })
+
+  handle('chooseClaudeBinary', async () => {
+    const options = { properties: ['openFile' as const], title: 'Choisir le binaire claude' }
+    const fenetre = BrowserWindow.getFocusedWindow()
+    const r = fenetre ? await dialog.showOpenDialog(fenetre, options) : await dialog.showOpenDialog(options)
+    return r.canceled || r.filePaths.length === 0 ? null : (r.filePaths[0] ?? null)
+  })
+
   handle('setFigmaToken', async (_event, token: string) => {
     if (!magasinSecrets) throw new Error("Le stockage des reglages n'est pas encore initialise")
     return createSetFigmaTokenHandler({ secretStore: magasinSecrets })(token)
@@ -286,7 +351,7 @@ function enregistrerLesGestionnaires(): void {
     if (!magasinReglagesClaude) throw new Error("Le stockage des reglages n'est pas encore initialise")
     return createSetClaudeCustomPathHandler({
       store: magasinReglagesClaude,
-      validate: (p) => validateClaudeBinaryPath(p, claudePathFs),
+      validate: validerBinaireClaude,
       resolveStatus: resolveClaudeStatus,
     })(rawPath)
   })
@@ -408,6 +473,8 @@ async function demarrer(): Promise<void> {
     iconPath: cheminIcone(),
   })
   await app.whenReady()
+  // Prechauffage asynchrone de la decouverte de claude (jamais bloquant).
+  if (decouverteActive) void decouverteClaude.resolve()
   // Windows / Linux : fichier passe en argument (`maquio mon.maquio`).
   for (const argument of process.argv.slice(1)) demanderOuverture(argument)
 

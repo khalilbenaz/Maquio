@@ -213,3 +213,29 @@
 }
 
 
+
+/* Le bouton de repli de l'en-tete (classe .panel-collapse, voir App.css) est
+   un <button> DANS .claude-panel : sans cette regle il heritait de
+   `.claude-panel button` (fond corail plein, 34 px, pleine largeur) et
+   apparaissait comme une languette orange orpheline au bord du panneau.
+   Il reprend ici le style discret des autres boutons de repli. */
+.claude-panel .panel-collapse {
+  align-self: center;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  color: var(--maquio-text-faint);
+  border-radius: 5px;
+  font-weight: inherit;
+}
+
+.claude-panel .panel-collapse:hover:not(:disabled) {
+  background: var(--maquio-border);
+  color: var(--maquio-text);
+}
+
+.claude-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

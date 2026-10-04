@@ -91,6 +91,11 @@ export type MaquioApi = {
   // claudeSettingsHandlers.ts. Rend le nouvel etat de detection, deja a
   // jour avec le reglage applique.
   setClaudeCustomPath(path: string): Promise<{ claudeAvailable: boolean; claudePath: string | null }>
+  // « Reessayer la detection » : oublie la decouverte memorisee (PATH du
+  // shell de connexion, emplacements connus) et la relance.
+  redetectClaude(): Promise<{ claudeAvailable: boolean; claudePath: string | null }>
+  // Selecteur de fichier pour le binaire claude ; null si annule.
+  chooseClaudeBinary(): Promise<string | null>
   // Défaut n3 (« comment mettre l'image ? ») : sélecteur de fichier natif
   // pour choisir une image, utilisé au tracé d'un nœud Image (voir
   // useDragInteraction.ts) et depuis l'inspecteur (« Choisir une image… »,
@@ -120,6 +125,8 @@ export const API_CHANNELS = [
   'getSettings',
   'setFigmaToken',
   'setClaudeCustomPath',
+  'redetectClaude',
+  'chooseClaudeBinary',
   'chooseImage',
   'getThemePreference',
   'setThemePreference',
