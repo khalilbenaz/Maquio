@@ -217,3 +217,29 @@ describe('rendu canevas des conteneurs semantiques', () => {
     expect(frames[2]!.top).not.toBe(frames[0]!.top)
   })
 })
+
+// Sur une couleur personnalisee, le texte suit la luminance du fond : des
+// initiales foncees sur un avatar vert-bleu fonce etaient illisibles.
+describe('contraste du texte sur une couleur personnalisee', () => {
+  const fonce = { r: 0.06, g: 0.46, b: 0.43, a: 1 }
+  const clair = { r: 1, g: 1, b: 1, a: 1 }
+  const premierTexte = (el: HTMLElement) => Array.from(el.querySelectorAll('div')).find((d) => d.style.background !== '')!.style.color
+
+  it('avatar fonce : initiales blanches', () => {
+    const n = ajouter('avatar', { initials: 'KB', color: fonce })
+    render(<Canvas api={apiFactice} />)
+    expect(premierTexte(vue(n))).toBe('rgb(255, 255, 255)')
+  })
+
+  it('barre d application claire : titre fonce', () => {
+    const n = ajouter('appBar', { title: 'Confirmer', color: clair })
+    render(<Canvas api={apiFactice} />)
+    expect(premierTexte(vue(n))).toBe('rgb(29, 27, 32)')
+  })
+
+  it('fab fonce : icone blanche', () => {
+    const n = ajouter('fab', { color: fonce })
+    render(<Canvas api={apiFactice} />)
+    expect(premierTexte(vue(n))).toBe('rgb(255, 255, 255)')
+  })
+})

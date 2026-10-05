@@ -25,10 +25,12 @@ import {
   CONTAINER_DEFINITIONS,
   CONTAINER_KINDS,
   ICON_NAMES,
+  componentPropKeys,
   findNode,
 } from '@maquio/core'
 import type { MaquioDocument, Node } from '@maquio/core'
 import { NODE_EXAMPLES } from './prompt-examples'
+import { DESIGN_GUIDE_TEXT } from './design-guide'
 
 function collectSelectedNodes(document: MaquioDocument, selectionIds: string[]): Node[] {
   const found: Node[] = []
@@ -69,8 +71,17 @@ const NODE_EXAMPLES_TEXT = NODE_EXAMPLES.map((node) => `"${node.type}" (exemple,
 // conteneur, DERIVEES du catalogue de @maquio/core (jamais ecrites a la main) :
 // le modele voit la forme exacte de `props`, y compris les champs optionnels
 // (`icon`, `color`...) que les valeurs par defaut omettent.
+// Champs optionnels EXACTS de chaque kind (absents des valeurs par defaut) :
+// sans eux, Claude devinait des champs d'un autre kind ("leadingIcon" sur
+// un bouton) et le patch etait rejete.
+function optionalPropsText(kind: (typeof COMPONENT_KINDS)[number]): string {
+  const defaults = Object.keys(COMPONENT_DEFINITIONS[kind].props)
+  const optional = componentPropKeys(kind).filter((k) => !defaults.includes(k))
+  return optional.length > 0 ? ` ; champs optionnels : ${optional.map((k) => `"${k}"`).join(', ')}` : ''
+}
+
 const COMPONENT_CATALOG_TEXT = COMPONENT_KINDS.map(
-  (kind) => `- "${kind}" (${COMPONENT_DEFINITIONS[kind].label}) : "props" = ${JSON.stringify(COMPONENT_DEFINITIONS[kind].props)}`,
+  (kind) => `- "${kind}" (${COMPONENT_DEFINITIONS[kind].label}) : "props" = ${JSON.stringify(COMPONENT_DEFINITIONS[kind].props)}${optionalPropsText(kind)}`,
 ).join('\n')
 
 const CONTAINER_CATALOG_TEXT = CONTAINER_KINDS.map(
@@ -118,11 +129,13 @@ Exemples complets, un par type, a suivre EXACTEMENT (mêmes cles, mêmes noms de
 
 ${NODE_EXAMPLES_TEXT}
 
-Proprietes de chaque "kind" de "component" (valeurs par defaut ; les champs optionnels "icon", "leadingIcon", "color"... peuvent s'ajouter, "items" accepte "target") :
+Proprietes de chaque "kind" de "component" (valeurs par defaut, puis les SEULS champs optionnels acceptes pour ce kind -- aucun autre champ ; "items" accepte "target"). Un composant dont le kind accepte "color" (bouton, fab, interrupteur, barre d'onglets...) recoit TOUJOURS "color" = la couleur d'accent de "tokens.colors" : sans elle, il garde le violet par defaut de Material et contredit la palette :
 ${COMPONENT_CATALOG_TEXT}
 
 Conteneurs semantiques d'une "frame" :
 ${CONTAINER_CATALOG_TEXT}
+
+${DESIGN_GUIDE_TEXT}
 
 Contraintes du modele de donnees a respecter dans "node", "patch" et "tokens" :
 - les couleurs (r, g, b, a) sont des nombres entre 0 et 1, pas entre 0 et 255 ;

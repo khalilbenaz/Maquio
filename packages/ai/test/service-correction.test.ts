@@ -84,3 +84,41 @@ describe('AiService : boucle de correction', () => {
     expect(runner.prompts).toHaveLength(1)
   })
 })
+
+describe('AiService : controle de mise en page', () => {
+  const doc = createDocument('T')
+  const pageId = doc.pages[0]!.id
+  const screenWith = (children: unknown[]) => ({
+    id: 'ecran', name: 'Écran', type: 'frame', frame: { x: 0, y: 0, w: 393, h: 852 },
+    visible: true, locked: false, opacity: 1, rotation: 0,
+    layout: { mode: 'absolute', gap: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 }, alignMain: 'start', alignCross: 'start' },
+    fills: [], strokes: [], cornerRadius: 0, clipsContent: true, children,
+    device: { id: 'iphone', label: 'iPhone', width: 393, height: 852, pixelRatio: 3 },
+  })
+  const at = (id: string, x: number, y: number) => ({ ...textNode('left'), id, name: id, frame: { x, y, w: 200, h: 22 } })
+  const patchOf = (children: unknown[]) => JSON.stringify({ summary: 's', ops: [{ op: 'insertNode', parentId: null, node: screenWith(children) }] })
+  const chevauchement = patchOf([at('a', 20, 80), at('b', 22, 82)])
+  const propre = patchOf([at('a', 20, 80), at('b', 20, 120)])
+
+  it('renvoie a Claude les defauts de mise en page d un patch valide et accepte la version corrigee', async () => {
+    const runner = new FakeClaudeRunner([chevauchement, propre])
+    const out = await new AiService(runner).ask({ instruction: 'x', document: doc, selectionIds: [], pageId })
+    expect(runner.prompts).toHaveLength(2)
+    expect(runner.prompts[1]).toMatch(/défauts de mise en page/)
+    expect(runner.prompts[1]).toMatch(/"a" et "b" se chevauchent/)
+    expect(findNode(out.command.apply(doc).pages[0]!.nodes, 'b')?.frame.y).toBe(120)
+  })
+
+  it('garde le dernier patch valide si la correction de mise en page est inexploitable', async () => {
+    const runner = new FakeClaudeRunner([chevauchement, 'je ne sais pas'])
+    const out = await new AiService(runner).ask({ instruction: 'x', document: doc, selectionIds: [], pageId })
+    expect(findNode(out.command.apply(doc).pages[0]!.nodes, 'b')?.frame.y).toBe(82)
+  })
+
+  it('accepte le patch malgre ses defauts une fois les corrections epuisees (jamais de rejet esthetique)', async () => {
+    const runner = new FakeClaudeRunner(() => chevauchement)
+    const out = await new AiService(runner).ask({ instruction: 'x', document: doc, selectionIds: [], pageId })
+    expect(runner.prompts).toHaveLength(1 + MAX_CORRECTION_ROUNDS)
+    expect(findNode(out.command.apply(doc).pages[0]!.nodes, 'a')).toBeDefined()
+  })
+})
