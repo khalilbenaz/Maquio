@@ -26,7 +26,7 @@ function flatten(nodes: Node[], hidden: Set<string>): Node[] {
   return out
 }
 
-function ScreenLayer({ pageNodes, screen, hidden, open, layerRef, testId }: { pageNodes: Node[]; screen: Node; hidden: Set<string>; open: string[]; layerRef?: (el: HTMLDivElement | null) => void; testId: string }) {
+export function ScreenLayer({ pageNodes, screen, hidden, open, layerRef, testId }: { pageNodes: Node[]; screen: Node; hidden: Set<string>; open: string[]; layerRef?: (el: HTMLDivElement | null) => void; testId: string }) {
   if (screen.type !== 'frame') return null
   const origin = absoluteFrame(pageNodes, screen.id)
   const local = (id: string): Rect => {

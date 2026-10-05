@@ -215,3 +215,19 @@ describe('cancelClaude', () => {
     await expect(cancelHandler()).resolves.toBeUndefined()
   })
 })
+
+describe('createClaudeHandler — progression et rendu', () => {
+  it('transmet au service les hooks de la demande (progression, rendu des ecrans)', async () => {
+    const doc = createDocument('T')
+    const recus: unknown[] = []
+    const service = {
+      ask: async (_input: unknown, _signal: unknown, hooks: unknown) => {
+        recus.push(hooks)
+        return new AiService(new FakeClaudeRunner(['{"summary":"s","ops":[]}'])).ask({ instruction: 'x', document: doc, selectionIds: [], pageId: doc.pages[0]!.id })
+      },
+    } as unknown as AiService
+    const hooks = { onProgress: () => {}, renderScreen: async () => '' }
+    await createClaudeHandler({ service, requests: new ClaudeRequestTracker(), hooks })({ instruction: 'x', json: serializeDocument(doc), selectionIds: [], pageId: doc.pages[0]!.id })
+    expect(recus).toEqual([hooks])
+  })
+})

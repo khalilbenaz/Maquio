@@ -57,6 +57,13 @@ contextBridge.exposeInMainWorld('maquioMenu', {
     ipcRenderer.on('maquio:theme-changed', listener)
     return () => ipcRenderer.removeListener('maquio:theme-changed', listener)
   },
+  // Progression d'une creation d'application par Claude (plan, ecrans,
+  // revue visuelle) : simple signal du main, sans donnee sensible.
+  onClaudeProgress: (callback: (progress: { step: string; done: number; total: number }) => void) => {
+    const listener = (_event: unknown, progress: { step: string; done: number; total: number }) => callback(progress)
+    ipcRenderer.on('maquio:claude-progress', listener)
+    return () => ipcRenderer.removeListener('maquio:claude-progress', listener)
+  },
   // Chemin reel d'un fichier depose sur la fenetre (le renderer n'a plus acces a `File.path`).
   pathForFile: (file: File) => webUtils.getPathForFile(file),
   // Ouverture demandee par le systeme (double-clic dans le Finder, `open -a`).

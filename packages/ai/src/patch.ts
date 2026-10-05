@@ -89,7 +89,7 @@ const moveNodeOpSchema = z
 // nodeSchema) - on les reutilise ici tels quels plutot que d'en dupliquer
 // les bornes, qui deriveraient sinon du cœur et laisseraient passer dans un
 // patch ce que le modele refuse partout ailleurs.
-const tokensPatchSchema: z.ZodType<Partial<DesignTokens>> = z
+export const tokensPatchSchema: z.ZodType<Partial<DesignTokens>> = z
   .object({
     colors: z.record(z.string(), colorSchema).optional(),
     typography: z.record(z.string(), textStyleSchema).optional(),

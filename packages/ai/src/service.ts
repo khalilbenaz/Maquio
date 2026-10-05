@@ -17,14 +17,13 @@ import { buildPrompt } from './prompt'
 import { parsePatch } from './patch'
 import type { DocumentPatch } from './patch'
 import { patchToCommand, patchToCommands } from './apply'
-import { ClaudeCancelledError } from './runner'
 import type { ClaudeRunner } from './runner'
-import { buildCorrectionPrompt, buildLayoutCorrectionPrompt, describeRejectionForModel } from './correction'
+import { askWithCorrections } from './correction-loop'
 import { lintDesign, touchedNodeIds } from './design-lint'
+import { generateApp, isAppCreationRequest } from './app-pipeline'
+import type { PipelineHooks } from './app-pipeline'
 
-// Nombre de relances de Claude apres un patch rejete (donc au plus
-// 1 + MAX_CORRECTION_ROUNDS appels pour une demande).
-export const MAX_CORRECTION_ROUNDS = 2
+export { MAX_CORRECTION_ROUNDS } from './correction-loop'
 
 function truncate(text: string, max = 300): string {
   return text.length > max ? `${text.slice(0, max)}...` : text
@@ -68,6 +67,9 @@ export class AiService {
     // apps/desktop/claudeHandlers.ts) puisse interrompre reellement l'appel
     // en cours.
     signal?: AbortSignal,
+    // Progression et rendu des ecrans (critique visuelle) pour la creation
+    // d'une application ; sans renderScreen, pas de critique visuelle.
+    hooks?: PipelineHooks,
   ): Promise<{ patch: DocumentPatch; commands: Command[]; command: Command }> {
     const prompt = buildPrompt({
       instruction: input.instruction,
@@ -75,45 +77,33 @@ export class AiService {
       selectionIds: input.selectionIds,
     })
 
-    // Boucle de correction (voir correction.ts) : un patch rejete, a la
+    // Creation d'une application : generation ecran par ecran (plan, ecrans
+    // en parallele, critique visuelle), voir app-pipeline.ts.
+    if (isAppCreationRequest(input.instruction)) {
+      const patch = await generateApp(this.runner, input, hooks ?? {}, signal)
+      return { patch, commands: patchToCommands(patch, input.pageId), command: patchToCommand(patch, input.pageId, input.document) }
+    }
+
+    // Boucle de correction (voir correction-loop.ts) : un patch rejete, a la
     // lecture (parsePatch) ou a l'application (patchToCommand, qui valide
     // chaque operation sur le document), est renvoye a Claude avec la liste
-    // des problemes, jusqu'a MAX_CORRECTION_ROUNDS fois. Les erreurs du
-    // runner (indisponible, delai, annulation) ne sont jamais relancees.
-    //
-    // Un patch valide passe ensuite le controle de mise en page
-    // (design-lint.ts) : ses defauts (textes rognes ou superposes...) sont
-    // eux aussi renvoyes a Claude, mais ce controle reste consultatif. Le
-    // dernier patch valide est garde (`lastValid`) et rendu si les
-    // corrections s'epuisent ou si une correction est inexploitable.
-    let currentPrompt = prompt
-    let lastValid: { patch: DocumentPatch; commands: Command[]; command: Command } | null = null
-    for (let round = 0; ; round++) {
-      const raw = await this.runner.run(currentPrompt, signal)
-
-      let patch: DocumentPatch | null = null
-      try {
-        patch = parsePatch(raw)
-        const commands = patchToCommands(patch, input.pageId)
-        const command = patchToCommand(patch, input.pageId, input.document)
-        const result = { patch, commands, command }
-
-        const defects = lintDesign(command.apply(input.document), input.pageId, touchedNodeIds(patch))
-        if (defects.length === 0 || round >= MAX_CORRECTION_ROUNDS) return result
-        if (signal?.aborted) throw new ClaudeCancelledError()
-        lastValid = result
-        currentPrompt = buildLayoutCorrectionPrompt(prompt, raw, defects.join('\n'))
-      } catch (cause) {
-        if (cause instanceof ClaudeCancelledError) throw cause
-        if (lastValid !== null) return lastValid
-        if (round >= MAX_CORRECTION_ROUNDS) {
-          // Meme erreur qu'avant la boucle : rejet de lecture enveloppe,
-          // echec d'application relaye tel quel.
-          throw patch === null ? new ClaudePatchRejectedError(raw, { cause }) : cause
+    // des problemes. Un patch valide passe ensuite le controle de mise en
+    // page (design-lint.ts), consultatif.
+    return askWithCorrections({
+      runner: this.runner,
+      prompt,
+      signal,
+      parse: (raw) => {
+        let patch: DocumentPatch
+        try {
+          patch = parsePatch(raw)
+        } catch (cause) {
+          throw new ClaudePatchRejectedError(raw, { cause })
         }
-        if (signal?.aborted) throw new ClaudeCancelledError()
-        currentPrompt = buildCorrectionPrompt(prompt, raw, describeRejectionForModel(cause, raw))
-      }
-    }
+        // Un echec d'application est relaye tel quel (pas enveloppe).
+        return { patch, commands: patchToCommands(patch, input.pageId), command: patchToCommand(patch, input.pageId, input.document) }
+      },
+      defects: ({ patch, command }) => lintDesign(command.apply(input.document), input.pageId, touchedNodeIds(patch)),
+    })
   }
 }

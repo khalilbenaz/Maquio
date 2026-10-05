@@ -2,6 +2,16 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [1.1.0] - 2026-10-05
+
+### Ajouté
+- Assistance Claude : création d’une application **écran par écran**. Une demande de création (« Crée une application… », « Génère les écrans… ») passe par une direction artistique et un plan des écrans, puis chaque écran est dessiné séparément, un à la fois, avec toute l’attention du modèle ; les liens de navigation sont vérifiés et le tout est appliqué en une seule modification, annulable d’un Ctrl+Z.
+- Assistance Claude : **critique visuelle**. Chaque écran est rendu en image par Maquio (fenêtre cachée) et montré à Claude, qui le revoit en directeur artistique et le corrige ; un écran dont la critique échoue est gardé tel quel.
+- Panneau Claude : progression affichée pendant la création (direction artistique, dessin des écrans n/N, revue visuelle n/N). Une application de 8 écrans prend environ 45 minutes avec Opus.
+
+### Modifié
+- Les retouches (aligner, traduire, modifier un élément) restent traitées en une seule réponse, comme avant.
+
 ## [1.0.5] - 2026-10-05
 
 ### Ajouté

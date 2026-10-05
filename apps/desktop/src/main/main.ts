@@ -33,6 +33,7 @@ import { createClaudeWhich, validateClaudeBinaryPath } from './adapters/claudeDe
 import type { ClaudePathFs } from './adapters/claudeDetection'
 import { createClaudeDiscovery } from './adapters/claudeDiscovery'
 import { createNeutralClaudeWorkingDirectory } from './adapters/claudeWorkingDirectory'
+import { createScreenRenderer } from './adapters/screenRenderer'
 import {
   chooseDirectory,
   chooseFigmaJsonFile,
@@ -186,6 +187,9 @@ const lanceurClaude = new ProcessClaudeRunner({
 })
 const serviceClaude = new AiService(lanceurClaude)
 const claudeRequests = new ClaudeRequestTracker()
+const rendeurEcrans = createScreenRenderer()
+// Tests de bout en bout seulement : acces direct au rendu des ecrans.
+if (process.env['MAQUIO_E2E_HIDDEN'] === '1') (globalThis as Record<string, unknown>)['__maquioRenderScreen'] = rendeurEcrans.render
 
 // Jeton Figma chiffre (decision 3 du brief) : jamais en clair sur disque.
 // Le chemin depend du dossier de donnees utilisateur, connu seulement une
@@ -315,8 +319,20 @@ function enregistrerLesGestionnaires(): void {
 
   handle('listExporters', () => listExporters().map(({ id, label, maturity }) => ({ id, label, maturity })))
 
-  handle('askClaude', (_event, input) =>
-    createClaudeHandler({ service: serviceClaude, requests: claudeRequests })(input),
+  // Creation d'une application : la progression est envoyee a la fenetre
+  // qui a pose la question, et chaque ecran est rendu en PNG (fenetre
+  // cachee) pour la critique visuelle.
+  handle('askClaude', (event, input) =>
+    createClaudeHandler({
+      service: serviceClaude,
+      requests: claudeRequests,
+      hooks: {
+        onProgress: (p) => {
+          if (!event.sender.isDestroyed()) event.sender.send('maquio:claude-progress', p)
+        },
+        renderScreen: rendeurEcrans.render,
+      },
+    })(input),
   )
 
   handle('cancelClaude', () => createClaudeCancelHandler({ requests: claudeRequests })())
@@ -527,11 +543,20 @@ async function demarrer(): Promise<void> {
   })
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
+    if (BrowserWindow.getAllWindows().every((w) => rendeurEcrans.owns(w))) {
       creerFenetrePrincipale(windowBackground(nativeTheme.shouldUseDarkColors, themeCourant))
     }
   })
 }
+
+// Fenetre de rendu cachee (critique visuelle) : fermee des que la derniere
+// fenetre de l'application l'est, pour que l'application quitte normalement.
+app.on('browser-window-created', (_event, win) => {
+  win.on('closed', () => {
+    const restantes = BrowserWindow.getAllWindows().filter((w) => w !== win)
+    if (restantes.length > 0 && restantes.every((w) => rendeurEcrans.owns(w))) rendeurEcrans.dispose()
+  })
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

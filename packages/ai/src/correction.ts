@@ -5,7 +5,7 @@
 // pour qu'il la corrige. Ce texte est destine au modele, pas a
 // l'utilisateur : il peut donc reprendre les messages techniques de Zod.
 import { ZodError, type ZodIssue } from 'zod'
-import { InvalidPatchError, extractFirstJsonObject } from './patch'
+import { extractFirstJsonObject } from './patch'
 
 const MAX_ISSUES = 20
 
@@ -68,9 +68,12 @@ function describeIssue(issue: ZodIssue, root: unknown, out: string[]): void {
 // Extrait la ZodError d'un rejet, qu'elle vienne de parsePatch
 // (InvalidPatchError.cause) ou de l'application d'une operation
 // (nodeSchema.parse leve directement une ZodError).
+// La ZodError peut etre enveloppee (InvalidPatchError, puis
+// ClaudePatchRejectedError) : on remonte la chaine des causes.
 function zodErrorOf(err: unknown): ZodError | null {
-  if (err instanceof ZodError) return err
-  if (err instanceof InvalidPatchError && err.cause instanceof ZodError) return err.cause
+  for (let e: unknown = err, depth = 0; e instanceof Error && depth < 5; e = e.cause, depth++) {
+    if (e instanceof ZodError) return e
+  }
   return null
 }
 

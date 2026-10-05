@@ -32,8 +32,9 @@ export class FakeClaudeRunner implements ClaudeRunner {
     return true
   }
 
-  async run(prompt: string, _signal?: AbortSignal): Promise<string> {
+  async run(prompt: string, _signal?: AbortSignal, options?: RunOptions): Promise<string> {
     this.prompts.push(prompt)
+    this.options.push(options)
 
     if (typeof this.responses === 'function') {
       return this.responses(prompt)

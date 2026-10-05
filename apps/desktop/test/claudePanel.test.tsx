@@ -213,3 +213,39 @@ describe('ClaudePanel', () => {
     expect(screen.getByLabelText('Demander à Claude').hasAttribute('disabled')).toBe(false)
   })
 })
+
+// Creation d'une application : plusieurs minutes d'attente, le panneau dit
+// ou en est la generation (plan, dessin des ecrans, revue visuelle).
+describe('ClaudePanel — progression', () => {
+  it('affiche l etape en cours pendant la demande, et l oublie a la suivante', async () => {
+    let emettre: (p: { step: string; done: number; total: number }) => void = () => {}
+    window.maquioMenu = {
+      ...(window.maquioMenu ?? ({} as NonNullable<Window['maquioMenu']>)),
+      onClaudeProgress: (cb) => {
+        emettre = cb
+        return () => {}
+      },
+    }
+    let terminer: () => void = () => {}
+    const api = {
+      ...apiFactice,
+      askClaude: ({ json }: { json: string }) =>
+        new Promise<{ patchJson: string; documentJson: string }>((resolve) => {
+          terminer = () => resolve({ patchJson: JSON.stringify({ summary: 'ok', ops: [] }), documentJson: json })
+        }),
+    }
+    render(<ClaudePanel api={api} onOpenSettings={() => {}} />)
+    fireEvent.change(screen.getByLabelText('Instruction'), { target: { value: 'Crée une app' } })
+    fireEvent.click(screen.getByLabelText('Demander à Claude'))
+    act(() => emettre({ step: 'plan', done: 0, total: 1 }))
+    expect(screen.getByRole('status').textContent).toMatch(/Direction artistique/)
+    act(() => emettre({ step: 'screens', done: 3, total: 8 }))
+    expect(screen.getByRole('status').textContent).toMatch(/Dessin des écrans : 3\/8/)
+    act(() => emettre({ step: 'critique', done: 5, total: 8 }))
+    expect(screen.getByRole('status').textContent).toMatch(/Revue visuelle des écrans : 5\/8/)
+    await act(async () => terminer())
+    fireEvent.click(screen.getByLabelText('Demander à Claude'))
+    expect(screen.getByRole('status').textContent).not.toMatch(/Revue visuelle/)
+    delete window.maquioMenu
+  })
+})
