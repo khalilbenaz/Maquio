@@ -179,8 +179,9 @@ et, dans un dossier de projet, part l'explorer (mémoire, hooks, contexte
 de session) au lieu de répondre — constaté en conditions réelles, un même
 appel se termine en 13 secondes depuis un répertoire neutre contre plus
 de 10 minutes, jamais terminé, depuis le dossier du dépôt. L'appel est
-par ailleurs plafonné à **2 minutes** (largement au-dessus du régime sain
-observé) et interrompu au-delà avec un message explicite ; le panneau
+par ailleurs plafonné à **10 minutes** (une application complète, plusieurs
+écrans et leurs interactions, prend plus de 2 minutes) et interrompu au-delà
+avec un message explicite ; le panneau
 affiche un état d'attente pendant l'appel et un bouton **Annuler** qui
 l'interrompt réellement, côté sous-processus, pas seulement côté
 interface.
@@ -433,8 +434,8 @@ MAQUIO_E2E_CLAUDE=1 npx vitest run test/integration/claude-e2e.test.ts
 Il consomme un vrai appel réseau/API via le binaire `claude` installé
 localement (quota, latence) et tourne dans le même répertoire de travail
 neutre que la production (voir `apps/desktop/src/main/adapters/
-claudeWorkingDirectory.ts`), avec un délai généreux (4 minutes) au-dessus
-du délai de production (2 minutes) pour ne mesurer que l'acceptation du
+claudeWorkingDirectory.ts`), avec son propre délai de 4 minutes, distinct
+du délai de production (10 minutes), pour ne mesurer que l'acceptation du
 patch, pas le comportement du délai lui-même (déjà couvert par
 `packages/ai/test/runner.test.ts` avec de faux minuteurs).
 

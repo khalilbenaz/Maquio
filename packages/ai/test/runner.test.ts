@@ -21,9 +21,21 @@ describe('ProcessClaudeRunner', () => {
     await r.run('salut')
     expect(spawn).toHaveBeenCalledWith(
       '/usr/local/bin/claude',
-      ['-p', 'salut', '--output-format', 'json', '--tools', '', '--permission-mode', 'dontAsk', '--strict-mcp-config'],
-      expect.anything(),
+      ['-p', '--output-format', 'json', '--tools', '', '--permission-mode', 'dontAsk', '--strict-mcp-config'],
+      expect.objectContaining({ stdin: 'salut' }),
     )
+  })
+
+  // Le prompt embarque tout le document : sous Windows, une ligne de commande
+  // est limitee a ~32 000 caracteres (spawn ENAMETOOLONG). Il passe donc par
+  // l'entree standard, jamais en argument.
+  it('transmet un long prompt par l entree standard, jamais en argument', async () => {
+    const spawn = fauxSpawn(JSON.stringify({ result: 'ok' }))
+    const long = 'x'.repeat(100_000)
+    await new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude' }).run(long)
+    const [, args, opts] = (spawn as unknown as { mock: { calls: [string, string[], { stdin?: string }][] } }).mock.calls[0]!
+    expect(args.join(' ').length).toBeLessThan(200)
+    expect(opts.stdin).toBe(long)
   })
 
   // Securite (audit P1) : le document, donc le texte importe de Figma, est
@@ -280,12 +292,14 @@ describe('ProcessClaudeRunner', () => {
     })
   })
 
-  // Point 2 du brief de reparation : l'appel est plafonne (2 minutes par
+  // Point 2 du brief de reparation : l'appel est plafonne (10 minutes par
   // defaut, voir DEFAULT_CLAUDE_TIMEOUT_MS dans runner.ts) et interrompu au-
   // dela, avec un message clair distinct d'une simple annulation utilisateur.
   describe('delai et annulation (point 2)', () => {
-    it('expose 2 minutes comme delai par defaut', () => {
-      expect(DEFAULT_CLAUDE_TIMEOUT_MS).toBe(120_000)
+    // Une application complete (plusieurs ecrans et leurs interactions)
+    // prend plus de 2 minutes a generer (151 s mesurees).
+    it('expose 10 minutes comme delai par defaut', () => {
+      expect(DEFAULT_CLAUDE_TIMEOUT_MS).toBe(600_000)
     })
 
     it('leve ClaudeTimeoutError quand claude ne repond pas dans le delai imparti', async () => {

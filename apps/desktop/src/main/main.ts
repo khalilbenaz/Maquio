@@ -168,7 +168,7 @@ async function resolveClaudeStatus(): Promise<{ available: boolean; path: string
 // dans un dossier de projet, part l'explorer au lieu de repondre (verifie
 // en conditions reelles : le meme appel termine en 13s depuis /tmp, jamais
 // termine apres 10 minutes depuis un dossier de projet). Le delai par
-// defaut (DEFAULT_CLAUDE_TIMEOUT_MS, 2 minutes) et l'annulation (point 2)
+// defaut (DEFAULT_CLAUDE_TIMEOUT_MS, 10 minutes) et l'annulation (point 2)
 // sont geres par ProcessClaudeRunner lui-meme (packages/ai/src/runner.ts) ;
 // claudeRequests (ci-dessous) fournit le signal d'annulation transmis a
 // chaque appel, declenche par le canal cancelClaude.
@@ -176,7 +176,7 @@ const lanceurClaude = new ProcessClaudeRunner({
   spawn: nodeSpawn,
   which: whichClaude,
   workingDirectory: createNeutralClaudeWorkingDirectory,
-  // Delai personnalisable (tests de bout en bout) ; absent ou invalide : 2 minutes.
+  // Delai personnalisable (tests de bout en bout) ; absent ou invalide : 10 minutes.
   ...(Number.isFinite(Number(process.env['MAQUIO_CLAUDE_TIMEOUT_MS'])) && Number(process.env['MAQUIO_CLAUDE_TIMEOUT_MS']) > 0
     ? { timeoutMs: Number(process.env['MAQUIO_CLAUDE_TIMEOUT_MS']) }
     : {}),

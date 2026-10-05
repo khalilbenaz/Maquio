@@ -27,6 +27,14 @@ export const nodeSpawn: SpawnLike = (cmd, args, opts) => {
     ...(opts.cwd !== undefined ? { cwd: opts.cwd } : {}),
   })
 
+  if (opts.stdin !== undefined) {
+    // Un processus qui se termine sans lire son entree (binaire absent,
+    // annulation) ferait lever EPIPE ici : l'echec reel remonte deja par
+    // exitCode, on ne le double pas d'une erreur non geree.
+    child.stdin.on('error', () => {})
+    child.stdin.end(opts.stdin)
+  }
+
   const toLines = (stream: NodeJS.ReadableStream): AsyncIterable<string> => {
     return (async function* () {
       for await (const chunk of stream) {
