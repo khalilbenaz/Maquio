@@ -12,7 +12,7 @@
 // - Les erreurs du runner (indisponible, delai, annulation) ne sont jamais
 //   relancees.
 import { ClaudeCancelledError } from './runner'
-import type { ClaudeRunner, ImageInput } from './runner'
+import type { ClaudeActivity, ClaudeRunner, ImageInput } from './runner'
 import { buildCorrectionPrompt, buildLayoutCorrectionPrompt, describeRejectionForModel } from './correction'
 
 // Nombre de relances de Claude apres une reponse rejetee (donc au plus
@@ -29,15 +29,17 @@ export async function askWithCorrections<T>(opts: {
   // Texte de la reponse en cours d'ecriture, a chaque appel (corrections
   // comprises) : dessin en direct.
   onText?: (textSoFar: string) => void
+  onActivity?: (activity: ClaudeActivity) => void
   signal?: AbortSignal
 }): Promise<T> {
-  const { runner, prompt, parse, defects, images, onText, signal } = opts
+  const { runner, prompt, parse, defects, images, onText, onActivity, signal } = opts
   let currentPrompt = prompt
   let lastValid: { value: T } | null = null
 
   for (let round = 0; ; round++) {
     const withImages = round === 0 && images !== undefined && images.length > 0
-    const options = withImages || onText ? { ...(withImages ? { images } : {}), ...(onText ? { onText } : {}) } : undefined
+    const options =
+      withImages || onText ? { ...(withImages ? { images } : {}), ...(onText ? { onText } : {}), ...(onActivity ? { onActivity } : {}) } : undefined
     const raw = await runner.run(currentPrompt, signal, options)
 
     let value: T

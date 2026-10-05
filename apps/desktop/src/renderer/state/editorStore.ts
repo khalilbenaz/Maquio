@@ -10,7 +10,14 @@ import { create } from 'zustand'
 import { createDocument, History, screenContaining, withAutoLayout } from '@maquio/core'
 import type { MaquioDocument, Command, HandleId, Node, Rect } from '@maquio/core'
 
-export type ClaudePreview = { screens: Node[]; currentId: string | null } | null
+// `step`/`activity` : ce que fait Claude sur l'ecran courant (voir
+// PipelinePreview dans packages/ai/src/app-pipeline.ts).
+export type ClaudePreview = {
+  screens: Node[]
+  currentId: string | null
+  step?: 'screens' | 'critique'
+  activity?: 'preparing' | 'thinking' | 'writing' | 'fixing'
+} | null
 
 export type Tool = 'select' | 'frame' | 'rect' | 'ellipse' | 'text' | 'image'
 

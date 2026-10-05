@@ -181,8 +181,9 @@ describe('generateApp : dessin en direct', () => {
       onPreview: () => n++,
       previewIntervalMs: 60_000,
     })
-    // Seulement les fins d'ecran (2), pas chaque morceau.
-    expect(n).toBe(2)
+    // Seulement les changements d'etat de chaque ecran (debut, reflexion,
+    // ecriture, fin : 4 x 2 ecrans), jamais chaque morceau de texte.
+    expect(n).toBe(8)
   })
 })
 
@@ -211,5 +212,72 @@ describe('generateApp : detail en direct', () => {
     )
     expect(etapes.some((p) => p.step === 'screens' && (p.detail ?? '').includes('Écran Accueil'))).toBe(true)
     expect(etapes.some((p) => p.step === 'critique' && (p.detail ?? '').includes('• Titre trop petit'))).toBe(true)
+  })
+})
+
+describe('generateApp : apercu mis en page', () => {
+  it('applique l auto-layout a l apercu : les enfants d une colonne s etagent au lieu de s empiler', async () => {
+    const doc = createDocument('T')
+    const pageId = doc.pages[0]!.id
+    const enColonne = (id: string, name: string) => {
+      const ecran = JSON.parse(screenJson(id, name))
+      const t = (n: number) => ({ ...ecran.node.children[0], id: `${id}-t${n}`, characters: `Ligne ${n}`, frame: { x: 0, y: 0, w: 300, h: 30 } })
+      ecran.node.layout = { mode: 'column', gap: 12, padding: { top: 60, right: 20, bottom: 0, left: 20 }, alignMain: 'start', alignCross: 'start' }
+      ecran.node.children = [t(1), t(2), t(3)]
+      return JSON.stringify(ecran)
+    }
+    const runner = new FakeClaudeRunner(routeur({ 'ecran:connexion': () => enColonne('connexion', 'Écran Connexion'), 'ecran:accueil': () => enColonne('accueil', 'Écran Accueil') }))
+    const apercus: import('@maquio/core').FrameNode[][] = []
+    await generateApp(runner, { instruction: 'Crée un wallet', document: doc, pageId }, { onPreview: (p) => apercus.push(p.screens), previewIntervalMs: 0 })
+    const final = apercus.at(-1)![0]!
+    expect(final.children.map((c) => c.frame.y)).toEqual([60, 102, 144])
+    // Pendant l'ecriture aussi : jamais deux enfants a la meme place.
+    for (const ecrans of apercus) {
+      const ys = ecrans[0]!.children.map((c) => c.frame.y)
+      expect(new Set(ys).size).toBe(ys.length)
+    }
+  })
+})
+
+describe('generateApp : ce qui se passe avant le premier element', () => {
+  it('pose le cadre vide de l ecran des son debut, puis signale reflexion et ecriture', async () => {
+    const doc = createDocument('T')
+    const pageId = doc.pages[0]!.id
+    const vus: { n: number; activity?: string; step?: string }[] = []
+    await generateApp(new FakeClaudeRunner(routeur()), { instruction: 'Crée un wallet', document: doc, pageId }, {
+      onPreview: (p) => {
+        const courant = p.screens.find((s) => s.id === p.currentId)
+        if (p.currentId === 'connexion') vus.push({ n: courant?.children.length ?? -1, activity: p.activity, step: p.step })
+      },
+      renderScreen: async () => 'UE5H',
+      previewIntervalMs: 0,
+    })
+    const dessin = vus.filter((v) => v.step === 'screens')
+    expect(dessin[0]).toEqual({ n: 0, activity: 'preparing', step: 'screens' })
+    expect(dessin.map((v) => v.activity)).toEqual(expect.arrayContaining(['preparing', 'thinking', 'writing']))
+    expect(vus.some((v) => v.step === 'critique' && v.activity === 'preparing')).toBe(true)
+  })
+})
+
+describe('generateApp : une correction ne vide pas l ecran', () => {
+  it('garde la version precedente pendant la relance, jusqu a ce que la nouvelle la rattrape', async () => {
+    const doc = createDocument('T')
+    const pageId = doc.pages[0]!.id
+    // Premier essai : navigation vers un ecran inconnu -> relance.
+    const runner = new FakeClaudeRunner(
+      routeur({ 'ecran:connexion': (_p, n) => screenJson('connexion', 'Écran Connexion', { target: n === 1 ? 'inconnu' : 'accueil' }) }),
+    )
+    const vus: { n: number; activity?: string }[] = []
+    await generateApp(runner, { instruction: 'Crée un wallet', document: doc, pageId }, {
+      onPreview: (p) => {
+        if (p.currentId !== 'connexion' || p.step !== 'screens') return
+        vus.push({ n: p.screens.find((s) => s.id === 'connexion')!.children.length, activity: p.activity })
+      },
+      previewIntervalMs: 0,
+    })
+    const premierPlein = vus.findIndex((v) => v.n === 1)
+    // Une fois l'ecran dessine, il ne redevient jamais vide.
+    expect(vus.slice(premierPlein).every((v) => v.n === 1)).toBe(true)
+    expect(vus.some((v) => v.activity === 'fixing')).toBe(true)
   })
 })
