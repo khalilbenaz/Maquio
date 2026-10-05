@@ -213,6 +213,11 @@ export class ProcessClaudeRunner implements ClaudeRunner {
           '',
           '--permission-mode',
           'dontAsk',
+          // Sans --mcp-config : aucun serveur MCP de la configuration de
+          // l'utilisateur n'est demarre. Inutiles sans outil, ces processus
+          // enfants gardaient sous Windows le dossier de travail ouvert
+          // apres la fin de `claude` (EBUSY au nettoyage).
+          '--strict-mcp-config',
         ], {
         signal: combinedSignal,
         ...(workingDir ? { cwd: workingDir.path } : {}),
@@ -245,7 +250,14 @@ export class ProcessClaudeRunner implements ClaudeRunner {
     } finally {
       clearTimeout(timer)
       if (workingDir) {
-        await workingDir.cleanup()
+        // Nettoyage au mieux : un dossier temporaire qui resiste (EBUSY sous
+        // Windows) ne doit jamais remplacer la reponse ou l'erreur reelle
+        // de l'appel. Le systeme videra son dossier temporaire plus tard.
+        try {
+          await workingDir.cleanup()
+        } catch {
+          // ignore
+        }
       }
     }
   }
