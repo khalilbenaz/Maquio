@@ -115,3 +115,50 @@
 .maquio-canvas-toolinfo strong {
   font-weight: 600;
 }
+
+/* Dessin en direct (ClaudePreviewLayer) : contour et etiquette de l'ecran
+   que Claude est en train de dessiner. Tailles divisees par le zoom dans le
+   composant, pour rester lisibles a toute echelle. */
+.maquio-claude-drawing-outline {
+  position: absolute;
+  border-style: solid;
+  border-color: var(--maquio-accent);
+  border-radius: 2px;
+  pointer-events: none;
+  animation: maquio-claude-drawing 1.6s ease-in-out infinite;
+}
+
+.maquio-claude-drawing-label {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--maquio-accent-text);
+  pointer-events: none;
+}
+
+.maquio-claude-drawing-dot {
+  display: inline-block;
+  border-radius: 50%;
+  background: var(--maquio-accent);
+  animation: maquio-claude-drawing 1.6s ease-in-out infinite;
+}
+
+@keyframes maquio-claude-drawing {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .maquio-claude-drawing-outline,
+  .maquio-claude-drawing-dot {
+    animation: none;
+  }
+}

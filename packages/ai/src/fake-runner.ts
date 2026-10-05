@@ -36,15 +36,21 @@ export class FakeClaudeRunner implements ClaudeRunner {
     this.prompts.push(prompt)
     this.options.push(options)
 
+    let response: string
     if (typeof this.responses === 'function') {
-      return this.responses(prompt)
+      response = this.responses(prompt)
+    } else {
+      const next = this.responses[this.cursor]
+      if (next === undefined) {
+        throw new FakeClaudeRunnerExhaustedError()
+      }
+      this.cursor += 1
+      response = next
     }
-
-    const response = this.responses[this.cursor]
-    if (response === undefined) {
-      throw new FakeClaudeRunnerExhaustedError()
+    // Suivi en direct : la reponse « s'ecrit » en quatre morceaux.
+    if (options?.onText) {
+      for (const part of [0.25, 0.5, 0.75, 1]) options.onText(response.slice(0, Math.ceil(response.length * part)))
     }
-    this.cursor += 1
     return response
   }
 }

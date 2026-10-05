@@ -128,9 +128,10 @@ describe('generateApp', () => {
       renderScreen: async () => 'UE5H',
       onProgress: (p) => etapes.push(p),
     })
-    expect(etapes[0]).toEqual({ step: 'plan', done: 0, total: 1 })
-    expect(etapes).toContainEqual({ step: 'screens', done: 2, total: 2 })
-    expect(etapes.at(-1)).toEqual({ step: 'critique', done: 2, total: 2 })
+    const sansDetail = etapes.map(({ step, done, total }) => ({ step, done, total }))
+    expect(sansDetail[0]).toEqual({ step: 'plan', done: 0, total: 1 })
+    expect(sansDetail).toContainEqual({ step: 'screens', done: 2, total: 2 })
+    expect(sansDetail.at(-1)).toEqual({ step: 'critique', done: 2, total: 2 })
   })
 })
 
@@ -144,5 +145,71 @@ describe('AiService : creation d application', () => {
     expect(ecrans).toEqual(expect.arrayContaining(['connexion', 'accueil']))
     expect(findNode(apres.pages[0]!.nodes, 'connexion-titre')?.interactions?.[0]?.action).toEqual({ type: 'navigate', target: 'accueil' })
     expect(apres.tokens.colors.accent).toEqual(accent)
+  })
+})
+
+describe('generateApp : dessin en direct', () => {
+  const doc = createDocument('T')
+  const pageId = doc.pages[0]!.id
+
+  it('montre chaque ecran pendant qu il s ecrit, puis les ecrans termines', async () => {
+    const vus: { ids: string[]; currentId: string | null }[] = []
+    await generateApp(new FakeClaudeRunner(routeur()), { instruction: 'Crée un wallet', document: doc, pageId }, {
+      onPreview: (p) => vus.push({ ids: p.screens.map((s) => s.id), currentId: p.currentId }),
+      previewIntervalMs: 0,
+    })
+    // L'ecran de connexion apparait pendant son dessin, seul...
+    expect(vus).toContainEqual({ ids: ['connexion'], currentId: 'connexion' })
+    // ...puis l'accueil s'y ajoute pendant le sien.
+    expect(vus).toContainEqual({ ids: ['connexion', 'accueil'], currentId: 'accueil' })
+  })
+
+  it('l apercu en cours ne contient que des elements valides, a la place definitive de l ecran', async () => {
+    const apercus: import('@maquio/core').FrameNode[][] = []
+    const patch = await generateApp(new FakeClaudeRunner(routeur()), { instruction: 'Crée un wallet', document: doc, pageId }, {
+      onPreview: (p) => apercus.push(p.screens),
+      previewIntervalMs: 0,
+    })
+    const final = (patch.ops[1] as { node: { frame: unknown } }).node.frame
+    const premier = apercus.find((s) => s.length === 1)!
+    expect(premier[0]!.frame).toEqual(final)
+  })
+
+  it('limite la frequence des apercus', async () => {
+    let n = 0
+    await generateApp(new FakeClaudeRunner(routeur()), { instruction: 'Crée un wallet', document: doc, pageId }, {
+      onPreview: () => n++,
+      previewIntervalMs: 60_000,
+    })
+    // Seulement les fins d'ecran (2), pas chaque morceau.
+    expect(n).toBe(2)
+  })
+})
+
+describe('generateApp : detail en direct', () => {
+  const doc = createDocument('T')
+  const pageId = doc.pages[0]!.id
+
+  it('montre la direction artistique pendant qu elle s ecrit, puis les ecrans planifies', async () => {
+    const etapes: PipelineProgress[] = []
+    await generateApp(new FakeClaudeRunner(routeur()), { instruction: 'Crée un wallet', document: doc, pageId }, {
+      onProgress: (p) => etapes.push(p),
+      previewIntervalMs: 0,
+    })
+    const details = etapes.filter((p) => p.step === 'plan').map((p) => p.detail ?? '')
+    expect(details.some((d) => d.startsWith('Sobre') && !d.includes('Écrans'))).toBe(true)
+    expect(details.some((d) => d.includes('Sobre, un accent vert-bleu.') && d.includes('Écran Connexion'))).toBe(true)
+  })
+
+  it('nomme l ecran en cours de dessin et liste les points de critique', async () => {
+    const etapes: PipelineProgress[] = []
+    const critique = (id: string, name: string) => JSON.stringify({ critique: ['Titre trop petit', 'Marges irrégulières'], node: JSON.parse(screenJson(id, name)).node })
+    await generateApp(
+      new FakeClaudeRunner(routeur({ 'critique:accueil': () => critique('accueil', 'Écran Accueil'), 'critique:connexion': () => critique('connexion', 'Écran Connexion') })),
+      { instruction: 'Crée un wallet', document: doc, pageId },
+      { onProgress: (p) => etapes.push(p), renderScreen: async () => 'UE5H', previewIntervalMs: 0 },
+    )
+    expect(etapes.some((p) => p.step === 'screens' && (p.detail ?? '').includes('Écran Accueil'))).toBe(true)
+    expect(etapes.some((p) => p.step === 'critique' && (p.detail ?? '').includes('• Titre trop petit'))).toBe(true)
   })
 })

@@ -42,6 +42,7 @@ import { useEditorStore } from '../state/editorStore'
 import type { Tool } from '../state/editorStore'
 import type { MaquioApi } from '../../shared/api'
 import { NodeView } from './NodeView'
+import { ClaudePreviewLayer } from './ClaudePreviewLayer'
 import { SelectionOverlay } from './SelectionOverlay'
 import { LinksLayer } from './LinksLayer'
 import {
@@ -163,6 +164,7 @@ export function Canvas({ api }: { api: MaquioApi }) {
 
   const linksVisible = useEditorStore((s) => s.linksVisible)
   const activeScreenId = useEditorStore((s) => s.activeScreenId)
+  const claudePreviewActif = useEditorStore((s) => s.claudePreview !== null)
 
   const onBackgroundPointerDown = useCreateInteraction(canvasRef, api)
 
@@ -231,6 +233,23 @@ export function Canvas({ api }: { api: MaquioApi }) {
     // Volontairement limite : l'ajustement ne se rejoue qu'a l'ouverture d'un document, a la demande (jeton) ou au changement du nombre d'ecrans (voir le commentaire ci-dessus).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageId, device?.width, device?.height, fitToWindowToken, screens.length])
+
+  // Dessin en direct : la vue suit l'ecran que Claude dessine (cadree sur
+  // lui a chaque nouvel ecran) ; entre deux, l'utilisateur reste libre de
+  // deplacer ou zoomer la vue.
+  const ecranDessine = useEditorStore((s) => s.claudePreview?.screens.find((e) => e.id === s.claudePreview?.currentId))
+  const idDessine = ecranDessine?.id
+  useLayoutEffect(() => {
+    const el = canvasRef.current
+    if (!el || ecranDessine === undefined) return
+    const rect = el.getBoundingClientRect()
+    if (rect.width <= 0 || rect.height <= 0) return
+    const { zoom: z, pan: p } = computeFitTransformToBounds({ width: rect.width, height: rect.height }, ecranDessine.frame)
+    useEditorStore.getState().setZoom(z)
+    useEditorStore.getState().setPan(p)
+    // Seulement quand l'ecran dessine change, pas a chaque morceau recu.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idDessine])
 
   // Un panneau de gauche qui se replie ou change de largeur deplace le bord
   // gauche du canevas : le panoramique compense, la vue ne saute pas.
@@ -469,7 +488,10 @@ export function Canvas({ api }: { api: MaquioApi }) {
   // vide quand TOUS ses ecrans le sont ; une page sans ecran retombe sur
   // l'ancien critere v1 (aucun changement pour les tests/documents qui ne
   // connaissent pas encore les ecrans).
-  const estVide = screens.length > 0 ? screens.every((s) => s.children.length === 0) : pageNodes.length === 0
+  // Pendant le dessin en direct, l'etat vide et l'etiquette de page d'un
+  // document vierge se superposeraient aux ecrans que Claude dessine.
+  const apercuActif = claudePreviewActif
+  const estVide = !apercuActif && (screens.length > 0 ? screens.every((s) => s.children.length === 0) : pageNodes.length === 0)
 
   const artboardScreen = device
     ? { left: pan.x, top: pan.y, width: device.width * zoom, height: device.height * zoom }
@@ -533,6 +555,7 @@ export function Canvas({ api }: { api: MaquioApi }) {
         {flattenVisible(pageNodes).map((node) => (
           <NodeView key={node.id} node={node} nodes={pageNodes} />
         ))}
+        <ClaudePreviewLayer />
 
         {/* Correctif parentage (§3) : liseré en accent sur l'ecran survole
             par le noeud en cours de deplacement, quand il differe de son
@@ -579,7 +602,7 @@ export function Canvas({ api }: { api: MaquioApi }) {
               />
             )
           })
-        : device && artboardScreen ? (
+        : device && artboardScreen && !apercuActif ? (
             <div
               className="maquio-canvas-label"
               style={{ left: artboardScreen.left, top: artboardScreen.top - 26, width: artboardScreen.width, pointerEvents: 'none' }}

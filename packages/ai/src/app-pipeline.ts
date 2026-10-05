@@ -23,6 +23,35 @@ import type { DocumentPatch } from './patch'
 import { NODE_FORMAT_TEXT } from './prompt'
 import { DESIGN_GUIDE_TEXT } from './design-guide'
 import { lintDesign } from './design-lint'
+import { previewScreen } from './preview'
+import { parsePartialJson } from './partial-json'
+
+// Valeur (meme incomplete) de la chaine "direction" d'un plan en cours
+// d'ecriture : affichee au fil de l'eau, avant que la chaine se ferme.
+function partialDirection(text: string): string | null {
+  const m = /"direction"\s*:\s*"((?:[^"\\]|\\.)*)/.exec(text)
+  if (m === null) return null
+  // Une sequence d'echappement coupee en fin de texte est retiree.
+  const brut = m[1]!.replace(/\\$/, '')
+  try {
+    return JSON.parse(`"${brut}"`) as string
+  } catch {
+    return brut
+  }
+}
+
+function planDetail(text: string): string {
+  const direction = partialDirection(text) ?? ''
+  const partial = parsePartialJson(text) as { screens?: { name?: unknown }[] } | null
+  const noms = (partial?.screens ?? []).map((s) => s.name).filter((n): n is string => typeof n === 'string')
+  return noms.length > 0 ? `${direction}\n\nÉcrans : ${noms.join(', ')}` : direction
+}
+
+function critiqueDetail(name: string, text: string): string {
+  const partial = parsePartialJson(text) as { critique?: unknown[] } | null
+  const points = (partial?.critique ?? []).filter((c): c is string => typeof c === 'string')
+  return points.length > 0 ? `${name}\n${points.map((p) => `• ${p}`).join('\n')}` : `${name} : examen du rendu…`
+}
 
 // Un ecran a la fois : plusieurs processus `claude` simultanes (200 a
 // 400 Mo chacun) saturaient la memoire d'une machine deja chargee.
@@ -32,11 +61,24 @@ const SCREEN_GAP = 120
 export type AppPlanScreen = { id: string; name: string; brief: string }
 export type AppPlan = { summary: string; direction: string; tokens: Partial<DesignTokens>; screens: AppPlanScreen[] }
 
-export type PipelineProgress = { step: 'plan' | 'screens' | 'critique'; done: number; total: number }
+// `detail` : ce qui se passe en ce moment, lisible par l'utilisateur
+// (direction artistique en cours d'ecriture, ecran dessine, points de
+// critique) ; mis a jour en direct.
+export type PipelineProgress = { step: 'plan' | 'screens' | 'critique'; done: number; total: number; detail?: string }
 // Rend l'ecran `screenId` du document en PNG (base64), tel que l'utilisateur
 // le verra : fourni par l'application (fenetre cachee), absent en test.
 export type ScreenRenderer = (document: MaquioDocument, pageId: string, screenId: string) => Promise<string>
-export type PipelineHooks = { onProgress?: (p: PipelineProgress) => void; renderScreen?: ScreenRenderer }
+// Dessin en direct : les ecrans deja dessines et celui en cours d'ecriture
+// (`currentId`), tels qu'ils seront places sur la page.
+export type PipelinePreview = { screens: FrameNode[]; currentId: string | null }
+export type PipelineHooks = {
+  onProgress?: (p: PipelineProgress) => void
+  renderScreen?: ScreenRenderer
+  onPreview?: (p: PipelinePreview) => void
+  // Intervalle minimal entre deux apercus en cours d'ecriture (defaut 250 ms) ;
+  // la fin de chaque ecran est toujours signalee.
+  previewIntervalMs?: number
+}
 
 // Demande de creation d'une application ou d'un ensemble d'ecrans : verbe de
 // creation suivi de ce qui est cree. Une retouche (« aligne », « traduis »,
@@ -242,10 +284,29 @@ export async function generateApp(
     if (signal?.aborted) throw new ClaudeCancelledError()
   }
 
+  const interval = hooks.previewIntervalMs ?? 250
+  // Detail en direct, limite en frequence comme l'apercu.
+  let lastDetail = Date.now()
+  const liveProgress = (p: PipelineProgress) => {
+    const now = Date.now()
+    if (now - lastDetail < interval) return
+    lastDetail = now
+    progress(p)
+  }
+
   // 1. Plan.
   progress({ step: 'plan', done: 0, total: 1 })
-  const plan = await askWithCorrections({ runner, signal, prompt: buildPlanPrompt(instruction, document, pageId), parse: parsePlan })
-  progress({ step: 'plan', done: 1, total: 1 })
+  const plan = await askWithCorrections({
+    runner,
+    signal,
+    prompt: buildPlanPrompt(instruction, document, pageId),
+    parse: parsePlan,
+    onText: (text) => {
+      const detail = planDetail(text)
+      if (detail !== '') liveProgress({ step: 'plan', done: 0, total: 1, detail })
+    },
+  })
+  progress({ step: 'plan', done: 1, total: 1, detail: `${plan.direction}\n\nÉcrans : ${plan.screens.map((s) => s.name).join(', ')}` })
   check()
 
   const screenIds = new Set(plan.screens.map((s) => s.id))
@@ -256,19 +317,44 @@ export async function generateApp(
   const docWith = (screens: FrameNode[]) => screens.reduce((doc, s) => createNodeCommand(pageId, null, s).apply(doc), withTokens)
   const defectsOf = (screen: FrameNode) => lintDesign(docWith([screen]), pageId, subtreeIds(screen))
 
+  // Apercu en direct : un ecran par entree du plan, rempli au fil du dessin.
+  const shown: (FrameNode | undefined)[] = plan.screens.map(() => undefined)
+  let lastPreview = Date.now()
+  const emit = (currentId: string | null, force: boolean) => {
+    if (hooks.onPreview === undefined) return
+    const now = Date.now()
+    if (!force && now - lastPreview < interval) return
+    lastPreview = now
+    hooks.onPreview({ screens: shown.filter((s): s is FrameNode => s !== undefined), currentId })
+  }
+  const live = (i: number) => (text: string) => {
+    const spec = plan.screens[i]!
+    const p = previewScreen(text, spec.id, frames[i]!, device)
+    if (p === null) return
+    shown[i] = p
+    emit(spec.id, false)
+  }
+  const settle = (i: number, screen: FrameNode) => {
+    shown[i] = screen
+    emit(plan.screens[i]!.id, true)
+  }
+
   // 2. Ecrans, un a la fois.
   let done = 0
   progress({ step: 'screens', done, total: plan.screens.length })
   let screens = await mapLimit(plan.screens, CONCURRENCY, async (spec, i) => {
     check()
+    progress({ step: 'screens', done, total: plan.screens.length, detail: `${spec.name} — ${spec.brief}` })
     const screen = await askWithCorrections({
       runner,
       signal,
       prompt: buildScreenPrompt(instruction, plan, spec, device),
       parse: (raw) => parseScreen(raw, spec, frames[i]!, device, screenIds),
       defects: defectsOf,
+      onText: live(i),
     })
-    progress({ step: 'screens', done: ++done, total: plan.screens.length })
+    settle(i, screen)
+    progress({ step: 'screens', done: ++done, total: plan.screens.length, detail: `${spec.name} — ${spec.brief}` })
     return screen
   })
 
@@ -285,6 +371,7 @@ export async function generateApp(
       check()
       const spec = plan.screens[i]!
       let result = screen
+      progress({ step: 'critique', done: reviewed, total: screens.length, detail: critiqueDetail(spec.name, '') })
       try {
         const png = await render(full, pageId, screen.id)
         result = await askWithCorrections({
@@ -294,10 +381,15 @@ export async function generateApp(
           prompt: buildCritiquePrompt(instruction, plan, spec, device, screen),
           parse: (raw) => parseScreen(raw, spec, frames[i]!, device, screenIds),
           defects: defectsOf,
+          onText: (text) => {
+            live(i)(text)
+            liveProgress({ step: 'critique', done: reviewed, total: screens.length, detail: critiqueDetail(spec.name, text) })
+          },
         })
       } catch (err) {
         if (err instanceof ClaudeCancelledError || signal?.aborted) throw err
       }
+      settle(i, result)
       progress({ step: 'critique', done: ++reviewed, total: screens.length })
       return result
     })
