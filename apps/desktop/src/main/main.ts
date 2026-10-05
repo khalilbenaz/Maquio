@@ -331,6 +331,9 @@ function enregistrerLesGestionnaires(): void {
           if (!event.sender.isDestroyed()) event.sender.send('maquio:claude-progress', p)
         },
         renderScreen: rendeurEcrans.render,
+        onPreview: (p) => {
+          if (!event.sender.isDestroyed()) event.sender.send('maquio:claude-preview', JSON.stringify(p))
+        },
       },
     })(input),
   )

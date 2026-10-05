@@ -49,7 +49,9 @@ export type WorkingDirectoryProvider = () => Promise<WorkingDirectory>
 
 // Image jointe au prompt (critique visuelle d'un ecran rendu).
 export type ImageInput = { mediaType: 'image/png' | 'image/jpeg'; base64: string }
-export type RunOptions = { images?: ImageInput[] }
+// onText : texte de la reponse accumule, remonte a chaque morceau recu
+// pendant qu'elle s'ecrit (dessin en direct).
+export type RunOptions = { images?: ImageInput[]; onText?: (textSoFar: string) => void }
 
 export interface ClaudeRunner {
   isAvailable(): Promise<boolean>
@@ -152,6 +154,35 @@ function extractResult(rawOutput: string, prompt: string): string {
   return result
 }
 
+// Lit le flux stream-json au fil de l'eau : chaque morceau de texte
+// (text_delta) est ajoute au texte accumule, remonte a onText. Rend la
+// sortie complete (lue ensuite par extractStreamResult).
+async function readStreaming(stream: AsyncIterable<string>, onText: (textSoFar: string) => void): Promise<string> {
+  let all = ''
+  let pending = ''
+  let text = ''
+  for await (const chunk of stream) {
+    all += chunk
+    pending += chunk
+    const lines = pending.split('\n')
+    pending = lines.pop() ?? ''
+    for (const line of lines) {
+      if (!line.includes('text_delta')) continue
+      try {
+        const parsed = JSON.parse(line) as { type?: string; event?: { delta?: { type?: string; text?: string } } }
+        const delta = parsed.event?.delta
+        if (parsed.type === 'stream_event' && delta?.type === 'text_delta' && typeof delta.text === 'string') {
+          text += delta.text
+          onText(text)
+        }
+      } catch {
+        // ligne non JSON : ignoree
+      }
+    }
+  }
+  return all
+}
+
 // Flux stream-json : la ligne de type "result" porte le texte final.
 function extractStreamResult(rawOutput: string, prompt: string): string {
   for (const line of rawOutput.split('\n').reverse()) {
@@ -205,8 +236,12 @@ export class ProcessClaudeRunner implements ClaudeRunner {
     const images = options?.images ?? []
     // Avec des images, `claude -p` lit un message utilisateur au format de
     // l'API (stream-json) et repond par un flux de lignes JSON.
-    const streaming = images.length > 0
-    const stdin = streaming
+    const withImages = images.length > 0
+    const onText = options?.onText
+    // Sortie en flux de lignes JSON des qu'il y a des images ou un suivi en
+    // direct ; morceaux partiels seulement pour le suivi en direct.
+    const streaming = withImages || onText !== undefined
+    const stdin = withImages
       ? JSON.stringify({
           type: 'user',
           message: {
@@ -248,7 +283,9 @@ export class ProcessClaudeRunner implements ClaudeRunner {
       // limitee a ~32 000 caracteres (spawn ENAMETOOLONG).
       const proc = this.spawn(bin, [
           '-p',
-          ...(streaming ? ['--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose'] : ['--output-format', 'json']),
+          ...(withImages ? ['--input-format', 'stream-json'] : []),
+          ...(streaming ? ['--output-format', 'stream-json', '--verbose'] : ['--output-format', 'json']),
+          ...(onText !== undefined ? ['--include-partial-messages'] : []),
           // Aucun outil : le prompt embarque le contenu du document (texte
           // importe de Figma compris), non fiable. Sans outil, une injection
           // ne peut ni lancer de commande, ni lire/ecrire un fichier, ni
@@ -270,7 +307,7 @@ export class ProcessClaudeRunner implements ClaudeRunner {
         ...(workingDir ? { cwd: workingDir.path } : {}),
       })
       const [stdout, stderr, exitCode] = await Promise.all([
-        readAll(proc.stdout),
+        onText !== undefined ? readStreaming(proc.stdout, onText) : readAll(proc.stdout),
         readAll(proc.stderr),
         proc.exitCode,
       ])

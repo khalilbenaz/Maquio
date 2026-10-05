@@ -2,6 +2,12 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [1.2.0] - 2026-10-05
+
+### Ajouté
+- Création d’application : **dessin en direct** sur le canevas. Chaque élément apparaît au fur et à mesure que Claude l’écrit, écran après écran ; la vue suit l’écran en cours (contour et étiquette « Claude dessine… »), et la revue visuelle le redessine sous vos yeux. L’aperçu reste hors du document et de l’historique : le résultat final est appliqué d’un seul Ctrl+Z.
+- Panneau Claude : détail en direct sous l’étape en cours (direction artistique pendant qu’elle s’écrit, puis liste des écrans ; écran dessiné et son contenu ; points relevés par la revue visuelle).
+
 ## [1.1.0] - 2026-10-05
 
 ### Ajouté

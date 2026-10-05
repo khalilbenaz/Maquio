@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react'
 import { DocumentVersionError, parseDocument, serializeDocument } from '@maquio/core'
 import type { MaquioDocument, Command } from '@maquio/core'
 import { useEditorStore } from '../state/editorStore'
+import type { ClaudePreview } from '../state/editorStore'
 import { useClaudeStatusStore } from '../state/claudeStatusStore'
 import { useUiPrefs } from '../state/uiPrefsStore'
 import { CollapseButton, SHORTCUT_CLAUDE } from './PanelRail'
@@ -76,9 +77,22 @@ export function ClaudePanel({ api, onOpenSettings }: { api: MaquioApi; onOpenSet
   const [erreur, setErreur] = useState('')
   const [redetection, setRedetection] = useState(false)
   // Etape d'une creation d'application (plan, ecrans, revue visuelle).
-  const [progres, setProgres] = useState<{ step: string; done: number; total: number } | null>(null)
+  const [progres, setProgres] = useState<{ step: string; done: number; total: number; detail?: string } | null>(null)
 
   useEffect(() => window.maquioMenu?.onClaudeProgress?.((p) => setProgres(p)), [])
+  // Dessin en direct : ecrans en cours, affiches par le canevas (hors
+  // document, hors historique) jusqu'a la fin de la demande.
+  useEffect(
+    () =>
+      window.maquioMenu?.onClaudePreview?.((json) => {
+        try {
+          useEditorStore.getState().setClaudePreview(JSON.parse(json) as ClaudePreview)
+        } catch {
+          // apercu illisible : ignore, le resultat final reste la reference
+        }
+      }),
+    [],
+  )
 
   // « Réessayer la détection » : oublie la découverte mémorisée côté main
   // (PATH du shell de connexion, emplacements connus) et la relance.
@@ -136,6 +150,7 @@ export function ClaudePanel({ api, onOpenSettings }: { api: MaquioApi; onOpenSet
 
     setStatut('loading')
     setProgres(null)
+    useEditorStore.getState().setClaudePreview(null)
     setErreur('')
     setDerniereInstruction(instructionEnvoyee)
 
@@ -155,10 +170,13 @@ export function ClaudePanel({ api, onOpenSettings }: { api: MaquioApi; onOpenSet
         pageId,
       })
     } catch (err) {
+      useEditorStore.getState().setClaudePreview(null)
       setErreur(messageOfError(err))
       setStatut('error')
       return
     }
+    // Le resultat remplace l'apercu (succes, document perime ou erreur).
+    useEditorStore.getState().setClaudePreview(null)
 
     // Decision 8 : le document a-t-il change pendant l'attente ?
     // editorStore remplace toujours `document` par une nouvelle reference
@@ -256,6 +274,11 @@ export function ClaudePanel({ api, onOpenSettings }: { api: MaquioApi; onOpenSet
         {statut === 'loading' ? (
           <div role="status" className="claude-panel-loading">
             <p>{libelleProgres(progres)}</p>
+            {progres?.detail ? (
+              <p className="claude-panel-detail" data-testid="claude-progress-detail">
+                {progres.detail}
+              </p>
+            ) : null}
             <button type="button" className="claude-panel-settings-link" onClick={() => void annuler()}>
               Annuler
             </button>

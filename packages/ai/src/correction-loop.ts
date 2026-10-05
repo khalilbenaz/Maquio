@@ -26,14 +26,19 @@ export async function askWithCorrections<T>(opts: {
   defects?: (value: T) => string[]
   // Jointes au premier appel seulement : une correction porte sur le texte.
   images?: ImageInput[]
+  // Texte de la reponse en cours d'ecriture, a chaque appel (corrections
+  // comprises) : dessin en direct.
+  onText?: (textSoFar: string) => void
   signal?: AbortSignal
 }): Promise<T> {
-  const { runner, prompt, parse, defects, images, signal } = opts
+  const { runner, prompt, parse, defects, images, onText, signal } = opts
   let currentPrompt = prompt
   let lastValid: { value: T } | null = null
 
   for (let round = 0; ; round++) {
-    const raw = await runner.run(currentPrompt, signal, round === 0 && images && images.length > 0 ? { images } : undefined)
+    const withImages = round === 0 && images !== undefined && images.length > 0
+    const options = withImages || onText ? { ...(withImages ? { images } : {}), ...(onText ? { onText } : {}) } : undefined
+    const raw = await runner.run(currentPrompt, signal, options)
 
     let value: T
     try {

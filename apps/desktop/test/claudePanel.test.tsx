@@ -243,9 +243,40 @@ describe('ClaudePanel — progression', () => {
     expect(screen.getByRole('status').textContent).toMatch(/Dessin des écrans : 3\/8/)
     act(() => emettre({ step: 'critique', done: 5, total: 8 }))
     expect(screen.getByRole('status').textContent).toMatch(/Revue visuelle des écrans : 5\/8/)
+    act(() => emettre({ step: 'critique', done: 5, total: 8, detail: 'Écran Accueil\n• Titre trop petit' } as { step: string; done: number; total: number }))
+    expect(screen.getByTestId('claude-progress-detail').textContent).toBe('Écran Accueil\n• Titre trop petit')
     await act(async () => terminer())
     fireEvent.click(screen.getByLabelText('Demander à Claude'))
     expect(screen.getByRole('status').textContent).not.toMatch(/Revue visuelle/)
+    delete window.maquioMenu
+  })
+})
+
+describe('ClaudePanel — dessin en direct', () => {
+  it('transmet au canevas les ecrans en cours de dessin, puis les efface a la fin', async () => {
+    let emettre: (json: string) => void = () => {}
+    window.maquioMenu = {
+      ...(window.maquioMenu ?? ({} as NonNullable<Window['maquioMenu']>)),
+      onClaudePreview: (cb) => {
+        emettre = cb
+        return () => {}
+      },
+    }
+    let terminer: () => void = () => {}
+    const api = {
+      ...apiFactice,
+      askClaude: ({ json }: { json: string }) =>
+        new Promise<{ patchJson: string; documentJson: string }>((resolve) => {
+          terminer = () => resolve({ patchJson: JSON.stringify({ summary: 'ok', ops: [] }), documentJson: json })
+        }),
+    }
+    render(<ClaudePanel api={api} onOpenSettings={() => {}} />)
+    fireEvent.change(screen.getByLabelText('Instruction'), { target: { value: 'Crée une app' } })
+    fireEvent.click(screen.getByLabelText('Demander à Claude'))
+    act(() => emettre(JSON.stringify({ screens: [{ id: 'accueil' }], currentId: 'accueil' })))
+    expect(useEditorStore.getState().claudePreview).toEqual({ screens: [{ id: 'accueil' }], currentId: 'accueil' })
+    await act(async () => terminer())
+    expect(useEditorStore.getState().claudePreview).toBeNull()
     delete window.maquioMenu
   })
 })

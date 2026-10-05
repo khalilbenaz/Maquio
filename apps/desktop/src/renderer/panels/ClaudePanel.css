@@ -239,3 +239,15 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* Detail en direct d'une creation (direction artistique, ecran dessine,
+   points de critique) : texte multiligne, defilant s'il est long. */
+.claude-panel-detail {
+  margin: 6px 0 10px;
+  max-height: 160px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--maquio-text-muted, inherit);
+}

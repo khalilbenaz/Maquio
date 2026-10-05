@@ -59,10 +59,16 @@ contextBridge.exposeInMainWorld('maquioMenu', {
   },
   // Progression d'une creation d'application par Claude (plan, ecrans,
   // revue visuelle) : simple signal du main, sans donnee sensible.
-  onClaudeProgress: (callback: (progress: { step: string; done: number; total: number }) => void) => {
-    const listener = (_event: unknown, progress: { step: string; done: number; total: number }) => callback(progress)
+  onClaudeProgress: (callback: (progress: { step: string; done: number; total: number; detail?: string }) => void) => {
+    const listener = (_event: unknown, progress: { step: string; done: number; total: number; detail?: string }) => callback(progress)
     ipcRenderer.on('maquio:claude-progress', listener)
     return () => ipcRenderer.removeListener('maquio:claude-progress', listener)
+  },
+  // Dessin en direct : ecrans en cours d'une creation d'application (JSON).
+  onClaudePreview: (callback: (previewJson: string) => void) => {
+    const listener = (_event: unknown, previewJson: string) => callback(previewJson)
+    ipcRenderer.on('maquio:claude-preview', listener)
+    return () => ipcRenderer.removeListener('maquio:claude-preview', listener)
   },
   // Chemin reel d'un fichier depose sur la fenetre (le renderer n'a plus acces a `File.path`).
   pathForFile: (file: File) => webUtils.getPathForFile(file),

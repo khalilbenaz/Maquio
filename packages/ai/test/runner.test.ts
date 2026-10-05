@@ -85,6 +85,32 @@ describe('ProcessClaudeRunner', () => {
     })
   })
 
+  // Dessin en direct : avec onText, la reponse arrive morceau par morceau
+  // (--include-partial-messages) et le texte accumule est remonte a chaque
+  // morceau, avant le resultat final.
+  describe('texte en direct (onText)', () => {
+    const evenement = (texte: string) => JSON.stringify({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: texte } } })
+    const morceaux = async function* () {
+      yield evenement('{"no') + '\n' + evenement('de":')
+      yield '\n' + evenement('{}}') + '\n'
+      yield JSON.stringify({ type: 'result', result: '{"node":{}}' }) + '\n'
+    }
+
+    it('remonte le texte accumule a chaque morceau et rend le resultat final', async () => {
+      let args: string[] = []
+      const spawn: SpawnLike = vi.fn((_c, a) => {
+        args = a
+        return { stdout: morceaux(), stderr: flux(''), exitCode: Promise.resolve(0) }
+      })
+      const vus: string[] = []
+      const out = await new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude' }).run('x', undefined, { onText: (t) => vus.push(t) })
+      expect(out).toBe('{"node":{}}')
+      expect(vus).toEqual(['{"no', '{"node":', '{"node":{}}'])
+      expect(args).toEqual(expect.arrayContaining(['--output-format', 'stream-json', '--verbose', '--include-partial-messages']))
+      expect(args).not.toContain('--input-format')
+    })
+  })
+
   // Le modele vient du reglage de Maquio (lu a chaque appel : un changement
   // dans les reglages s'applique a la demande suivante, sans redemarrer).
   it('transmet le modele choisi a claude via --model, lu a chaque appel', async () => {

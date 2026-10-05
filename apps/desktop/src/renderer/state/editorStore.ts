@@ -8,7 +8,9 @@
 // de deuxieme source de verite a tenir synchronisee a la main.
 import { create } from 'zustand'
 import { createDocument, History, screenContaining, withAutoLayout } from '@maquio/core'
-import type { MaquioDocument, Command, HandleId, Rect } from '@maquio/core'
+import type { MaquioDocument, Command, HandleId, Node, Rect } from '@maquio/core'
+
+export type ClaudePreview = { screens: Node[]; currentId: string | null } | null
 
 export type Tool = 'select' | 'frame' | 'rect' | 'ellipse' | 'text' | 'image'
 
@@ -59,6 +61,10 @@ export type EditorState = {
   zoom: number
   pan: { x: number; y: number }
   dragPreview: DragPreview
+  // Dessin en direct d'une creation d'application par Claude : ecrans en
+  // cours (lecture seule, hors document et hors historique), affiches par
+  // le canevas ; null hors creation.
+  claudePreview: ClaudePreview
   // Chemin du fichier .maquio courant, null tant que le document n'a
   // jamais ete enregistre (defaut n3, ruling sur le stockage des images) :
   // NodeView (canvas) en a besoin pour resoudre le src RELATIF d'un noeud
@@ -111,6 +117,7 @@ export type EditorState = {
   setZoom(zoom: number): void
   setPan(pan: { x: number; y: number }): void
   setDragPreview(preview: DragPreview): void
+  setClaudePreview(preview: ClaudePreview): void
   requestFitToWindow(): void
   setDocumentPath(path: string | null): void
   setActiveScreenId(id: string | null): void
@@ -157,6 +164,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     zoom: 1,
     pan: { x: 0, y: 0 },
     dragPreview: null,
+    claudePreview: null,
     documentPath: null,
     fitToWindowToken: 0,
     activeScreenId: firstScreenOf(doc, doc.pages[0]!.id),
@@ -229,6 +237,10 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
     setDragPreview(preview) {
       set({ dragPreview: preview })
+    },
+
+    setClaudePreview(preview) {
+      set({ claudePreview: preview })
     },
 
     requestFitToWindow() {
