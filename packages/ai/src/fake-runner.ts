@@ -49,6 +49,8 @@ export class FakeClaudeRunner implements ClaudeRunner {
     }
     // Suivi en direct : la reponse « s'ecrit » en quatre morceaux.
     if (options?.onText) {
+      options.onActivity?.('thinking')
+      options.onActivity?.('writing')
       for (const part of [0.25, 0.5, 0.75, 1]) options.onText(response.slice(0, Math.ceil(response.length * part)))
     }
     return response

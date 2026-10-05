@@ -18,6 +18,19 @@ function flatten(nodes: Node[]): Node[] {
   return out
 }
 
+// Ce que fait Claude sur l'ecran courant, en clair.
+function libelle(step: 'screens' | 'critique' | undefined, activity: 'preparing' | 'thinking' | 'writing' | 'fixing' | undefined, nom: string): string {
+  if (activity === 'fixing') return `Claude corrige « ${nom} »…`
+  if (step === 'critique') {
+    if (activity === 'thinking') return `Claude critique « ${nom} »…`
+    if (activity === 'writing') return `Claude corrige « ${nom} »…`
+    return `Claude examine le rendu de « ${nom} »…`
+  }
+  if (activity === 'preparing') return `Claude prépare « ${nom} »…`
+  if (activity === 'thinking') return `Claude réfléchit à la composition de « ${nom} »…`
+  return `Claude dessine « ${nom} »…`
+}
+
 export function ClaudePreviewLayer() {
   const preview = useEditorStore((s) => s.claudePreview)
   const zoom = useEditorStore((s) => s.zoom)
@@ -44,7 +57,7 @@ export function ClaudePreviewLayer() {
           />
           <div className="maquio-claude-drawing-label" style={{ left: current.frame.x, top: current.frame.y, fontSize: 13 / zoom, transform: `translateY(-${28 / zoom}px)` }}>
             <span className="maquio-claude-drawing-dot" style={{ width: 8 / zoom, height: 8 / zoom }} />
-            Claude dessine « {current.name} »…
+            {libelle(preview.step, preview.activity, current.name)}
           </div>
         </>
       ) : null}

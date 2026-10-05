@@ -88,6 +88,23 @@ describe('ProcessClaudeRunner', () => {
   // Dessin en direct : avec onText, la reponse arrive morceau par morceau
   // (--include-partial-messages) et le texte accumule est remonte a chaque
   // morceau, avant le resultat final.
+  // Avant d'ecrire, le modele reflechit (contenu non transmis par la CLI) :
+  // seule la PHASE est remontee, pour dire a l'utilisateur ce qui se passe.
+  it('signale la phase : reflexion puis ecriture', async () => {
+    const lignes = [
+      { type: 'stream_event', event: { type: 'content_block_start', content_block: { type: 'thinking' } } },
+      { type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'thinking_delta', thinking: '' } } },
+      { type: 'stream_event', event: { type: 'content_block_start', content_block: { type: 'text' } } },
+      { type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: '{"a":1}' } } },
+      { type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: ' ' } } },
+      { type: 'result', result: '{"a":1}' },
+    ]
+    const spawn: SpawnLike = vi.fn(() => ({ stdout: flux(lignes.map((l) => JSON.stringify(l)).join('\n') + '\n'), stderr: flux(''), exitCode: Promise.resolve(0) }))
+    const phases: string[] = []
+    await new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude' }).run('x', undefined, { onText: () => {}, onActivity: (p) => phases.push(p) })
+    expect(phases).toEqual(['thinking', 'writing'])
+  })
+
   describe('texte en direct (onText)', () => {
     const evenement = (texte: string) => JSON.stringify({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: texte } } })
     const morceaux = async function* () {

@@ -13,9 +13,9 @@
 //    par l'appelant en une seule commande annulable.
 // Chaque appel passe par la boucle de correction (correction-loop.ts).
 import { z } from 'zod'
-import { createNodeCommand, nodeSchema, setTokensCommand } from '@maquio/core'
+import { applyAutoLayout, createNodeCommand, nodeSchema, setTokensCommand } from '@maquio/core'
 import type { DesignTokens, DevicePreset, FrameNode, MaquioDocument, Node } from '@maquio/core'
-import type { ClaudeRunner } from './runner'
+import type { ClaudeActivity, ClaudeRunner } from './runner'
 import { ClaudeCancelledError } from './runner'
 import { askWithCorrections } from './correction-loop'
 import { InvalidPatchError, extractFirstJsonObject, tokensPatchSchema } from './patch'
@@ -70,7 +70,12 @@ export type PipelineProgress = { step: 'plan' | 'screens' | 'critique'; done: nu
 export type ScreenRenderer = (document: MaquioDocument, pageId: string, screenId: string) => Promise<string>
 // Dessin en direct : les ecrans deja dessines et celui en cours d'ecriture
 // (`currentId`), tels qu'ils seront places sur la page.
-export type PipelinePreview = { screens: FrameNode[]; currentId: string | null }
+// `step` et `activity` : ce que fait Claude sur l'ecran courant (prepare
+// = appel lance, reflechit = reflexion du modele, ecrit = elements qui
+// arrivent), pour l'etiquette du canevas.
+// fixing : relance de correction, l'ecran precedent reste affiche.
+export type PreviewActivity = 'preparing' | ClaudeActivity | 'fixing'
+export type PipelinePreview = { screens: FrameNode[]; currentId: string | null; step?: 'screens' | 'critique'; activity?: PreviewActivity }
 export type PipelineHooks = {
   onProgress?: (p: PipelineProgress) => void
   renderScreen?: ScreenRenderer
@@ -265,6 +270,10 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, index: nu
   return out
 }
 
+function countNodes(node: Node): number {
+  return node.type === 'frame' ? 1 + node.children.reduce((n, c) => n + countNodes(c), 0) : 1
+}
+
 function subtreeIds(node: Node): Set<string> {
   const ids = new Set<string>()
   walk(node, (n) => ids.add(n.id))
@@ -320,21 +329,61 @@ export async function generateApp(
   // Apercu en direct : un ecran par entree du plan, rempli au fil du dessin.
   const shown: (FrameNode | undefined)[] = plan.screens.map(() => undefined)
   let lastPreview = Date.now()
+  let step: 'screens' | 'critique' = 'screens'
+  let activity: PreviewActivity = 'preparing'
   const emit = (currentId: string | null, force: boolean) => {
     if (hooks.onPreview === undefined) return
     const now = Date.now()
     if (!force && now - lastPreview < interval) return
     lastPreview = now
-    hooks.onPreview({ screens: shown.filter((s): s is FrameNode => s !== undefined), currentId })
+    // Mis en page comme le fera le document (row, column, grille) : sans
+    // cela, les enfants d'un cadre automatique s'empileraient tous a leurs
+    // coordonnees brutes, souvent 0,0.
+    hooks.onPreview({ screens: shown.filter((s): s is FrameNode => s !== undefined).map(applyAutoLayout), currentId, step, activity })
   }
+  // Une relance (correction, revue) reecrit l'ecran depuis le debut : la
+  // version affichee reste en place tant que la nouvelle ne l'a pas
+  // rattrapee (`keep` = son nombre d'elements), l'ecran ne se vide jamais.
+  const keep: (number | null)[] = plan.screens.map(() => null)
+  const wrote: boolean[] = plan.screens.map(() => false)
   const live = (i: number) => (text: string) => {
     const spec = plan.screens[i]!
     const p = previewScreen(text, spec.id, frames[i]!, device)
     if (p === null) return
+    const base = keep[i]
+    if (base !== null && base !== undefined) {
+      if (countNodes(p) < base) return
+      keep[i] = null
+    }
     shown[i] = p
     emit(spec.id, false)
   }
+  // Debut d'un ecran : en dessin, son cadre vide apparait aussitot a sa
+  // place ; en revue, l'ecran reste affiche tel quel.
+  const begin = (i: number, nextStep: 'screens' | 'critique') => {
+    step = nextStep
+    activity = 'preparing'
+    const spec = plan.screens[i]!
+    wrote[i] = false
+    keep[i] = nextStep === 'critique' && shown[i] !== undefined ? countNodes(shown[i]!) : null
+    if (nextStep === 'screens') {
+      shown[i] = { id: spec.id, name: spec.name, type: 'frame', frame: frames[i]!, visible: true, locked: false, opacity: 1, rotation: 0, layout: { mode: 'absolute', gap: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 }, alignMain: 'start', alignCross: 'start' }, fills: [{ type: 'solid', color: { r: 1, g: 1, b: 1, a: 1 } }], strokes: [], cornerRadius: 0, clipsContent: true, children: [], device }
+    }
+    emit(spec.id, true)
+  }
+  const phase = (i: number) => (next: ClaudeActivity) => {
+    if (next === 'thinking' && wrote[i] && shown[i] !== undefined) {
+      // Nouvel essai apres une reponse ecrite : relance de correction.
+      keep[i] = countNodes(shown[i]!)
+      activity = 'fixing'
+    } else if (!(next === 'writing' && activity === 'fixing')) {
+      activity = next
+    }
+    if (next === 'writing') wrote[i] = true
+    emit(plan.screens[i]!.id, true)
+  }
   const settle = (i: number, screen: FrameNode) => {
+    keep[i] = null
     shown[i] = screen
     emit(plan.screens[i]!.id, true)
   }
@@ -345,6 +394,7 @@ export async function generateApp(
   let screens = await mapLimit(plan.screens, CONCURRENCY, async (spec, i) => {
     check()
     progress({ step: 'screens', done, total: plan.screens.length, detail: `${spec.name} — ${spec.brief}` })
+    begin(i, 'screens')
     const screen = await askWithCorrections({
       runner,
       signal,
@@ -352,6 +402,7 @@ export async function generateApp(
       parse: (raw) => parseScreen(raw, spec, frames[i]!, device, screenIds),
       defects: defectsOf,
       onText: live(i),
+      onActivity: phase(i),
     })
     settle(i, screen)
     progress({ step: 'screens', done: ++done, total: plan.screens.length, detail: `${spec.name} — ${spec.brief}` })
@@ -372,6 +423,7 @@ export async function generateApp(
       const spec = plan.screens[i]!
       let result = screen
       progress({ step: 'critique', done: reviewed, total: screens.length, detail: critiqueDetail(spec.name, '') })
+      begin(i, 'critique')
       try {
         const png = await render(full, pageId, screen.id)
         result = await askWithCorrections({
@@ -385,6 +437,7 @@ export async function generateApp(
             live(i)(text)
             liveProgress({ step: 'critique', done: reviewed, total: screens.length, detail: critiqueDetail(spec.name, text) })
           },
+          onActivity: phase(i),
         })
       } catch (err) {
         if (err instanceof ClaudeCancelledError || signal?.aborted) throw err

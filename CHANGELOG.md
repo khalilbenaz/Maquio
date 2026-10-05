@@ -2,6 +2,15 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [1.2.2] - 2026-10-05
+
+### Corrigé
+- Dessin en direct : les éléments des cadres en colonne ou en ligne s’empilaient tous au même endroit dans l’aperçu (la mise en page automatique n’y était pas appliquée) ; ils se placent maintenant un par un, à leur position définitive.
+- Dessin en direct : une relance de correction ou la revue visuelle vidait l’écran avant de le redessiner ; la version précédente reste affichée jusqu’à ce que la nouvelle l’ait rattrapée.
+
+### Ajouté
+- Dessin en direct : le cadre de l’écran apparaît dès le début de son dessin, et l’étiquette dit ce que fait Claude (« prépare », « réfléchit à la composition de », « dessine », « corrige », « examine le rendu de », « critique »), y compris pendant la réflexion du modèle, qui précède l’écriture.
+
 ## [1.2.1] - 2026-10-05
 
 ### Corrigé

@@ -50,8 +50,11 @@ export type WorkingDirectoryProvider = () => Promise<WorkingDirectory>
 // Image jointe au prompt (critique visuelle d'un ecran rendu).
 export type ImageInput = { mediaType: 'image/png' | 'image/jpeg'; base64: string }
 // onText : texte de la reponse accumule, remonte a chaque morceau recu
-// pendant qu'elle s'ecrit (dessin en direct).
-export type RunOptions = { images?: ImageInput[]; onText?: (textSoFar: string) => void }
+// pendant qu'elle s'ecrit (dessin en direct). onActivity : phase du modele
+// (reflexion -- dont la CLI ne transmet pas le contenu --, puis ecriture),
+// signalee une fois a chaque changement ; exige onText (sortie en flux).
+export type ClaudeActivity = 'thinking' | 'writing'
+export type RunOptions = { images?: ImageInput[]; onText?: (textSoFar: string) => void; onActivity?: (activity: ClaudeActivity) => void }
 
 export interface ClaudeRunner {
   isAvailable(): Promise<boolean>
@@ -157,21 +160,38 @@ function extractResult(rawOutput: string, prompt: string): string {
 // Lit le flux stream-json au fil de l'eau : chaque morceau de texte
 // (text_delta) est ajoute au texte accumule, remonte a onText. Rend la
 // sortie complete (lue ensuite par extractStreamResult).
-async function readStreaming(stream: AsyncIterable<string>, onText: (textSoFar: string) => void): Promise<string> {
+async function readStreaming(
+  stream: AsyncIterable<string>,
+  onText: (textSoFar: string) => void,
+  onActivity?: (activity: ClaudeActivity) => void,
+): Promise<string> {
   let all = ''
   let pending = ''
   let text = ''
+  let activity: ClaudeActivity | null = null
+  const signal = (next: ClaudeActivity) => {
+    if (activity === next) return
+    activity = next
+    onActivity?.(next)
+  }
   for await (const chunk of stream) {
     all += chunk
     pending += chunk
     const lines = pending.split('\n')
     pending = lines.pop() ?? ''
     for (const line of lines) {
-      if (!line.includes('text_delta')) continue
+      if (!line.includes('stream_event')) continue
       try {
-        const parsed = JSON.parse(line) as { type?: string; event?: { delta?: { type?: string; text?: string } } }
-        const delta = parsed.event?.delta
-        if (parsed.type === 'stream_event' && delta?.type === 'text_delta' && typeof delta.text === 'string') {
+        const parsed = JSON.parse(line) as {
+          type?: string
+          event?: { type?: string; content_block?: { type?: string }; delta?: { type?: string; text?: string } }
+        }
+        if (parsed.type !== 'stream_event') continue
+        const event = parsed.event
+        if (event?.content_block?.type === 'thinking' || event?.delta?.type === 'thinking_delta') signal('thinking')
+        const delta = event?.delta
+        if (delta?.type === 'text_delta' && typeof delta.text === 'string') {
+          signal('writing')
           text += delta.text
           onText(text)
         }
@@ -307,7 +327,7 @@ export class ProcessClaudeRunner implements ClaudeRunner {
         ...(workingDir ? { cwd: workingDir.path } : {}),
       })
       const [stdout, stderr, exitCode] = await Promise.all([
-        onText !== undefined ? readStreaming(proc.stdout, onText) : readAll(proc.stdout),
+        onText !== undefined ? readStreaming(proc.stdout, onText, options?.onActivity) : readAll(proc.stdout),
         readAll(proc.stderr),
         proc.exitCode,
       ])

@@ -51,3 +51,22 @@ describe('Canvas — apercu sur un document vierge', () => {
     expect(screen.queryByText('Le plan de travail est vide') !== null).toBe(avant)
   })
 })
+
+describe('Canvas — etiquette selon ce que fait Claude', () => {
+  beforeEach(() => useEditorStore.getState().load(createDocument('Vide')))
+  const ecran = () => ({ ...createScreenNode('Écran Accueil', DEVICE_PRESETS.iphone15, { x: 0, y: 0, w: 393, h: 852 }), id: 'accueil' })
+
+  it.each([
+    ['screens', 'preparing', /Claude prépare « Écran Accueil »/],
+    ['screens', 'thinking', /Claude réfléchit à la composition de « Écran Accueil »/],
+    ['screens', 'writing', /Claude dessine « Écran Accueil »/],
+    ['critique', 'preparing', /Claude examine le rendu de « Écran Accueil »/],
+    ['critique', 'thinking', /Claude critique « Écran Accueil »/],
+    ['critique', 'writing', /Claude corrige « Écran Accueil »/],
+    ['screens', 'fixing', /Claude corrige « Écran Accueil »/],
+  ] as const)('%s / %s', (step, activity, attendu) => {
+    render(<Canvas api={apiFactice} />)
+    act(() => useEditorStore.getState().setClaudePreview({ screens: [ecran()], currentId: 'accueil', step, activity }))
+    expect(screen.getByText(attendu)).toBeTruthy()
+  })
+})
