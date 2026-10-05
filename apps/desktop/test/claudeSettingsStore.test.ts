@@ -71,3 +71,51 @@ describe('claudeSettingsStore (chemin personnalise Claude Code)', () => {
     expect(await store.getCustomPath()).toBeNull()
   })
 })
+
+describe('claudeSettingsStore (modele Claude)', () => {
+  function memoire() {
+    let stocke: string | null = null
+    const store = createClaudeSettingsStore({
+      filePath: '/tmp/claude-settings.json',
+      fs: {
+        readFile: async () => {
+          if (stocke === null) throw new Error('absent')
+          return stocke
+        },
+        writeFile: async (_p, data) => {
+          stocke = data
+        },
+        pathExists: async () => stocke !== null,
+      },
+    })
+    return { store, brut: () => stocke }
+  }
+
+  it('rend Opus 5.5 par defaut (meilleure qualite de design)', async () => {
+    expect(await memoire().store.getModel()).toBe('claude-opus-5-5')
+  })
+
+  it('persiste le modele choisi sans effacer le chemin personnalise, et inversement', async () => {
+    const { store } = memoire()
+    await store.setCustomPath('/usr/local/bin/claude')
+    await store.setModel('claude-sonnet-5-5')
+    expect(await store.getCustomPath()).toBe('/usr/local/bin/claude')
+    expect(await store.getModel()).toBe('claude-sonnet-5-5')
+    await store.setCustomPath(null)
+    expect(await store.getModel()).toBe('claude-sonnet-5-5')
+  })
+
+  it('ignore un modele inconnu enregistre a la main et revient au defaut', async () => {
+    const { store } = memoire()
+    await store.setModel('claude-sonnet-5-5')
+    const s2 = createClaudeSettingsStore({
+      filePath: '/tmp/x.json',
+      fs: { readFile: async () => '{"customPath":null,"model":"gpt-9"}', writeFile: async () => {}, pathExists: async () => true },
+    })
+    expect(await s2.getModel()).toBe('claude-opus-5-5')
+  })
+
+  it('refuse d enregistrer un modele inconnu', async () => {
+    await expect(memoire().store.setModel('gpt-9')).rejects.toThrow(/modèle/i)
+  })
+})

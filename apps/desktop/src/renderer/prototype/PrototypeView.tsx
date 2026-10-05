@@ -80,6 +80,9 @@ export function PrototypeView({ onClose }: { onClose: () => void }) {
     const active = useEditorStore.getState().activeScreenId
     return active !== null && screenIds.has(active) ? active : (screens[0]?.id ?? '')
   })()
+  // Debut du parcours : le premier ecran de la page. Le prototype s'ouvre sur
+  // l'ecran selectionne (startId), mais « Départ » rejoue depuis le debut.
+  const flowStartId = screens[0]?.id ?? startId
   const [state, setState] = useState<ProtoState>(() => startState(startId))
   const [anim, setAnim] = useState<(Anim & { id: number }) | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -216,7 +219,7 @@ export function PrototypeView({ onClose }: { onClose: () => void }) {
         <span className="proto-title">▶ Prototype</span>
         <span className="proto-screen-name" data-testid="proto-current">{current.name}</span>
         <span className="proto-spacer" />
-        <button type="button" aria-label="Revenir au départ" onClick={() => { setState(startState(startId)); setAnim(null); setLeaving(null) }}>↺ Départ</button>
+        <button type="button" aria-label="Revenir au départ" onClick={() => { setState(startState(flowStartId)); setAnim(null); setLeaving(null) }}>↺ Départ</button>
         <button type="button" aria-label="Quitter le prototype" onClick={onClose}>Quitter (Échap)</button>
       </header>
       <div className="proto-viewport">

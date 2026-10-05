@@ -2,6 +2,14 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [1.0.5] - 2026-10-05
+
+### Ajouté
+- Réglages : choix du modèle Claude (Opus 5.5, Fable 5.1 ou Sonnet 5.5), transmis à `claude --model`. Opus 5.5 par défaut, pour des designs plus soignés ; jusqu’ici le modèle par défaut de Claude Code était utilisé.
+
+### Corrigé
+- Prototype : « ↺ Départ » revient au premier écran du parcours, même quand le prototype a été lancé depuis un autre écran.
+
 ## [1.0.4] - 2026-10-05
 
 ### Amélioré

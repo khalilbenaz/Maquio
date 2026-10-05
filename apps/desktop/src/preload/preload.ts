@@ -21,6 +21,7 @@ const api: MaquioApi = {
   setClaudeCustomPath: (path) => ipcRenderer.invoke('setClaudeCustomPath', path),
   redetectClaude: () => ipcRenderer.invoke('redetectClaude'),
   chooseClaudeBinary: () => ipcRenderer.invoke('chooseClaudeBinary'),
+  setClaudeModel: (model) => ipcRenderer.invoke('setClaudeModel', model),
   chooseImage: () => ipcRenderer.invoke('chooseImage'),
   getThemePreference: () => ipcRenderer.invoke('getThemePreference'),
   setThemePreference: (preference) => ipcRenderer.invoke('setThemePreference', preference),

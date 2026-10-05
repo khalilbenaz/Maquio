@@ -47,9 +47,13 @@ export type SpawnLike = (
 export type WorkingDirectory = { path: string; cleanup(): Promise<void> }
 export type WorkingDirectoryProvider = () => Promise<WorkingDirectory>
 
+// Image jointe au prompt (critique visuelle d'un ecran rendu).
+export type ImageInput = { mediaType: 'image/png' | 'image/jpeg'; base64: string }
+export type RunOptions = { images?: ImageInput[] }
+
 export interface ClaudeRunner {
   isAvailable(): Promise<boolean>
-  run(prompt: string, signal?: AbortSignal): Promise<string>
+  run(prompt: string, signal?: AbortSignal, options?: RunOptions): Promise<string>
 }
 
 export class ClaudeUnavailableError extends Error {
@@ -148,12 +152,27 @@ function extractResult(rawOutput: string, prompt: string): string {
   return result
 }
 
+// Flux stream-json : la ligne de type "result" porte le texte final.
+function extractStreamResult(rawOutput: string, prompt: string): string {
+  for (const line of rawOutput.split('\n').reverse()) {
+    if (line.trim() === '') continue
+    try {
+      const parsed = JSON.parse(line) as Record<string, unknown>
+      if (parsed.type === 'result' && typeof parsed.result === 'string') return parsed.result
+    } catch {
+      // ligne non JSON : ignoree
+    }
+  }
+  throw new ClaudeOutputError(sanitizeForErrorMessage(rawOutput, prompt))
+}
+
 export class ProcessClaudeRunner implements ClaudeRunner {
   private readonly spawn: SpawnLike
   private readonly which: (bin: string) => Promise<string | null>
   private readonly binary: string
   private readonly workingDirectory: WorkingDirectoryProvider | undefined
   private readonly timeoutMs: number
+  private readonly model: (() => Promise<string | null>) | undefined
 
   constructor(opts: {
     spawn: SpawnLike
@@ -165,24 +184,46 @@ export class ProcessClaudeRunner implements ClaudeRunner {
     // soit reellement corrige en production (voir main.ts).
     workingDirectory?: WorkingDirectoryProvider
     timeoutMs?: number
+    // Modele a passer a `claude --model`, lu a chaque appel (un changement
+    // de reglage vaut pour la demande suivante). Absent ou null : modele par
+    // defaut de Claude Code.
+    model?: () => Promise<string | null>
   }) {
     this.spawn = opts.spawn
     this.which = opts.which
     this.binary = opts.binary ?? 'claude'
     this.workingDirectory = opts.workingDirectory
     this.timeoutMs = opts.timeoutMs ?? DEFAULT_CLAUDE_TIMEOUT_MS
+    this.model = opts.model
   }
 
   async isAvailable(): Promise<boolean> {
     return (await this.which(this.binary)) !== null
   }
 
-  async run(prompt: string, signal?: AbortSignal): Promise<string> {
+  async run(prompt: string, signal?: AbortSignal, options?: RunOptions): Promise<string> {
+    const images = options?.images ?? []
+    // Avec des images, `claude -p` lit un message utilisateur au format de
+    // l'API (stream-json) et repond par un flux de lignes JSON.
+    const streaming = images.length > 0
+    const stdin = streaming
+      ? JSON.stringify({
+          type: 'user',
+          message: {
+            role: 'user',
+            content: [
+              ...images.map((i) => ({ type: 'image', source: { type: 'base64', media_type: i.mediaType, data: i.base64 } })),
+              { type: 'text', text: prompt },
+            ],
+          },
+        }) + '\n'
+      : prompt
     const bin = await this.which(this.binary)
     if (bin === null) {
       throw new ClaudeUnavailableError()
     }
 
+    const model = this.model ? await this.model() : null
     const workingDir = this.workingDirectory ? await this.workingDirectory() : null
 
     // Deux sources d'annulation independantes, combinees en un seul signal
@@ -207,8 +248,7 @@ export class ProcessClaudeRunner implements ClaudeRunner {
       // limitee a ~32 000 caracteres (spawn ENAMETOOLONG).
       const proc = this.spawn(bin, [
           '-p',
-          '--output-format',
-          'json',
+          ...(streaming ? ['--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose'] : ['--output-format', 'json']),
           // Aucun outil : le prompt embarque le contenu du document (texte
           // importe de Figma compris), non fiable. Sans outil, une injection
           // ne peut ni lancer de commande, ni lire/ecrire un fichier, ni
@@ -223,9 +263,10 @@ export class ProcessClaudeRunner implements ClaudeRunner {
           // enfants gardaient sous Windows le dossier de travail ouvert
           // apres la fin de `claude` (EBUSY au nettoyage).
           '--strict-mcp-config',
+          ...(model !== null ? ['--model', model] : []),
         ], {
         signal: combinedSignal,
-        stdin: prompt,
+        stdin,
         ...(workingDir ? { cwd: workingDir.path } : {}),
       })
       const [stdout, stderr, exitCode] = await Promise.all([
@@ -238,7 +279,7 @@ export class ProcessClaudeRunner implements ClaudeRunner {
         throw new ClaudeFailedError(exitCode, sanitizeForErrorMessage(stderr, prompt))
       }
 
-      return extractResult(stdout, prompt)
+      return streaming ? extractStreamResult(stdout, prompt) : extractResult(stdout, prompt)
     } catch (err) {
       // ClaudeFailedError/ClaudeOutputError sont des rejets DELIBERES
       // construits ci-dessus (ou dans extractResult) : ils portent deja le

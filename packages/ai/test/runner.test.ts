@@ -51,6 +51,60 @@ describe('ProcessClaudeRunner', () => {
     expect(args).not.toContain('bypassPermissions')
   })
 
+  // Critique visuelle : une capture d'ecran est envoyee avec le prompt.
+  // `claude -p` ne prend une image qu'en entree stream-json (un message
+  // utilisateur au format de l'API) ; la reponse est alors un flux de lignes
+  // JSON dont la derniere, de type "result", porte le texte.
+  describe('images (critique visuelle)', () => {
+    const fluxResultat = (texte: string) =>
+      [JSON.stringify({ type: 'system', subtype: 'init' }), JSON.stringify({ type: 'assistant' }), JSON.stringify({ type: 'result', result: texte })].join('\n')
+
+    it('envoie les images et le texte en un message stream-json, et rend le resultat', async () => {
+      let opts: { stdin?: string } = {}
+      let args: string[] = []
+      const spawn: SpawnLike = vi.fn((_c, a, o) => {
+        args = a
+        opts = o
+        return { stdout: flux(fluxResultat('critique ok')), stderr: flux(''), exitCode: Promise.resolve(0) }
+      })
+      const r = new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude' })
+      const out = await r.run('regarde', undefined, { images: [{ mediaType: 'image/png', base64: 'QUJD' }] })
+      expect(out).toBe('critique ok')
+      expect(args).toEqual(expect.arrayContaining(['--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose']))
+      expect(args).not.toContain('json')
+      const message = JSON.parse(opts.stdin!.trim())
+      expect(message.type).toBe('user')
+      expect(message.message.content[0]).toEqual({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'QUJD' } })
+      expect(message.message.content.at(-1)).toEqual({ type: 'text', text: 'regarde' })
+    })
+
+    it('leve ClaudeOutputError si le flux ne contient aucun resultat', async () => {
+      const spawn = fauxSpawn(JSON.stringify({ type: 'assistant' }))
+      const r = new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude' })
+      await expect(r.run('x', undefined, { images: [{ mediaType: 'image/png', base64: 'QQ==' }] })).rejects.toBeInstanceOf(ClaudeOutputError)
+    })
+  })
+
+  // Le modele vient du reglage de Maquio (lu a chaque appel : un changement
+  // dans les reglages s'applique a la demande suivante, sans redemarrer).
+  it('transmet le modele choisi a claude via --model, lu a chaque appel', async () => {
+    const spawn = fauxSpawn(JSON.stringify({ result: 'ok' }))
+    let modele = 'claude-opus-5-5'
+    const r = new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude', model: async () => modele })
+    await r.run('x')
+    modele = 'claude-sonnet-5-5'
+    await r.run('x')
+    const calls = (spawn as unknown as { mock: { calls: [string, string[]][] } }).mock.calls
+    expect(calls[0]![1].slice(calls[0]![1].indexOf('--model'), calls[0]![1].indexOf('--model') + 2)).toEqual(['--model', 'claude-opus-5-5'])
+    expect(calls[1]![1][calls[1]![1].indexOf('--model') + 1]).toBe('claude-sonnet-5-5')
+  })
+
+  it('ne passe pas --model sans reglage (modele par defaut de Claude Code)', async () => {
+    const spawn = fauxSpawn(JSON.stringify({ result: 'ok' }))
+    await new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude', model: async () => null }).run('x')
+    expect((spawn as unknown as { mock: { calls: [string, string[]][] } }).mock.calls[0]![1]).not.toContain('--model')
+  })
+
   // Sans --mcp-config, --strict-mcp-config ne demarre aucun serveur MCP : ils
   // seraient inutiles (aucun outil) et, sous Windows, ces processus enfants
   // gardaient le dossier de travail ouvert (EBUSY au nettoyage).
