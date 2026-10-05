@@ -2,6 +2,16 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [1.0.4] - 2026-10-05
+
+### Amélioré
+- Assistance Claude : guide de design intégré au prompt (hiérarchie, échelle typographique, palette à un seul accent, profondeur sans ombre, zones système, contenu réaliste, transitions de prototype, « look IA » à éviter), synthétisé à partir des skills emilkowalski/skill, pbakaus/impeccable et Leonxlnx/taste-skill (voir `THIRD_PARTY_NOTICES.md`).
+- Assistance Claude : contrôle de mise en page après chaque patch (textes rognés ou superposés, élément qui dépasse de son parent, cible tactile trop petite). Les défauts sont renvoyés à Claude pour correction ; un patch valide n’est jamais rejeté pour ces seuls défauts.
+- Assistance Claude : le catalogue des composants indique les seuls champs optionnels acceptés pour chacun (fini `leadingIcon` sur un bouton) et demande de teinter les composants d’action avec la couleur d’accent du document (au lieu du violet Material par défaut).
+
+### Corrigé
+- Rendu : sur une couleur personnalisée, le texte de l’avatar, du FAB et de la barre d’application suit désormais la luminance du fond (initiales foncées sur un avatar foncé, titre blanc sur une barre claire).
+
 ## [1.0.3] - 2026-10-05
 
 ### Corrigé

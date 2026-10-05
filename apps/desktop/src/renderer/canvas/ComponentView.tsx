@@ -32,6 +32,14 @@ export function cssColor(c: Color): string {
   return `rgba(${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}, ${c.a})`
 }
 
+// Couleur lisible sur un fond personnalise : texte fonce sur fond clair,
+// blanc sur fond fonce (luminance relative WCAG, seuil de contraste egal).
+function readableOn(c: Color): string {
+  const lin = (v: number) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
+  const l = 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
+  return l > 0.179 ? M3.onSurface : '#FFFFFF'
+}
+
 function accent(color: Color | undefined): string {
   return color === undefined ? M3.primary : cssColor(color)
 }
@@ -117,7 +125,7 @@ function Fab({ p }: { p: P<'fab'> }) {
         justifyContent: 'center',
         gap: 12,
         background: bg,
-        color: M3.onPrimaryContainer,
+        color: p.color === undefined ? M3.onPrimaryContainer : readableOn(p.color),
         borderRadius: radius,
         boxShadow: '0 3px 8px rgba(0,0,0,.28)',
         fontWeight: 500,
@@ -349,7 +357,7 @@ function Avatar({ p }: { p: P<'avatar'> }) {
         justifyContent: 'center',
         borderRadius: '50%',
         background: p.color === undefined ? M3.primaryContainer : cssColor(p.color),
-        color: M3.onPrimaryContainer,
+        color: p.color === undefined ? M3.onPrimaryContainer : readableOn(p.color),
         fontWeight: 500,
         fontSize: 16,
       }}
@@ -480,7 +488,7 @@ function Spacer({ p }: { p: P<'spacer'> }) {
 
 function AppBar({ p }: { p: P<'appBar'> }) {
   const bg = p.color === undefined ? M3.surface : cssColor(p.color)
-  const onBg = p.color === undefined ? M3.onSurface : M3.onPrimary
+  const onBg = p.color === undefined ? M3.onSurface : readableOn(p.color)
   const leading: IconName | null = p.leading === 'back' ? 'arrowBack' : p.leading === 'menu' ? 'menu' : null
   return (
     <div style={{ ...root, background: bg, color: onBg, padding: '0 4px', gap: 4, boxShadow: '0 1px 0 rgba(0,0,0,.08)' }}>

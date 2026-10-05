@@ -169,3 +169,37 @@ describe('buildPrompt : valeurs fixes', () => {
     expect(p).toContain('"layout.alignCross" : "start", "center", "end" ou "stretch"')
   })
 })
+
+describe('buildPrompt : guide de design', () => {
+  it('embarque le guide de design (hierarchie, couleur, anti-patterns, transitions)', () => {
+    const p = buildPrompt({ instruction: 'x', document: createDocument('T'), selectionIds: [] })
+    expect(p).toContain('UN seul accent')
+    expect(p).toContain('ne se superposent JAMAIS')
+    expect(p).toContain('look IA generique')
+    expect(p).toContain('"push" ou "slide"')
+  })
+})
+
+describe('buildPrompt : champs optionnels par composant', () => {
+  it('liste les champs optionnels exacts de chaque kind (button n a pas leadingIcon)', () => {
+    const p = buildPrompt({ instruction: 'x', document: createDocument('T'), selectionIds: [] })
+    const ligneBouton = p.split('\n').find((l) => l.startsWith('- "button"'))!
+    expect(ligneBouton).toMatch(/optionnels : .*"icon"/)
+    expect(ligneBouton).toMatch(/"color"/)
+    expect(ligneBouton).not.toContain('leadingIcon')
+    expect(p).not.toContain('"leadingIcon", "color"... peuvent s\'ajouter')
+  })
+
+  it('demande de teinter les composants avec la couleur d accent', () => {
+    const p = buildPrompt({ instruction: 'x', document: createDocument('T'), selectionIds: [] })
+    expect(p).toMatch(/"color".*accent/)
+  })
+})
+
+describe('buildPrompt : devise et barre d application', () => {
+  it('demande une devise collee au montant et une barre d application de la couleur de surface', () => {
+    const p = buildPrompt({ instruction: 'x', document: createDocument('T'), selectionIds: [] })
+    expect(p).toContain('COLLEE au montant')
+    expect(p).toContain('"appBar") recoit "color" = la couleur de surface')
+  })
+})

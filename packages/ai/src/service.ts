@@ -19,7 +19,8 @@ import type { DocumentPatch } from './patch'
 import { patchToCommand, patchToCommands } from './apply'
 import { ClaudeCancelledError } from './runner'
 import type { ClaudeRunner } from './runner'
-import { buildCorrectionPrompt, describeRejectionForModel } from './correction'
+import { buildCorrectionPrompt, buildLayoutCorrectionPrompt, describeRejectionForModel } from './correction'
+import { lintDesign, touchedNodeIds } from './design-lint'
 
 // Nombre de relances de Claude apres un patch rejete (donc au plus
 // 1 + MAX_CORRECTION_ROUNDS appels pour une demande).
@@ -79,7 +80,14 @@ export class AiService {
     // chaque operation sur le document), est renvoye a Claude avec la liste
     // des problemes, jusqu'a MAX_CORRECTION_ROUNDS fois. Les erreurs du
     // runner (indisponible, delai, annulation) ne sont jamais relancees.
+    //
+    // Un patch valide passe ensuite le controle de mise en page
+    // (design-lint.ts) : ses defauts (textes rognes ou superposes...) sont
+    // eux aussi renvoyes a Claude, mais ce controle reste consultatif. Le
+    // dernier patch valide est garde (`lastValid`) et rendu si les
+    // corrections s'epuisent ou si une correction est inexploitable.
     let currentPrompt = prompt
+    let lastValid: { patch: DocumentPatch; commands: Command[]; command: Command } | null = null
     for (let round = 0; ; round++) {
       const raw = await this.runner.run(currentPrompt, signal)
 
@@ -88,8 +96,16 @@ export class AiService {
         patch = parsePatch(raw)
         const commands = patchToCommands(patch, input.pageId)
         const command = patchToCommand(patch, input.pageId, input.document)
-        return { patch, commands, command }
+        const result = { patch, commands, command }
+
+        const defects = lintDesign(command.apply(input.document), input.pageId, touchedNodeIds(patch))
+        if (defects.length === 0 || round >= MAX_CORRECTION_ROUNDS) return result
+        if (signal?.aborted) throw new ClaudeCancelledError()
+        lastValid = result
+        currentPrompt = buildLayoutCorrectionPrompt(prompt, raw, defects.join('\n'))
       } catch (cause) {
+        if (cause instanceof ClaudeCancelledError) throw cause
+        if (lastValid !== null) return lastValid
         if (round >= MAX_CORRECTION_ROUNDS) {
           // Meme erreur qu'avant la boucle : rejet de lecture enveloppe,
           // echec d'application relaye tel quel.

@@ -94,6 +94,23 @@ export function describeRejectionForModel(err: unknown, rawResponse: string): st
   return lines.join('\n')
 }
 
+// Patch VALIDE mais dont le rendu a des defauts (design-lint.ts) : meme
+// principe, en demandant de garder tout le reste du design.
+export function buildLayoutCorrectionPrompt(originalPrompt: string, rawResponse: string, defects: string): string {
+  return `${originalPrompt}
+
+---
+
+Ta réponse précédente est valide, mais son rendu présente des défauts de mise en page. La voici :
+
+${rawResponse}
+
+Défauts de mise en page détectés (identifiants de tes nœuds) :
+${defects}
+
+Renvoie le patch COMPLET corrigé (toutes les opérations), au même format : corrige chacun de ces défauts (tailles de cadre suffisantes, aucun chevauchement, tout à l'intérieur de son parent) en gardant le reste du design identique.`
+}
+
 export function buildCorrectionPrompt(originalPrompt: string, rawResponse: string, problems: string): string {
   return `${originalPrompt}
 
