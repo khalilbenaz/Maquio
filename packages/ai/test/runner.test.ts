@@ -21,7 +21,7 @@ describe('ProcessClaudeRunner', () => {
     await r.run('salut')
     expect(spawn).toHaveBeenCalledWith(
       '/usr/local/bin/claude',
-      ['-p', 'salut', '--output-format', 'json', '--tools', '', '--permission-mode', 'dontAsk'],
+      ['-p', 'salut', '--output-format', 'json', '--tools', '', '--permission-mode', 'dontAsk', '--strict-mcp-config'],
       expect.anything(),
     )
   })
@@ -37,6 +37,17 @@ describe('ProcessClaudeRunner', () => {
     expect(args[args.indexOf('--tools') + 1]).toBe('')
     expect(args[args.indexOf('--permission-mode') + 1]).toBe('dontAsk')
     expect(args).not.toContain('bypassPermissions')
+  })
+
+  // Sans --mcp-config, --strict-mcp-config ne demarre aucun serveur MCP : ils
+  // seraient inutiles (aucun outil) et, sous Windows, ces processus enfants
+  // gardaient le dossier de travail ouvert (EBUSY au nettoyage).
+  it('ne demarre aucun serveur MCP de la configuration de l utilisateur', async () => {
+    const spawn = fauxSpawn(JSON.stringify({ result: '{}' }))
+    await new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude' }).run('x')
+    const args = (spawn as unknown as { mock: { calls: [string, string[]][] } }).mock.calls[0]![1]
+    expect(args).toContain('--strict-mcp-config')
+    expect(args).not.toContain('--mcp-config')
   })
 
   it('rend le champ result de la sortie json', async () => {
@@ -242,6 +253,18 @@ describe('ProcessClaudeRunner', () => {
       const r = new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude', workingDirectory })
 
       await expect(r.run('x')).rejects.toBeInstanceOf(ClaudeFailedError)
+      expect(cleanup).toHaveBeenCalledTimes(1)
+    })
+
+    it('rend la reponse meme quand le nettoyage du repertoire echoue (EBUSY sous Windows)', async () => {
+      const cleanup = vi.fn(async () => {
+        throw Object.assign(new Error('EBUSY: resource busy or locked, rmdir'), { code: 'EBUSY' })
+      })
+      const workingDirectory = vi.fn(async (): Promise<WorkingDirectory> => ({ path: '/tmp/maquio-claude-xyz', cleanup }))
+      const spawn = fauxSpawn(JSON.stringify({ result: 'ok' }))
+      const r = new ProcessClaudeRunner({ spawn, which: async () => '/bin/claude', workingDirectory })
+
+      await expect(r.run('x')).resolves.toBe('ok')
       expect(cleanup).toHaveBeenCalledTimes(1)
     })
 

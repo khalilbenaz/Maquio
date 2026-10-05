@@ -23,7 +23,10 @@ export const createNeutralClaudeWorkingDirectory: WorkingDirectoryProvider = asy
   return {
     path: dir,
     cleanup: async () => {
-      await rm(dir, { recursive: true, force: true })
+      // maxRetries : sous Windows, un processus enfant de `claude` qui se
+      // termine a peine peut encore tenir le dossier (EBUSY) ; rm reessaie
+      // alors avec un delai croissant.
+      await rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
     },
   }
 }

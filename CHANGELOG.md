@@ -2,6 +2,12 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [1.0.2] - 2026-10-05
+
+### Corrigé
+- Assistance Claude (Windows) : l’erreur `EBUSY: resource busy or locked, rmdir` sur le dossier temporaire de Claude remplaçait la réponse. Le nettoyage réessaie et n’interrompt plus jamais la demande.
+- Assistance Claude : `claude` est lancé sans les serveurs MCP de la configuration de l’utilisateur (`--strict-mcp-config`), inutiles sans outils ; chaque appel est aussi plus rapide.
+
 ## [1.0.1] - 2026-10-05
 
 ### Corrigé
