@@ -2,6 +2,12 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [1.0.3] - 2026-10-05
+
+### Corrigé
+- Assistance Claude (Windows) : `spawn ENAMETOOLONG` sur un gros document ou lors d’une relance de correction. Le prompt est désormais transmis à `claude` par l’entrée standard, plus en argument de ligne de commande (limité à ~32 000 caractères sous Windows).
+- Assistance Claude : le délai par appel passe de 2 à 10 minutes. Générer une application complète (plusieurs écrans et leurs interactions) prend plus de 2 minutes ; le bouton Annuler reste disponible.
+
 ## [1.0.2] - 2026-10-05
 
 ### Corrigé

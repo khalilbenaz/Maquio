@@ -34,7 +34,8 @@
 export type SpawnLike = (
   cmd: string,
   args: string[],
-  opts: { signal?: AbortSignal; cwd?: string },
+  // stdin : texte ecrit sur l'entree standard du processus, puis fermee.
+  opts: { signal?: AbortSignal; cwd?: string; stdin?: string },
 ) => { stdout: AsyncIterable<string>; stderr: AsyncIterable<string>; exitCode: Promise<number> }
 
 // Repertoire de travail neutre pour un seul appel : `path` est passe comme
@@ -85,7 +86,9 @@ export class ClaudeOutputError extends Error {
 // au-dessus de ce regime sain, sans laisser l'utilisateur devant un panneau
 // "en attente" indefiniment si Claude Code part malgre tout explorer
 // quelque chose d'inattendu.
-export const DEFAULT_CLAUDE_TIMEOUT_MS = 120_000
+// 10 minutes : une application complete (plusieurs ecrans et leurs
+// interactions) depasse 2 minutes de generation (151 s mesurees).
+export const DEFAULT_CLAUDE_TIMEOUT_MS = 600_000
 
 export class ClaudeTimeoutError extends Error {
   constructor(timeoutMs: number) {
@@ -199,9 +202,11 @@ export class ProcessClaudeRunner implements ClaudeRunner {
     const combinedSignal = AbortSignal.any(signal ? [signal, timeoutController.signal] : [timeoutController.signal])
 
     try {
+      // Le prompt passe par l'entree standard, jamais en argument : il
+      // embarque tout le document, et une ligne de commande Windows est
+      // limitee a ~32 000 caracteres (spawn ENAMETOOLONG).
       const proc = this.spawn(bin, [
           '-p',
-          prompt,
           '--output-format',
           'json',
           // Aucun outil : le prompt embarque le contenu du document (texte
@@ -220,6 +225,7 @@ export class ProcessClaudeRunner implements ClaudeRunner {
           '--strict-mcp-config',
         ], {
         signal: combinedSignal,
+        stdin: prompt,
         ...(workingDir ? { cwd: workingDir.path } : {}),
       })
       const [stdout, stderr, exitCode] = await Promise.all([
