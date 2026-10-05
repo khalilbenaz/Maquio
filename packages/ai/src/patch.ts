@@ -125,7 +125,7 @@ export const patchSchema: z.ZodType<DocumentPatch> = z
 // entoure de prose et/ou de balises de code (```json ... ```), sans avoir a
 // reconnaitre ces balises explicitement : tout ce qui n'est pas a
 // l'interieur des accolades equilibrees est simplement ignore.
-function extractFirstJsonObject(raw: string): string {
+export function extractFirstJsonObject(raw: string): string {
   const start = raw.indexOf('{')
   if (start === -1) {
     throw new InvalidPatchError("Reponse de Claude Code sans JSON exploitable")

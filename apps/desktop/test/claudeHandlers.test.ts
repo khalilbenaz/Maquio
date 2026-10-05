@@ -50,7 +50,7 @@ describe('askClaude', () => {
 
   it('traduit une reponse Claude Code inexploitable sans exposer le prompt', async () => {
     const doc = createDocument('T')
-    const runner = new FakeClaudeRunner(['je ne sais pas repondre'])
+    const runner = new FakeClaudeRunner(() => 'je ne sais pas repondre')
     const { handler } = creerHandler(runner)
 
     await expect(
@@ -149,7 +149,7 @@ describe('askClaude', () => {
         },
       ],
     })
-    const runner = new FakeClaudeRunner([reponseInventee])
+    const runner = new FakeClaudeRunner(() => reponseInventee)
     const { handler } = creerHandler(runner)
 
     let messageErreur = ''

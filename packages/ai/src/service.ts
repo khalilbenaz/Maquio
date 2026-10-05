@@ -17,7 +17,13 @@ import { buildPrompt } from './prompt'
 import { parsePatch } from './patch'
 import type { DocumentPatch } from './patch'
 import { patchToCommand, patchToCommands } from './apply'
+import { ClaudeCancelledError } from './runner'
 import type { ClaudeRunner } from './runner'
+import { buildCorrectionPrompt, describeRejectionForModel } from './correction'
+
+// Nombre de relances de Claude apres un patch rejete (donc au plus
+// 1 + MAX_CORRECTION_ROUNDS appels pour une demande).
+export const MAX_CORRECTION_ROUNDS = 2
 
 function truncate(text: string, max = 300): string {
   return text.length > max ? `${text.slice(0, max)}...` : text
@@ -68,17 +74,30 @@ export class AiService {
       selectionIds: input.selectionIds,
     })
 
-    const raw = await this.runner.run(prompt, signal)
+    // Boucle de correction (voir correction.ts) : un patch rejete, a la
+    // lecture (parsePatch) ou a l'application (patchToCommand, qui valide
+    // chaque operation sur le document), est renvoye a Claude avec la liste
+    // des problemes, jusqu'a MAX_CORRECTION_ROUNDS fois. Les erreurs du
+    // runner (indisponible, delai, annulation) ne sont jamais relancees.
+    let currentPrompt = prompt
+    for (let round = 0; ; round++) {
+      const raw = await this.runner.run(currentPrompt, signal)
 
-    let patch: DocumentPatch
-    try {
-      patch = parsePatch(raw)
-    } catch (cause) {
-      throw new ClaudePatchRejectedError(raw, { cause })
+      let patch: DocumentPatch | null = null
+      try {
+        patch = parsePatch(raw)
+        const commands = patchToCommands(patch, input.pageId)
+        const command = patchToCommand(patch, input.pageId, input.document)
+        return { patch, commands, command }
+      } catch (cause) {
+        if (round >= MAX_CORRECTION_ROUNDS) {
+          // Meme erreur qu'avant la boucle : rejet de lecture enveloppe,
+          // echec d'application relaye tel quel.
+          throw patch === null ? new ClaudePatchRejectedError(raw, { cause }) : cause
+        }
+        if (signal?.aborted) throw new ClaudeCancelledError()
+        currentPrompt = buildCorrectionPrompt(prompt, raw, describeRejectionForModel(cause, raw))
+      }
     }
-
-    const commands = patchToCommands(patch, input.pageId)
-    const command = patchToCommand(patch, input.pageId, input.document)
-    return { patch, commands, command }
   }
 }

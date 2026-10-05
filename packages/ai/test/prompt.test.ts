@@ -161,3 +161,11 @@ describe('buildPrompt', () => {
     })
   })
 })
+
+describe('buildPrompt : valeurs fixes', () => {
+  it('liste les valeurs autorisees de style.align et du layout', () => {
+    const p = buildPrompt({ instruction: 'x', document: createDocument('T'), selectionIds: [] })
+    expect(p).toContain('"style.align" : "left", "center" ou "right"')
+    expect(p).toContain('"layout.alignCross" : "start", "center", "end" ou "stretch"')
+  })
+})

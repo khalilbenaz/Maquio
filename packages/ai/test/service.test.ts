@@ -32,7 +32,7 @@ describe('AiService', () => {
   })
 
   it('remonte une reponse malformee sans toucher au document', async () => {
-    const s = new AiService(new FakeClaudeRunner(['je ne sais pas']))
+    const s = new AiService(new FakeClaudeRunner(() => 'je ne sais pas'))
     await expect(s.ask({ instruction: 'x', document: doc, selectionIds: [], pageId: doc.pages[0]!.id }))
       .rejects.toThrow(/patch/i)
     // Le document passe en entree n a pas ete altere : ask() ne l a jamais
@@ -43,7 +43,7 @@ describe('AiService', () => {
   // Decision 11 : le message d erreur d une reponse malformee contient la
   // reponse brute (tronquee), c est ce que le panneau (Tache 17) affichera.
   it('inclut un extrait de la reponse brute dans l erreur de patch malforme', async () => {
-    const s = new AiService(new FakeClaudeRunner(['reponse totalement incomprehensible du modele']))
+    const s = new AiService(new FakeClaudeRunner(() => 'reponse totalement incomprehensible du modele'))
     await expect(s.ask({ instruction: 'x', document: doc, selectionIds: [], pageId: doc.pages[0]!.id }))
       .rejects.toThrow(/reponse totalement incomprehensible du modele/)
   })

@@ -103,6 +103,7 @@ Le champ "node" de "insertNode", et le resultat de la fusion de "patch" dans "up
 Regles communes a tous les types, qui ne se devinent pas depuis un seul exemple :
 - la position et la taille vivent TOUJOURS dans un objet imbrique "frame" : { "x", "y", "w", "h" } -- jamais "x"/"y"/"width"/"height" a plat sur le noeud ;
 - un noeud "text" porte son contenu dans "characters" (jamais "text" ni "content"), et sa typographie dans un objet imbrique "style" : { "fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "color", "align" } -- jamais ces champs a plat sur le noeud ;
+- les champs a valeurs fixes n'acceptent QUE ces valeurs exactes : "style.align" : "left", "center" ou "right" (jamais "start", "end", "justify") ; "layout.mode" : "absolute", "row" ou "column" ; "layout.alignMain" : "start", "center", "end" ou "space-between" ; "layout.alignCross" : "start", "center", "end" ou "stretch" ; "fit" d'une image : "cover", "contain" ou "fill" ;
 - les couleurs ("fills[].color", "strokes[].color", "style.color", "tokens.colors.*") sont des objets { "r", "g", "b", "a" } avec des composantes entre 0 et 1, jamais entre 0 et 255 ;
 - toutes les dimensions (largeur, hauteur, espacement, marges, rayon d'arrondi, epaisseur de trait, taille de police, interligne) sont des nombres ENTIERS et POSITIFS ou nuls, jamais negatifs ni fractionnaires ;
 - la rotation ("rotation") est exprimee en degres, jamais en radians ;
