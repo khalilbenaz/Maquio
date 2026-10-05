@@ -43,6 +43,14 @@ function commandeRemplacementDocument(label: string, precedent: MaquioDocument, 
   }
 }
 
+function libelleProgres(p: { step: string; done: number; total: number } | null): string {
+  if (p === null) return 'En attente de la réponse de Claude Code…'
+  if (p.step === 'plan') return 'Direction artistique et plan des écrans…'
+  if (p.step === 'screens') return `Dessin des écrans : ${p.done}/${p.total}…`
+  if (p.step === 'critique') return `Revue visuelle des écrans : ${p.done}/${p.total}…`
+  return 'En attente de la réponse de Claude Code…'
+}
+
 export function ClaudePanel({ api, onOpenSettings }: { api: MaquioApi; onOpenSettings: () => void }) {
   const [instruction, setInstruction] = useState('')
   // La disponibilite vit dans un magasin partage avec SettingsDialog (voir
@@ -67,6 +75,10 @@ export function ClaudePanel({ api, onOpenSettings }: { api: MaquioApi; onOpenSet
   const [resume, setResume] = useState('')
   const [erreur, setErreur] = useState('')
   const [redetection, setRedetection] = useState(false)
+  // Etape d'une creation d'application (plan, ecrans, revue visuelle).
+  const [progres, setProgres] = useState<{ step: string; done: number; total: number } | null>(null)
+
+  useEffect(() => window.maquioMenu?.onClaudeProgress?.((p) => setProgres(p)), [])
 
   // « Réessayer la détection » : oublie la découverte mémorisée côté main
   // (PATH du shell de connexion, emplacements connus) et la relance.
@@ -123,6 +135,7 @@ export function ClaudePanel({ api, onOpenSettings }: { api: MaquioApi; onOpenSet
     const instructionEnvoyee = instruction
 
     setStatut('loading')
+    setProgres(null)
     setErreur('')
     setDerniereInstruction(instructionEnvoyee)
 
@@ -242,7 +255,7 @@ export function ClaudePanel({ api, onOpenSettings }: { api: MaquioApi; onOpenSet
 
         {statut === 'loading' ? (
           <div role="status" className="claude-panel-loading">
-            <p>En attente de la réponse de Claude Code…</p>
+            <p>{libelleProgres(progres)}</p>
             <button type="button" className="claude-panel-settings-link" onClick={() => void annuler()}>
               Annuler
             </button>

@@ -30,7 +30,7 @@ import {
   ClaudeUnavailableError,
   InvalidPatchError,
 } from '@maquio/ai'
-import type { AiService } from '@maquio/ai'
+import type { AiService, PipelineHooks } from '@maquio/ai'
 import { ZodError } from 'zod'
 import { translateUnknownError } from '../../shared/errors'
 
@@ -121,7 +121,9 @@ function translateClaudeError(err: unknown): Error {
   return translateUnknownError(err, 'Erreur Claude Code')
 }
 
-export function createClaudeHandler(deps: { service: AiService; requests: ClaudeRequestTracker }) {
+// `hooks` : progression et rendu des ecrans d'une creation d'application
+// (voir packages/ai/src/app-pipeline.ts), propres a la demande en cours.
+export function createClaudeHandler(deps: { service: AiService; requests: ClaudeRequestTracker; hooks?: PipelineHooks }) {
   return async (input: ClaudeAskInput): Promise<ClaudeAskOutput> => {
     let document: ReturnType<typeof parseDocument>
     try {
@@ -140,6 +142,7 @@ export function createClaudeHandler(deps: { service: AiService; requests: Claude
           pageId: input.pageId,
         },
         controller.signal,
+        deps.hooks,
       )
       const nextDocument = command.apply(document)
       return { patchJson: JSON.stringify(patch), documentJson: serializeDocument(nextDocument) }

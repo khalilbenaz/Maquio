@@ -23,6 +23,7 @@ declare global {
       pathForFile: (file: File) => string
       onThemeChanged: (callback: (preference: string) => void) => () => void
       onViewRequested: (callback: (action: string) => void) => () => void
+      onClaudeProgress?: (callback: (progress: { step: string; done: number; total: number }) => void) => () => void
       onOpenPathRequested: (callback: (path: string) => void) => () => void
       onNewRequested: (callback: () => void) => () => void
       onOpenRequested: (callback: () => void) => () => void
