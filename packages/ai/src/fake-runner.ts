@@ -4,7 +4,7 @@
 // `(prompt) => string` (scenario qui reagit au prompt recu), et enregistre
 // chaque prompt recu dans `prompts` pour que les tests puissent verifier ce
 // qui a ete envoye (ex. que l'instruction de l'utilisateur y figure).
-import type { ClaudeRunner } from './runner'
+import type { ClaudeRunner, RunOptions } from './runner'
 
 // Quand la liste de reponses scriptees est epuisee : une erreur nommee et
 // explicite, plutot qu'un `undefined` silencieux qui ferait planter plus
@@ -19,6 +19,8 @@ export class FakeClaudeRunnerExhaustedError extends Error {
 
 export class FakeClaudeRunner implements ClaudeRunner {
   readonly prompts: string[] = []
+  // Options de chaque appel (images jointes), dans l'ordre des prompts.
+  readonly options: (RunOptions | undefined)[] = []
   private readonly responses: string[] | ((prompt: string) => string)
   private cursor = 0
 

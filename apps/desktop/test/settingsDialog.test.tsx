@@ -102,6 +102,7 @@ describe('SettingsDialog', () => {
             claudeAvailable: true,
             claudePath: '/usr/local/bin/claude',
             claudeCustomPath: null,
+            claudeModel: 'claude-opus-5-5',
           }),
         }}
         onClose={() => {}}
@@ -132,6 +133,7 @@ describe('SettingsDialog — Claude Code', () => {
             claudeAvailable: true,
             claudePath: '/opt/homebrew/bin/claude',
             claudeCustomPath: null,
+            claudeModel: 'claude-opus-5-5',
           }),
         }}
         onClose={() => {}}
@@ -151,6 +153,7 @@ describe('SettingsDialog — Claude Code', () => {
             claudeAvailable: false,
             claudePath: null,
             claudeCustomPath: null,
+            claudeModel: 'claude-opus-5-5',
           }),
         }}
         onClose={() => {}}
@@ -190,6 +193,7 @@ describe('SettingsDialog — Claude Code', () => {
             claudeAvailable: true,
             claudePath: '/usr/local/bin/claude',
             claudeCustomPath: null,
+            claudeModel: 'claude-opus-5-5',
           }),
           setClaudeCustomPath,
         }}
@@ -212,12 +216,13 @@ describe('SettingsDialog — Claude Code', () => {
   it('le bouton Verifier relance la detection et affiche le nouveau resultat', async () => {
     const getSettings = vi
       .fn()
-      .mockResolvedValueOnce({ hasFigmaToken: false, claudeAvailable: false, claudePath: null, claudeCustomPath: null })
+      .mockResolvedValueOnce({ hasFigmaToken: false, claudeAvailable: false, claudePath: null, claudeCustomPath: null, claudeModel: 'claude-opus-5-5' })
       .mockResolvedValueOnce({
         hasFigmaToken: false,
         claudeAvailable: true,
         claudePath: '/usr/local/bin/claude',
         claudeCustomPath: null,
+        claudeModel: 'claude-opus-5-5',
       })
 
     render(<SettingsDialog api={{ ...apiFactice, getSettings }} onClose={() => {}} />)
@@ -240,6 +245,7 @@ describe('SettingsDialog — Claude Code', () => {
             claudeAvailable: false,
             claudePath: null,
             claudeCustomPath: null,
+            claudeModel: 'claude-opus-5-5',
           }),
           setClaudeCustomPath,
         }}
@@ -272,5 +278,26 @@ describe('SettingsDialog : apparence', () => {
     expect((screen.getByLabelText("Thème de l'éditeur") as HTMLSelectElement).value).toBe('light')
     fireEvent.change(select, { target: { value: 'violet' } })
     expect(setThemePreference).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('SettingsDialog — modele Claude', () => {
+  it('affiche le modele enregistre et enregistre le nouveau choix', async () => {
+    const setClaudeModel = vi.fn(async () => {})
+    render(
+      <SettingsDialog
+        api={{
+          ...apiFactice,
+          getSettings: async () => ({ hasFigmaToken: false, claudeAvailable: true, claudePath: '/c', claudeCustomPath: null, claudeModel: 'claude-sonnet-5-5' }),
+          setClaudeModel,
+        }}
+        onClose={() => {}}
+      />,
+    )
+    const select = (await screen.findByLabelText('Modèle Claude')) as HTMLSelectElement
+    await vi.waitFor(() => expect(select.value).toBe('claude-sonnet-5-5'))
+    fireEvent.change(select, { target: { value: 'claude-opus-5-5' } })
+    expect(setClaudeModel).toHaveBeenCalledWith('claude-opus-5-5')
+    expect(select.value).toBe('claude-opus-5-5')
   })
 })

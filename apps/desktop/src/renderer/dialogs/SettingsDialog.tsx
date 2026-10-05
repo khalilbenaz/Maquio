@@ -25,6 +25,7 @@ import { useEffect, useState } from 'react'
 import type { MaquioApi } from '../../shared/api'
 import { messageOfError } from '../../shared/errors'
 import { useClaudeStatusStore } from '../state/claudeStatusStore'
+import { CLAUDE_MODELS, DEFAULT_CLAUDE_MODEL } from '../../shared/claudeModels'
 import { useThemeStore } from '../state/themeStore'
 import { THEME_LABELS, THEME_PREFERENCES, isThemePreference } from '../../shared/theme'
 import './Dialog.css'
@@ -52,6 +53,7 @@ export function SettingsDialog({ api, onClose }: { api: MaquioApi; onClose: () =
   const [cheminSaisi, setCheminSaisi] = useState('')
   const [claudeStatut, setClaudeStatut] = useState<Statut>('idle')
   const [claudeErreur, setClaudeErreur] = useState('')
+  const [claudeModel, setClaudeModel] = useState<string>(DEFAULT_CLAUDE_MODEL)
 
   const ecrireStatutPartage = useClaudeStatusStore((s) => s.setStatus)
 
@@ -63,6 +65,7 @@ export function SettingsDialog({ api, onClose }: { api: MaquioApi; onClose: () =
       setClaudeAvailable(reglages.claudeAvailable)
       setClaudePath(reglages.claudePath)
       setCheminSaisi(reglages.claudeCustomPath ?? '')
+      setClaudeModel(reglages.claudeModel)
       ecrireStatutPartage({ available: reglages.claudeAvailable, path: reglages.claudePath })
     })
     return () => {
@@ -290,6 +293,28 @@ export function SettingsDialog({ api, onClose }: { api: MaquioApi; onClose: () =
                 Vérifier
               </button>
             </div>
+
+            <label htmlFor="claude-model-select" className="dialog-field-label">
+              Modèle Claude
+            </label>
+            <select
+              id="claude-model-select"
+              aria-label="Modèle Claude"
+              className="dialog-input"
+              value={claudeModel}
+              onChange={(e) => {
+                const choix = e.target.value
+                setClaudeModel(choix)
+                void api.setClaudeModel(choix).catch((err: unknown) => setClaudeErreur(messageOfError(err)))
+              }}
+            >
+              {CLAUDE_MODELS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <p className="dialog-hint">Opus donne les designs les plus soignés ; Sonnet répond plus vite.</p>
           </div>
         </div>
       </section>

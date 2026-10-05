@@ -28,6 +28,7 @@ import { nodeFetch } from './adapters/nodeFetch'
 import { figmaApiBase } from './adapters/figmaApiBase'
 import { createSecretStore } from './adapters/secretStore'
 import { createClaudeSettingsStore } from './adapters/claudeSettingsStore'
+import { DEFAULT_CLAUDE_MODEL } from '../shared/claudeModels'
 import { createClaudeWhich, validateClaudeBinaryPath } from './adapters/claudeDetection'
 import type { ClaudePathFs } from './adapters/claudeDetection'
 import { createClaudeDiscovery } from './adapters/claudeDiscovery'
@@ -176,6 +177,8 @@ const lanceurClaude = new ProcessClaudeRunner({
   spawn: nodeSpawn,
   which: whichClaude,
   workingDirectory: createNeutralClaudeWorkingDirectory,
+  // Modele choisi dans les reglages, relu a chaque appel (Opus par defaut).
+  model: async () => (magasinReglagesClaude ? await magasinReglagesClaude.getModel() : DEFAULT_CLAUDE_MODEL),
   // Delai personnalisable (tests de bout en bout) ; absent ou invalide : 10 minutes.
   ...(Number.isFinite(Number(process.env['MAQUIO_CLAUDE_TIMEOUT_MS'])) && Number(process.env['MAQUIO_CLAUDE_TIMEOUT_MS']) > 0
     ? { timeoutMs: Number(process.env['MAQUIO_CLAUDE_TIMEOUT_MS']) }
@@ -325,7 +328,8 @@ function enregistrerLesGestionnaires(): void {
     const claude = magasinReglagesClaude
       ? await createGetClaudeSettingsHandler({ store: magasinReglagesClaude, resolveStatus: resolveClaudeStatus })()
       : { claudeAvailable: false, claudePath: null, claudeCustomPath: null }
-    return { ...figma, ...claude }
+    const claudeModel = magasinReglagesClaude ? await magasinReglagesClaude.getModel() : DEFAULT_CLAUDE_MODEL
+    return { ...figma, ...claude, claudeModel }
   })
 
   // « Réessayer la détection » : oublie la découverte mémorisée et la relance.
@@ -333,6 +337,11 @@ function enregistrerLesGestionnaires(): void {
     if (decouverteActive) await decouverteClaude.refresh()
     const statut = await resolveClaudeStatus()
     return { claudeAvailable: statut.available, claudePath: statut.path }
+  })
+
+  handle('setClaudeModel', async (_event, model: string) => {
+    if (!magasinReglagesClaude) throw new Error('Réglages Claude indisponibles')
+    await magasinReglagesClaude.setModel(model)
   })
 
   handle('chooseClaudeBinary', async () => {

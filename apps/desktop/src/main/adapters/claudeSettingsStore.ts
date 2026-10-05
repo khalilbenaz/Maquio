@@ -11,6 +11,12 @@
 // fichier testable sans systeme de fichiers reel (voir
 // test/claudeSettingsStore.test.ts). L'adaptateur reel (node:fs/promises)
 // est cable dans main.ts, comme secretStore.ts.
+//
+// Le meme fichier porte le modele Claude choisi (voir shared/claudeModels.ts) :
+// chaque reglage est ecrit sans effacer l'autre.
+import { DEFAULT_CLAUDE_MODEL, isClaudeModelId } from '../../shared/claudeModels'
+import type { ClaudeModelId } from '../../shared/claudeModels'
+
 export type ClaudeSettingsFs = {
   readFile: (path: string) => Promise<string>
   writeFile: (path: string, data: string) => Promise<void>
@@ -20,29 +26,41 @@ export type ClaudeSettingsFs = {
 export type ClaudeSettingsStore = {
   getCustomPath(): Promise<string | null>
   setCustomPath(path: string | null): Promise<void>
+  getModel(): Promise<ClaudeModelId>
+  setModel(model: string): Promise<void>
 }
 
-type StoredShape = { customPath: string | null }
+type StoredShape = { customPath: string | null; model: ClaudeModelId }
+
+const VIDE: StoredShape = { customPath: null, model: DEFAULT_CLAUDE_MODEL }
 
 export function createClaudeSettingsStore(opts: { filePath: string; fs: ClaudeSettingsFs }): ClaudeSettingsStore {
   const { filePath, fs } = opts
 
   async function lire(): Promise<StoredShape> {
-    if (!(await fs.pathExists(filePath))) return { customPath: null }
+    if (!(await fs.pathExists(filePath))) return VIDE
     try {
       const brut = await fs.readFile(filePath)
       const parse: unknown = JSON.parse(brut)
-      if (typeof parse === 'object' && parse !== null && typeof (parse as StoredShape).customPath === 'string') {
-        return { customPath: (parse as StoredShape).customPath }
+      if (typeof parse !== 'object' || parse === null) return VIDE
+      const record = parse as Record<string, unknown>
+      return {
+        customPath: typeof record['customPath'] === 'string' ? record['customPath'] : null,
+        // Un modele inconnu (fichier edite a la main) : retour au defaut.
+        model: isClaudeModelId(record['model']) ? record['model'] : DEFAULT_CLAUDE_MODEL,
       }
-      return { customPath: null }
     } catch {
       // Fichier corrompu (JSON illisible ou de forme inattendue) : on se
       // rabat sur "aucun chemin enregistre" plutot que de lever, coherent
       // avec le fait qu'un fichier de reglages en clair peut toujours etre
       // edite (ou casse) a la main par l'utilisateur.
-      return { customPath: null }
+      return VIDE
     }
+  }
+
+  async function ecrire(valeur: StoredShape): Promise<void> {
+    // En clair, sans aucun chiffrement (voir la note en tete de fichier).
+    await fs.writeFile(filePath, JSON.stringify(valeur, null, 2))
   }
 
   return {
@@ -51,8 +69,16 @@ export function createClaudeSettingsStore(opts: { filePath: string; fs: ClaudeSe
     },
 
     async setCustomPath(path: string | null) {
-      // En clair, sans aucun chiffrement (voir la note en tete de fichier).
-      await fs.writeFile(filePath, JSON.stringify({ customPath: path }, null, 2))
+      await ecrire({ ...(await lire()), customPath: path })
+    },
+
+    async getModel() {
+      return (await lire()).model
+    },
+
+    async setModel(model: string) {
+      if (!isClaudeModelId(model)) throw new Error(`Modèle Claude inconnu : ${model}`)
+      await ecrire({ ...(await lire()), model })
     },
   }
 }

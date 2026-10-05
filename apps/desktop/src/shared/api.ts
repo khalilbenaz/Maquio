@@ -80,6 +80,8 @@ export type MaquioApi = {
     claudeAvailable: boolean
     claudePath: string | null
     claudeCustomPath: string | null
+    // Modele transmis a `claude --model` (voir shared/claudeModels.ts).
+    claudeModel: string
   }>
   setFigmaToken(token: string): Promise<void>
   // Enregistre (ou efface, avec une chaine vide) un chemin personnalise
@@ -96,6 +98,9 @@ export type MaquioApi = {
   redetectClaude(): Promise<{ claudeAvailable: boolean; claudePath: string | null }>
   // Selecteur de fichier pour le binaire claude ; null si annule.
   chooseClaudeBinary(): Promise<string | null>
+  // Modele Claude des demandes suivantes (un identifiant de CLAUDE_MODELS ;
+  // tout autre est refuse).
+  setClaudeModel(model: string): Promise<void>
   // Défaut n3 (« comment mettre l'image ? ») : sélecteur de fichier natif
   // pour choisir une image, utilisé au tracé d'un nœud Image (voir
   // useDragInteraction.ts) et depuis l'inspecteur (« Choisir une image… »,
@@ -127,6 +132,7 @@ export const API_CHANNELS = [
   'setClaudeCustomPath',
   'redetectClaude',
   'chooseClaudeBinary',
+  'setClaudeModel',
   'chooseImage',
   'getThemePreference',
   'setThemePreference',
