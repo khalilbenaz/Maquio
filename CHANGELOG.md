@@ -2,6 +2,11 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [1.2.1] - 2026-10-05
+
+### Corrigé
+- Création d’application : pendant la revue visuelle, toute l’interface de Maquio passait à 200 %. Le rendu caché des écrans zoomait sa page, et Chromium applique le zoom par origine, donc aussi à la fenêtre de l’éditeur ; l’échelle de capture passe désormais par une transformation CSS.
+
 ## [1.2.0] - 2026-10-05
 
 ### Ajouté

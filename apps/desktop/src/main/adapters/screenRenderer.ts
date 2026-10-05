@@ -42,7 +42,9 @@ export function createScreenRenderer(): { render: ScreenRenderer; dispose: () =>
         })
         if (urlDev !== undefined) await win.loadURL(`${urlDev}#render`)
         else await win.loadFile(path.join(__dirname, '../renderer/index.html'), { hash: 'render' })
-        win.webContents.setZoomFactor(SCALE)
+        // Pas de setZoomFactor : Chromium applique le zoom PAR ORIGINE, il
+        // aurait aussi zoome la fenetre de l'editeur (meme page locale).
+        // L'echelle est appliquee par le banc lui-meme (transformation CSS).
         return win
       })()
     }
@@ -53,7 +55,7 @@ export function createScreenRenderer(): { render: ScreenRenderer; dispose: () =>
     const win = await ouvrir()
     // Le document passe comme litteral de chaine JSON, relu par parseDocument
     // dans le banc : jamais interprete comme du code.
-    const appel = `window.__maquioRender(${JSON.stringify(serializeDocument(document))}, ${JSON.stringify(pageId)}, ${JSON.stringify(screenId)})`
+    const appel = `window.__maquioRender(${JSON.stringify(serializeDocument(document))}, ${JSON.stringify(pageId)}, ${JSON.stringify(screenId)}, ${SCALE})`
     const taille = (await win.webContents.executeJavaScript(appel)) as { w: number; h: number }
     if (taille.w <= 0 || taille.h <= 0) throw new Error(`Écran introuvable pour le rendu : ${screenId}`)
     const largeur = Math.ceil(taille.w * SCALE)
