@@ -16,11 +16,11 @@ import { pageNodesOf } from '../canvas/useDragInteraction'
 import { ScreenLayer } from '../prototype/PrototypeView'
 import { referencedOverlays } from '../prototype/prototypeEngine'
 
-type Target = { pageId: string; screenId: string; done: (size: { w: number; h: number }) => void }
+type Target = { pageId: string; screenId: string; scale: number; done: (size: { w: number; h: number }) => void }
 
 declare global {
   interface Window {
-    __maquioRender?: (json: string, pageId: string, screenId: string) => Promise<{ w: number; h: number }>
+    __maquioRender?: (json: string, pageId: string, screenId: string, scale?: number) => Promise<{ w: number; h: number }>
   }
 }
 
@@ -32,10 +32,10 @@ export function RenderHarness() {
   const pending = useRef<Target | null>(null)
 
   useEffect(() => {
-    window.__maquioRender = (json, pageId, screenId) =>
+    window.__maquioRender = (json, pageId, screenId, scale = 1) =>
       new Promise((resolve) => {
         useEditorStore.getState().load(parseDocument(json))
-        setTarget({ pageId, screenId, done: resolve })
+        setTarget({ pageId, screenId, scale, done: resolve })
       })
     return () => {
       delete window.__maquioRender
@@ -60,8 +60,13 @@ export function RenderHarness() {
   const screen = nodes.find((n) => n.id === target.screenId && isScreenNode(n))
   if (screen === undefined) return null
   return (
-    <div style={{ position: 'fixed', left: 0, top: 0, width: screen.frame.w, height: screen.frame.h, overflow: 'hidden' }}>
-      <ScreenLayer pageNodes={nodes} screen={screen} hidden={referencedOverlays(nodes)} open={[]} testId="render-screen" />
+    // Echelle par transformation CSS (jamais par le zoom de la page, partage
+    // avec l'editeur) : une capture nette, ou les petits textes restent
+    // lisibles pour la critique.
+    <div style={{ position: 'fixed', left: 0, top: 0, width: screen.frame.w * target.scale, height: screen.frame.h * target.scale, overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', left: 0, top: 0, width: screen.frame.w, height: screen.frame.h, transform: `scale(${target.scale})`, transformOrigin: '0 0' }}>
+        <ScreenLayer pageNodes={nodes} screen={screen} hidden={referencedOverlays(nodes)} open={[]} testId="render-screen" />
+      </div>
     </div>
   )
 }
