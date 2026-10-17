@@ -142,7 +142,7 @@
     "@maquio/core": "*",
     "@maquio/figma": "*",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "react-dom": "^19.3.1",
     "zod": "^3.23.0",
     "zustand": "^5.0.15"
   },
