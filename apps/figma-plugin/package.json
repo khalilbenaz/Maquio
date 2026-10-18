@@ -12,6 +12,6 @@
     "@maquio/core": "*"
   },
   "devDependencies": {
-    "@figma/plugin-typings": "^1.100.0"
+    "@figma/plugin-typings": "^1.141.0"
   }
 }
