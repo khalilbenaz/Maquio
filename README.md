@@ -2,14 +2,14 @@
 <p align="center"><img src="assets/brand/maquio-logotype.png" alt="maquio — De la maquette au code natif." width="420"></p>
 
 <p align="center">
-  <a href="https://github.com/khalilbenaz/Maquio/actions/workflows/ci.yml"><img src="https://github.com/khalilbenaz/Maquio/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/khalilbenaz/Maquio/releases/latest"><img src="https://img.shields.io/github/v/release/khalilbenaz/Maquio?display_name=tag&sort=semver" alt="Dernière release"></a>
+  <a href="https://github.com/vantaflow/Maquio/actions/workflows/ci.yml"><img src="https://github.com/vantaflow/Maquio/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/vantaflow/Maquio/releases/latest"><img src="https://img.shields.io/github/v/release/vantaflow/Maquio?display_name=tag&sort=semver" alt="Dernière release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-FF5A36" alt="Licence MIT"></a>
 </p>
 
 <p align="center">
-  <a href="https://khalilbenaz.github.io/Maquio/"><b>Site</b></a> ·
-  <a href="https://github.com/khalilbenaz/Maquio/releases/latest"><b>Télécharger</b></a> ·
+  <a href="https://vantaflow.github.io/Maquio/"><b>Site</b></a> ·
+  <a href="https://github.com/vantaflow/Maquio/releases/latest"><b>Télécharger</b></a> ·
   <a href="#installation">Installation</a> ·
   <a href="CHANGELOG.md">Changelog</a>
 </p>
@@ -46,7 +46,7 @@ fait pour vivre dans un dépôt à côté du code qu'il décrit.
 ## Installation
 
 Téléchargez le paquet de votre système sur la
-[page des releases](https://github.com/khalilbenaz/Maquio/releases/latest)
+[page des releases](https://github.com/vantaflow/Maquio/releases/latest)
 (sommes SHA-256 dans `SHA256SUMS.txt`). Les paquets ne sont pas encore signés.
 
 | Système | Fichier | Premier lancement |
@@ -508,4 +508,4 @@ précédente version de ce document, vérifié avec le vrai SDK Dart via
 
 ## Licence
 
-Distribué sous licence [MIT](LICENSE) © 2026 Khalil Benazzouz.
+Distribué sous licence [MIT](LICENSE) © 2026 vantaflow.

@@ -17,7 +17,7 @@ const serveur = http.createServer((req, res) => {
 })
 await new Promise((r) => serveur.listen(0, '127.0.0.1', r))
 const base = `http://127.0.0.1:${serveur.address().port}/`
-const release = [{ tag_name: 'v1.0.0', assets: ['Maquio-1.0.0-mac-universal.dmg', 'Maquio-1.0.0-mac-universal.zip', 'Maquio-1.0.0-win-x64.exe', 'Maquio-1.0.0-win-arm64.exe', 'Maquio-1.0.0-linux-x86_64.AppImage', 'Maquio-1.0.0-linux-amd64.deb'].map((name) => ({ name, browser_download_url: `https://github.com/khalilbenaz/Maquio/releases/download/v1.0.0/${name}` })) }]
+const release = [{ tag_name: 'v1.0.0', assets: ['Maquio-1.0.0-mac-universal.dmg', 'Maquio-1.0.0-mac-universal.zip', 'Maquio-1.0.0-win-x64.exe', 'Maquio-1.0.0-win-arm64.exe', 'Maquio-1.0.0-linux-x86_64.AppImage', 'Maquio-1.0.0-linux-amd64.deb'].map((name) => ({ name, browser_download_url: `https://github.com/vantaflow/Maquio/releases/download/v1.0.0/${name}` })) }]
 
 const navigateur = await chromium.launch({ executablePath: process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' })
 let ko = 0
@@ -43,7 +43,7 @@ for (const [nom, viewport, scheme, ua] of [
   const sansAlt = await page.evaluate(() => [...document.images].filter((i) => !i.hasAttribute('alt')).length)
   check(`${nom} : toutes les images ont un alt`, sansAlt === 0)
   const bouton = await page.locator('#dl-main').evaluate((a) => ({ t: a.textContent, h: a.href }))
-  check(`${nom} : bouton de telechargement`, /Télécharger/.test(bouton.t) && bouton.h.includes('github.com/khalilbenaz/Maquio/releases'), `${bouton.t} -> ${bouton.h}`)
+  check(`${nom} : bouton de telechargement`, /Télécharger/.test(bouton.t) && bouton.h.includes('github.com/vantaflow/Maquio/releases'), `${bouton.t} -> ${bouton.h}`)
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor)
   check(`${nom} : theme`, bg === (scheme === 'dark' ? 'rgb(22, 19, 31)' : 'rgb(244, 239, 230)'), bg)
   const poids = await page.evaluate(() => performance.getEntriesByType('resource').reduce((s, e) => s + (e.transferSize || e.encodedBodySize || 0), 0))

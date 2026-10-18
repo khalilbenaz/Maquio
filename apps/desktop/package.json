@@ -5,9 +5,9 @@
   "private": true,
   "description": "Maquio - de la maquette au code natif (editeur d'interfaces mobiles)",
   "author": {
-    "name": "Khalil Benazzouz",
+    "name": "vantaflow",
     "email": "noreply@github.com",
-    "url": "https://github.com/khalilbenaz"
+    "url": "https://github.com/vantaflow"
   },
   "type": "module",
   "main": "dist/main/main.js",
@@ -67,7 +67,7 @@
       "icon": "build/icon.png",
       "category": "Development",
       "synopsis": "Éditeur d’interfaces mobiles vers le code natif",
-      "maintainer": "Khalil Benazzouz <noreply@github.com>",
+      "maintainer": "vantaflow <noreply@github.com>",
       "target": [
         {
           "target": "AppImage",
@@ -111,7 +111,7 @@
       }
     ],
     "artifactName": "Maquio-${version}-${os}-${arch}.${ext}",
-    "copyright": "Copyright © 2026 Khalil Benazzouz",
+    "copyright": "Copyright © 2026 vantaflow",
     "dmg": {
       "title": "Maquio ${version}"
     },
@@ -157,5 +157,5 @@
     "jsdom": "^29.1.1",
     "vite": "^8.3.2"
   },
-  "homepage": "https://khalilbenaz.github.io/Maquio/"
+  "homepage": "https://vantaflow.github.io/Maquio/"
 }

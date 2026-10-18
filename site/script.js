@@ -2,7 +2,7 @@
 // dernière release publiée (API GitHub, sans clé). Sans réponse, le lien reste
 // celui de la page des releases : la page fonctionne sans JavaScript.
 (() => {
-  const REPO = 'khalilbenaz/Maquio'
+  const REPO = 'vantaflow/Maquio'
   const main = document.getElementById('dl-main')
   const note = document.getElementById('dl-note')
   const list = document.getElementById('dl-list')

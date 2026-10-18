@@ -1,6 +1,6 @@
 name: Pages
 
-# Publie `site/` sur https://khalilbenaz.github.io/Maquio/ a chaque push sur
+# Publie `site/` sur https://vantaflow.github.io/Maquio/ a chaque push sur
 # main qui touche le site (ou ce workflow).
 on:
   push:
